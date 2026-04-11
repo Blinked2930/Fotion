@@ -6,16 +6,33 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Fotion',
     description: 'Lightning-fast task triage.',
     start_url: '/',
-    display: 'standalone', /* THIS IS CRITICAL for the native app feel */
-    background_color: '#ffffff',
-    theme_color: '#37352f',
+    display: 'standalone',
+    background_color: '#191919', // Set to match your dark mode background
+    theme_color: '#191919',
     icons: [
       {
         src: '/favicon.ico',
         sizes: 'any',
         type: 'image/x-icon',
       },
-      // Note: You will eventually want to drop a 192x192 and 512x512 png icon into your public folder!
+      {
+        src: '/icon-192x192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/icon-512x512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/icon-512x512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
     ],
-  }
+  };
 }
