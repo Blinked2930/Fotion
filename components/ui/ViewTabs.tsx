@@ -1,30 +1,37 @@
 "use client";
 
-export type ViewType = "Matrix" | "List" | "Today" | "Raw Data";
+import { LayoutGrid, ListTodo, Calendar, Database } from "lucide-react";
 
-interface ViewTabsProps {
-  activeView: ViewType;
-  onViewChange: (view: ViewType) => void;
-}
+export type ViewType = "Matrix" | "Pipelines" | "Today" | "Raw Data";
 
-const views: ViewType[] = ["Matrix", "List", "Today", "Raw Data"];
+export function ViewTabs({ activeView, onViewChange }: { activeView: ViewType; onViewChange: (view: ViewType) => void }) {
+  const tabs: { id: ViewType; icon: any; label: string }[] = [
+    { id: "Matrix", icon: LayoutGrid, label: "Matrix" },
+    { id: "Pipelines", icon: ListTodo, label: "Pipelines" },
+    { id: "Today", icon: Calendar, label: "Today" },
+    { id: "Raw Data", icon: Database, label: "Raw Data" },
+  ];
 
-export function ViewTabs({ activeView, onViewChange }: ViewTabsProps) {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-b border-[var(--border)] mb-6 hide-scrollbar">
-      {views.map((view) => (
-        <button
-          key={view}
-          onClick={() => onViewChange(view)}
-          className={`px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-            activeView === view
-              ? "border-[var(--foreground)] text-[var(--foreground)]"
-              : "border-transparent text-zinc-500 hover:text-[var(--foreground)] hover:bg-[var(--subtle-bg)] rounded-t"
-          }`}
-        >
-          {view}
-        </button>
-      ))}
+    <div className="flex items-center gap-1 mb-6 border-b border-[var(--border)] pb-2 overflow-x-auto hide-scrollbar">
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        const isActive = activeView === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onViewChange(tab.id)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+              isActive 
+                ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900" 
+                : "text-zinc-500 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { calculateQuadrant } from "@/lib/eisenhower";
@@ -36,6 +37,63 @@ const NotionCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () 
   </button>
 );
 
+// --- BEAUTIFUL CUSTOM DROPDOWNS ---
+function BeautifulDropdown({ value, options, onChange, renderPill, placeholder = "Empty" }: { value: any, options: {value: string | null, label?: string}[], onChange: (val: any) => void, renderPill: (val: any) => React.ReactNode, placeholder?: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative w-full" ref={ref}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full text-left flex items-center justify-between p-1 -ml-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+      >
+        {value ? renderPill(value) : <span className="text-zinc-400 text-xs px-1">{placeholder}</span>}
+      </button>
+      {isOpen && (
+        <div className="absolute top-full left-0 z-[100] mt-1 min-w-[140px] bg-white dark:bg-[#252525] border border-[var(--border)] rounded-lg shadow-xl py-1">
+          {options.map(opt => (
+            <button 
+              key={opt.value || 'null'} 
+              onClick={() => { onChange(opt.value); setIsOpen(false); }} 
+              className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center"
+            >
+              {opt.value ? renderPill(opt.value) : <span className="text-zinc-400 text-xs">{opt.label || placeholder}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const StatusPill = (status: string) => {
+  const styles: Record<string, string> = {
+    'todo': 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    'in-progress': 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    'done': 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  };
+  const labels: Record<string, string> = { 'todo': 'To Do', 'in-progress': 'In Progress', 'done': 'Done' };
+  return <span className={`px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap ${styles[status] || styles['todo']}`}>{labels[status] || status}</span>;
+};
+
+const ListPill = (list: string) => {
+  const styles: Record<string, string> = {
+    'Current': 'bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+    'Waiting For': 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+    'Someday Maybe': 'bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  };
+  return <span className={`px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap ${styles[list] || styles['Waiting For']}`}>{list}</span>;
+};
+
 export function RawDataView() {
   const tasks = useQuery(api.tasks.getTasks);
   const projects = useQuery(api.projects.getProjects);
@@ -53,8 +111,20 @@ export function RawDataView() {
     updateTask({ id, [field]: value });
   };
 
+  const projectOptions = [
+    { value: null, label: "None" },
+    ...projects.map(p => ({ value: p._id, label: p.name }))
+  ];
+
+  const ProjectPill = (id: string) => {
+    const p = projects.find(proj => proj._id === id);
+    if (!p) return <span className="text-zinc-400 text-xs">Empty</span>;
+    return <span className="px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{p.name}</span>;
+  };
+
   return (
-    <div className="w-full overflow-x-auto pb-12">
+    // pb-48 ensures absolute dropdowns don't get clipped by the table wrapper scroll
+    <div className="w-full overflow-x-auto pb-48">
       <div className="inline-block min-w-full align-middle">
         <table className="w-full text-left border-collapse border border-[var(--border)]">
           <thead>
@@ -65,17 +135,16 @@ export function RawDataView() {
               <NotionHeader icon={Calendar} label="Do On Date" minWidth="150px" />
               <NotionHeader icon={CheckSquare} label="Important?" minWidth="110px" />
               <NotionHeader icon={CheckSquare} label="Urgent?" minWidth="100px" />
+              <NotionHeader icon={CheckSquare} label="For Funsies" minWidth="110px" />
               <NotionHeader icon={Folder} label="Project" minWidth="160px" />
               <NotionHeader icon={ListIcon} label="List" minWidth="160px" />
               <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
-              <NotionHeader icon={CheckSquare} label="For Funsies" minWidth="110px" />
               <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
             </tr>
           </thead>
           <tbody>
             {tasks.map((task) => {
               const quadrant = calculateQuadrant(task.isForFunsies, task.isUrgent, task.isImportant);
-              
               return (
                 <tr key={task._id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors group">
                   <NotionCell>
@@ -88,11 +157,12 @@ export function RawDataView() {
                   </NotionCell>
                   
                   <NotionCell>
-                    <select value={task.status} onChange={(e) => handleUpdate(task._id, "status", e.target.value)} className="bg-transparent outline-none cursor-pointer text-xs font-medium w-full">
-                      <option value="todo">To Do</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="done">Done</option>
-                    </select>
+                    <BeautifulDropdown 
+                      value={task.status} 
+                      options={[{value: 'todo'}, {value: 'in-progress'}, {value: 'done'}]} 
+                      onChange={(val) => handleUpdate(task._id, "status", val)} 
+                      renderPill={StatusPill} 
+                    />
                   </NotionCell>
                   
                   <NotionCell>
@@ -116,26 +186,30 @@ export function RawDataView() {
                   </NotionCell>
 
                   <NotionCell>
-                    <select value={task.projectId || ""} onChange={(e) => handleUpdate(task._id, "projectId", e.target.value || null)} className="bg-transparent outline-none cursor-pointer text-xs font-medium w-full">
-                      <option value="">None</option>
-                      {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-                    </select>
-                  </NotionCell>
-
-                  <NotionCell>
-                    <select value={task.listCategory || "Current"} onChange={(e) => handleUpdate(task._id, "listCategory", e.target.value)} className="bg-transparent outline-none cursor-pointer text-xs font-medium w-full">
-                      <option value="Current">Current</option>
-                      <option value="Waiting For">Waiting For</option>
-                      <option value="Someday Maybe">Someday Maybe</option>
-                    </select>
-                  </NotionCell>
-
-                  <NotionCell>
-                    <span className="text-zinc-600 dark:text-zinc-300">{quadrant}</span>
-                  </NotionCell>
-
-                  <NotionCell>
                     <NotionCheckbox checked={task.isForFunsies} onChange={() => handleUpdate(task._id, "isForFunsies", !task.isForFunsies)} />
+                  </NotionCell>
+
+                  <NotionCell>
+                    <BeautifulDropdown 
+                      value={task.projectId} 
+                      options={projectOptions} 
+                      onChange={(val) => handleUpdate(task._id, "projectId", val)} 
+                      renderPill={ProjectPill} 
+                      placeholder="None"
+                    />
+                  </NotionCell>
+
+                  <NotionCell>
+                    <BeautifulDropdown 
+                      value={task.listCategory || "Current"} 
+                      options={[{value: 'Current'}, {value: 'Waiting For'}, {value: 'Someday Maybe'}]} 
+                      onChange={(val) => handleUpdate(task._id, "listCategory", val)} 
+                      renderPill={ListPill} 
+                    />
+                  </NotionCell>
+
+                  <NotionCell>
+                    <span className="text-zinc-600 dark:text-zinc-300 text-[12px]">{quadrant}</span>
                   </NotionCell>
 
                   <NotionCell>

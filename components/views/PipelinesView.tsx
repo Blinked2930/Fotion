@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 type ListCategory = "Current" | "Waiting For" | "Someday Maybe";
 const categories: ListCategory[] = ["Current", "Waiting For", "Someday Maybe"];
 
-export function ListView() {
+export function PipelinesView() {
   const tasks = useQuery(api.tasks.getTasks);
 
   if (tasks === undefined) {
@@ -22,9 +22,8 @@ export function ListView() {
   return (
     <div className="max-w-3xl space-y-10 pb-8">
       {categories.map((category) => {
-        const categoryTasks = tasks.filter((t) => t.listCategory === category);
-        const activeTasks = categoryTasks.filter((t) => t.status !== "done");
-        const doneTasks = categoryTasks.filter((t) => t.status === "done");
+        // Filter out done tasks entirely for the Pipelines view
+        const activeTasks = tasks.filter((t) => t.listCategory === category && t.status !== "done");
 
         return (
           <div key={category} className="flex flex-col">
@@ -36,20 +35,13 @@ export function ListView() {
             </div>
 
             <div className="flex-1 space-y-0.5">
-              {categoryTasks.length === 0 ? (
-                <p className="text-[14px] text-zinc-400 py-2 italic">No tasks in this list</p>
+              {activeTasks.length === 0 ? (
+                <p className="text-[14px] text-zinc-400 py-2 italic">Pipeline clear.</p>
               ) : (
                 <>
                   {activeTasks.map((task) => (
                     <TaskCard key={task._id} task={task} />
                   ))}
-                  {doneTasks.length > 0 && (
-                    <div className="pt-4 opacity-70">
-                      {doneTasks.map((task) => (
-                        <TaskCard key={task._id} task={task} />
-                      ))}
-                    </div>
-                  )}
                 </>
               )}
             </div>

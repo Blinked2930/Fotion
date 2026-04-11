@@ -6,7 +6,7 @@ import { NewTaskForm } from "@/components/views/NewTaskForm";
 import { ViewTabs, ViewType } from "@/components/ui/ViewTabs";
 import { RawDataView } from "@/components/views/RawDataView";
 import { TodayView } from "@/components/views/TodayView";
-import { ListView } from "@/components/views/ListView";
+import { PipelinesView } from "@/components/views/PipelinesView";
 import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
@@ -51,7 +51,7 @@ export default function Home() {
               {activeView === "Matrix" && <EisenhowerMatrix />}
               {activeView === "Raw Data" && <RawDataView />}
               {activeView === "Today" && <TodayView />}
-              {activeView === "List" && <ListView />}
+              {activeView === "Pipelines" && <PipelinesView />}
             </div>
           </div>
           <TaskDetailsPane />

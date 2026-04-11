@@ -3,9 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Plus, Folder, Bold, Italic, List, ListOrdered, CheckSquare, Zap } from "lucide-react";
+import { Plus, Folder, Bold, Italic, List, ListOrdered, CheckSquare } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
-import { ImportProjectModal } from "./ImportProjectModal";
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -45,7 +44,6 @@ export function NewTaskForm() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   
   const formRef = useRef<HTMLFormElement>(null);
@@ -161,7 +159,6 @@ export function NewTaskForm() {
           isExpanded ? "bg-white dark:bg-[#1f1f1f] border-[var(--border)] shadow-md py-3 my-2 z-30" : "border-transparent bg-transparent py-1.5 hover:bg-[var(--subtle-bg)]"
         }`}
       >
-        {/* Top Row: Icon, Input, Import Button */}
         <div className="flex items-center gap-2 w-full">
           <Plus className={`w-5 h-5 flex-shrink-0 transition-colors ${isExpanded ? "text-zinc-500" : "text-zinc-300"}`} />
           <div className="flex-1 min-w-0 flex items-center">
@@ -174,26 +171,12 @@ export function NewTaskForm() {
               placeholder="Type a new task and press Enter..."
               className="w-full bg-transparent outline-none text-[15px] font-medium text-[var(--foreground)] placeholder:text-zinc-400 placeholder:font-normal"
             />
-            
-            {/* IMPORT BUTTON */}
-            {!isExpanded && (
-              <button 
-                type="button" 
-                onClick={() => setIsImportModalOpen(true)}
-                className="p-1 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors ml-2 flex-shrink-0"
-                title="Project Import"
-              >
-                <Zap className="w-4 h-4" />
-              </button>
-            )}
           </div>
         </div>
             
-        {/* Expanded Row */}
         {isExpanded && (
           <div className="mt-4 space-y-5 animate-in fade-in slide-in-from-top-1 duration-200 w-full ml-7 pr-7">
             
-            {/* TipTap Editor */}
             <div>
               <EditorToolbar editor={editor} />
               <div className="w-full bg-transparent outline-none text-sm text-[var(--foreground)] placeholder:text-zinc-400">
@@ -203,14 +186,12 @@ export function NewTaskForm() {
 
             <div className="flex flex-col gap-5 border-t border-[var(--border)] pt-4">
               
-              {/* Checkboxes & Project */}
               <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
                 <label className="flex items-center gap-2 cursor-pointer hover:text-[var(--foreground)] font-medium">
                   <input type="checkbox" checked={isToday} onChange={(e) => setIsToday(e.target.checked)} className="rounded border-[var(--border)]" />
                   Today
                 </label>
 
-                {/* Project Dropdown */}
                 <div className="relative" ref={projectDropdownRef}>
                   <button 
                     type="button" 
@@ -233,7 +214,6 @@ export function NewTaskForm() {
                 </div>
               </div>
 
-              {/* PILLS ROW */}
               <div className="flex flex-wrap gap-x-8 gap-y-4">
                 <div>
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Matrix Tags</span>
@@ -256,7 +236,6 @@ export function NewTaskForm() {
                 </div>
               </div>
 
-              {/* Custom Dates Row */}
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Dates</span>
                 <div className="flex flex-wrap items-center gap-6">
@@ -297,9 +276,6 @@ export function NewTaskForm() {
           </div>
         </div>
       )}
-
-      {/* AI IMPORT MODAL */}
-      <ImportProjectModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
     </>
   );
 }
