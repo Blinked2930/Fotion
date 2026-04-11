@@ -11,7 +11,29 @@ export const getProjects = query({
 export const createProject = mutation({
   args: { name: v.string() },
   handler: async (ctx, args) => {
-    // FIX: Added isArchived to match your schema!
     return await ctx.db.insert("projects", { name: args.name, isArchived: false });
+  },
+});
+
+export const updateProject = mutation({
+  args: { id: v.id("projects"), name: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, { name: args.name });
+  },
+});
+
+export const deleteProject = mutation({
+  args: { id: v.id("projects") },
+  handler: async (ctx, args) => {
+    // Unlink this project from all tasks before deleting
+    const tasks = await ctx.db.query("tasks")
+      .withIndex("by_project", (q) => q.eq("projectId", args.id))
+      .collect();
+      
+    for (const task of tasks) {
+      await ctx.db.patch(task._id, { projectId: null });
+    }
+    
+    await ctx.db.delete(args.id);
   },
 });
