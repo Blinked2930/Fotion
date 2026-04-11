@@ -5,11 +5,11 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
-  // Removed skipWaiting as it's now the default and throws a type error
 });
 
 const nextConfig: NextConfig = {
-  // Your existing Next.js config options here (if any)
+  // This explicitly tells Next.js 16 to silence the Webpack/Turbopack clash error
+  turbopack: {},
 };
 
 export default withPWA(nextConfig);
