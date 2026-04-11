@@ -7,7 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
-  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, XCircle, CheckSquare, 
+  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, 
   Bold, Italic, ListOrdered
 } from "lucide-react";
 
@@ -16,6 +16,8 @@ import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
+
+import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string, children: React.ReactNode }) => (
   <div className="flex items-start sm:items-center min-h-[40px] group hover:bg-zinc-50 dark:hover:bg-zinc-900/30 -mx-2 px-2 py-1.5 sm:py-0 rounded transition-colors">
@@ -28,43 +30,6 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
     </div>
   </div>
 );
-
-// --- REBUILT DATE PICKER (Gorgeous Pill Style) ---
-export const CleanDatePicker = ({ value, onChange, placeholder = "Empty" }: { value?: number | null, onChange: (val: number | null) => void, placeholder?: string }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dateString = value ? new Date(value).toLocaleDateString('en-CA') : '';
-  const displayString = value ? new Date(value).toLocaleDateString() : placeholder;
-
-  return (
-    <div className="flex items-center gap-2 group/date">
-      <button 
-        type="button"
-        onClick={() => inputRef.current?.showPicker()}
-        className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors border ${value ? 'bg-white dark:bg-zinc-800 border-[var(--border)] text-[var(--foreground)] shadow-sm' : 'bg-transparent border-transparent text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-      >
-        {displayString}
-      </button>
-      
-      {/* Hidden native input */}
-      <input
-        ref={inputRef}
-        type="date"
-        value={dateString}
-        onChange={(e) => onChange(e.target.value ? new Date(e.target.value).getTime() : null)}
-        className="absolute w-0 h-0 opacity-0 pointer-events-none"
-      />
-      
-      {value && (
-        <button 
-          onClick={() => onChange(null)} 
-          className="opacity-0 group-hover/date:opacity-100 p-1 text-zinc-400 hover:text-red-500 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
-        >
-          <XCircle className="w-3.5 h-3.5" />
-        </button>
-      )}
-    </div>
-  );
-};
 
 function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (val: string | null) => void }) {
   const projects = useQuery(api.projects.getProjects);
@@ -169,6 +134,7 @@ function PaneContent() {
 
   const [title, setTitle] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const paneRef = useRef<HTMLDivElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -193,6 +159,22 @@ function PaneContent() {
       editor.commands.setContent(task.description || "");
     }
   }, [task?.description, editor]);
+
+  // Handle clicking outside the pane to close it
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      // If the delete confirmation modal is open, don't close the pane
+      if (showDeleteModal) return;
+      
+      // If clicking outside the side pane completely
+      if (paneRef.current && !paneRef.current.contains(e.target as Node)) {
+        router.push("/");
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showDeleteModal, router]);
 
   if (!taskId) return null;
 
@@ -219,7 +201,7 @@ function PaneContent() {
         .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
       `}</style>
 
-      <div className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
+      <div ref={paneRef} className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
         
         <div className="flex sm:hidden items-center justify-between p-4 border-b border-[var(--border)]">
           <button onClick={closePane} className="flex items-center gap-1 text-zinc-500 hover:text-[var(--foreground)] font-medium">
@@ -278,11 +260,11 @@ function PaneContent() {
             </PropertyRow>
 
             <PropertyRow icon={Calendar} label="Due By Date">
-              <CleanDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} />
+              <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} />
             </PropertyRow>
 
             <PropertyRow icon={Calendar} label="Do On Date">
-              <CleanDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} />
+              <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} />
             </PropertyRow>
 
             <PropertyRow icon={Sigma} label="Matrix Tags">

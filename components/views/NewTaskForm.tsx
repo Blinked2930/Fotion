@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Plus, Calendar, Folder } from "lucide-react";
-import { CleanDatePicker } from "./TaskDetailsPane";
+import { Plus, Folder } from "lucide-react";
+import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 export function NewTaskForm() {
   const createTask = useMutation(api.tasks.createTask);
@@ -31,26 +31,20 @@ export function NewTaskForm() {
   const inputRef = useRef<HTMLInputElement>(null);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Auto-Save State Refs (so the click-outside event has the latest data)
+  // Auto-Save State Refs
   const stateRef = useRef({ title, description, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId });
   useEffect(() => {
     stateRef.current = { title, description, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId };
   }, [title, description, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId]);
 
-  // Click Outside Logic (With Auto-Save!)
+  // Handle outside clicks for Auto-Save
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      // 1. If clicking inside the project dropdown, do nothing.
       if (projectDropdownRef.current && projectDropdownRef.current.contains(event.target as Node)) return;
       
-      // 2. If clicking inside a native calendar picker, do nothing.
-      if (document.activeElement?.getAttribute('type') === 'date') return;
-
-      // 3. If clicking completely outside the form
       if (formRef.current && !formRef.current.contains(event.target as Node)) {
-        setIsProjectDropdownOpen(false); // Always close dropdown
+        setIsProjectDropdownOpen(false); 
         
-        // AUTO SAVE LOGIC
         if (stateRef.current.title.trim() !== "") {
           createTask({
             title: stateRef.current.title.trim(),
@@ -65,7 +59,6 @@ export function NewTaskForm() {
             projectId: stateRef.current.projectId as any,
           });
           
-          // Reset after save
           setTitle(""); setDescription(""); setIsUrgent(false); setIsImportant(false); setIsForFunsies(false);
           setIsToday(false); setListCategory("Current"); setDoOnDate(null); setDoByDate(null); setProjectId(null);
         }
@@ -75,6 +68,17 @@ export function NewTaskForm() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [createTask]);
+
+  // FIX: Specifically close project dropdown if clicking elsewhere INSIDE the form
+  useEffect(() => {
+    function handleInternalClick(event: MouseEvent) {
+      if (isProjectDropdownOpen && projectDropdownRef.current && !projectDropdownRef.current.contains(event.target as Node)) {
+        setIsProjectDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleInternalClick);
+    return () => document.removeEventListener("mousedown", handleInternalClick);
+  }, [isProjectDropdownOpen]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -89,7 +93,6 @@ export function NewTaskForm() {
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
     });
 
-    // Reset and KEEP focus for rapid-fire adding
     setTitle(""); setDescription(""); setIsUrgent(false); setIsImportant(false); setIsForFunsies(false);
     setIsToday(false); setListCategory("Current"); setDoOnDate(null); setDoByDate(null); setProjectId(null);
     inputRef.current?.focus();
@@ -209,19 +212,17 @@ export function NewTaskForm() {
                     </div>
                   </div>
 
-                  {/* Dates Row */}
+                  {/* Custom Dates Row */}
                   <div>
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Dates</span>
                     <div className="flex flex-wrap items-center gap-6">
                       <div className="flex items-center gap-2 text-sm text-zinc-500">
-                        <Calendar className="w-4 h-4" />
                         <span className="font-medium text-zinc-400">Do On:</span>
-                        <CleanDatePicker value={doOnDate} onChange={setDoOnDate} placeholder="Select date..." />
+                        <CustomDatePicker value={doOnDate} onChange={setDoOnDate} placeholder="Select date..." />
                       </div>
                       <div className="flex items-center gap-2 text-sm text-zinc-500">
-                        <Calendar className="w-4 h-4 text-red-400" />
                         <span className="font-medium text-zinc-400">Due By:</span>
-                        <CleanDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." />
+                        <CustomDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." />
                       </div>
                     </div>
                   </div>

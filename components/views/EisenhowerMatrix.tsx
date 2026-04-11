@@ -7,6 +7,7 @@ import { TaskCard } from "./TaskCard";
 import { calculateQuadrant, MatrixQuadrant } from "@/lib/eisenhower";
 import { Loader2 } from "lucide-react";
 
+// UPDATED TYPE: Added | null to dates to match the new schema
 type Task = {
   _id: Id<"tasks">;
   title: string;
@@ -48,13 +49,13 @@ export function EisenhowerMatrix() {
     );
   }
 
-  // FIX: Only show tasks that are NOT done AND are in the "Current" list
-  const activeTasks = tasks.filter((t) => t.status !== "done" && (t.listCategory === "Current" || !t.listCategory));
+  // Only show tasks that are NOT done AND are in the "Current" list
+  const activeTasks = (tasks as Task[]).filter((t) => t.status !== "done" && (t.listCategory === "Current" || !t.listCategory));
 
   const tasksByQuadrant = activeTasks.reduce<Record<MatrixQuadrant, Task[]>>((acc, task) => {
     const quadrant = calculateQuadrant(task.isForFunsies, task.isUrgent, task.isImportant);
     if (!acc[quadrant]) acc[quadrant] = [];
-    acc[quadrant].push(task as Task);
+    acc[quadrant].push(task);
     return acc;
   }, {} as Record<MatrixQuadrant, Task[]>);
 
