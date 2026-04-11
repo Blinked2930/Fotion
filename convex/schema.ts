@@ -7,6 +7,13 @@ export default defineSchema({
     isArchived: v.boolean(),
   }),
 
+  // ADDED: The missing notes table to satisfy the type checker
+  notes: defineTable({
+    title: v.string(),
+    content: v.string(),
+    tags: v.array(v.string()),
+  }),
+
   tasks: defineTable({
     title: v.string(),
     description: v.optional(v.string()),
@@ -19,17 +26,15 @@ export default defineSchema({
     // Core Status
     status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
     
-    // List View Grouping (Made Optional for old tasks)
+    // List View Grouping
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     
-    // Today View Logic (Made Optional for old tasks)
+    // Today View Logic
     isToday: v.optional(v.boolean()),
-    
-    // UPDATED: Now allows "null" so you can clear the dates in the UI
     doOnDate: v.optional(v.union(v.number(), v.null())), 
     doByDate: v.optional(v.union(v.number(), v.null())), 
     
-    // UPDATED: Now allows "null" so you can un-assign projects
+    // Relations
     projectId: v.optional(v.union(v.id("projects"), v.null())),
   })
     .index("by_status", ["status"])

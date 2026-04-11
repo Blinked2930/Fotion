@@ -71,3 +71,32 @@ export const getTask = query({
     return await ctx.db.get(args.id);
   },
 });
+
+// NEW: Mutation to handle bulk-inserting JSON tasks from AI
+export const createManyTasks = mutation({
+  args: {
+    tasks: v.array(
+      v.object({
+        title: v.string(),
+        description: v.optional(v.string()),
+        isUrgent: v.boolean(),
+        isImportant: v.boolean(),
+        isForFunsies: v.boolean(),
+        status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
+        listCategory: v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe")),
+        isToday: v.boolean(),
+        doOnDate: v.union(v.number(), v.null()),
+        doByDate: v.union(v.number(), v.null()),
+        projectId: v.union(v.id("projects"), v.null()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const taskIds = [];
+    for (const task of args.tasks) {
+      const id = await ctx.db.insert("tasks", task);
+      taskIds.push(id);
+    }
+    return taskIds;
+  },
+});

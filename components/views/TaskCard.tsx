@@ -3,27 +3,12 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { Doc } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { Check, Circle, Clock, Trash2, AlertTriangle } from "lucide-react";
 
-// UPDATED TYPE: Matches the Matrix view exactly now
-type Task = {
-  _id: Id<"tasks">;
-  title: string;
-  description?: string;
-  isUrgent: boolean;
-  isImportant: boolean;
-  isForFunsies: boolean;
-  status: "todo" | "in-progress" | "done";
-  doOnDate?: number | null;
-  doByDate?: number | null;
-  listCategory?: string;
-  isToday?: boolean;
-};
-
 interface TaskCardProps {
-  task: Task;
+  task: Doc<"tasks">;
 }
 
 export function TaskCard({ task }: TaskCardProps) {
