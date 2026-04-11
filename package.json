@@ -9,12 +9,23 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.0.12",
+    "@ducanh2912/next-pwa": "^10.2.9",
+    "@tiptap/extension-placeholder": "^3.22.3",
+    "@tiptap/extension-task-item": "^3.22.3",
+    "@tiptap/extension-task-list": "^3.22.3",
+    "@tiptap/react": "^3.22.3",
+    "@tiptap/starter-kit": "^3.22.3",
+    "@tiptap/suggestion": "^3.22.3",
+    "convex": "^1.35.1",
+    "lucide-react": "^1.8.0",
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
