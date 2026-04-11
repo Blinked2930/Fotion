@@ -5,12 +5,11 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
-  skipWaiting: true,
+  // Removed skipWaiting as it's now the default and throws a type error
 });
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  turbopack: {}, // <-- This is the magic line that fixes your error
+  // Your existing Next.js config options here (if any)
 };
 
 export default withPWA(nextConfig);
