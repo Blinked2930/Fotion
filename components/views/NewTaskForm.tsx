@@ -122,9 +122,11 @@ export function NewTaskForm() {
             doByDate: stateRef.current.doByDate,
             projectId: stateRef.current.projectId as any,
           });
-          resetForm();
+          setIsExpanded(false);
+          setTimeout(() => resetForm(), 300); // Wait for collapse animation to clear text
+        } else {
+          setIsExpanded(false);
         }
-        setIsExpanded(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -142,8 +144,8 @@ export function NewTaskForm() {
       description: (editor && !editor.isEmpty) ? editor.getHTML() : undefined,
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
     });
-    resetForm();
     setIsExpanded(false);
+    setTimeout(() => resetForm(), 300); // Wait for collapse animation to clear text
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -153,7 +155,6 @@ export function NewTaskForm() {
     }
   };
 
-  // NEW: Cmd+Enter / Ctrl+Enter handler capturing from anywhere in the form
   const handleKeyDownCapture = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
@@ -209,90 +210,91 @@ export function NewTaskForm() {
           </div>
         </div>
             
-        {isExpanded && (
-          <div className="mt-4 space-y-5 animate-in fade-in slide-in-from-top-1 duration-200 w-full sm:ml-7 sm:pr-7">
-            
-            <div>
-              <EditorToolbar editor={editor} />
-              {/* NEW: cursor-text min-h-[100px] + onClick to reliably focus editor and show blinking cursor */}
-              <div 
-                className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[100px]"
-                onClick={() => editor?.commands.focus()}
-              >
-                <EditorContent editor={editor} className="tiptap outline-none h-full" />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-5 border-t border-[var(--border)] pt-4">
+        {/* SMOOTH COLLAPSE: Uses CSS Grid Trick to transition max-height beautifully */}
+        <div className={`grid transition-all duration-[300ms] ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
+          <div className="overflow-hidden">
+            <div className="space-y-5 w-full sm:ml-7 sm:pr-7 pb-1">
               
-              <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
-                <label className="flex items-center gap-2 cursor-pointer hover:text-[var(--foreground)] font-medium">
-                  <input type="checkbox" checked={isToday} onChange={(e) => setIsToday(e.target.checked)} className="rounded border-[var(--border)]" />
-                  Today
-                </label>
-
-                <div className="relative" ref={projectDropdownRef}>
-                  {/* NEW: Project Button is now a full pill */}
-                  <button 
-                    type="button" 
-                    onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
-                    className={`flex items-center gap-1.5 font-medium px-3 py-1 rounded-full border transition-colors text-[12px] ${getProjectColor(projectId)}`}
-                  >
-                    <Folder className="w-3.5 h-3.5" />
-                    {selectedProject?.name || "No Project"}
-                  </button>
-                  {isProjectDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50">
-                      <button type="button" onClick={() => { setProjectId(null); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">None</button>
-                      {projects?.map(p => (
-                        <button key={p._id} type="button" onClick={() => { setProjectId(p._id); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">{p.name}</button>
-                      ))}
-                      <div className="border-t border-[var(--border)] my-1"></div>
-                      <button type="button" onClick={() => { setIsProjectDropdownOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">+ Create Project</button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-x-8 gap-y-4">
-                <div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Matrix Tags</span>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => setIsUrgent(!isUrgent)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isUrgent ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>Urgent</button>
-                    <button type="button" onClick={() => setIsImportant(!isImportant)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isImportant ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>Important</button>
-                    <button type="button" onClick={() => setIsForFunsies(!isForFunsies)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isForFunsies ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>For Funsies</button>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">List</span>
-                  <div className="flex gap-2">
-                    {['Current', 'Waiting For', 'Someday Maybe'].map(listName => (
-                      <button key={listName} type="button" onClick={() => setListCategory(listName as any)} className={`text-xs px-3 py-1 rounded-full transition-all border ${listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
-                        {listName}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
               <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Dates</span>
-                <div className="flex flex-wrap items-center gap-6">
-                  <div className="flex items-center gap-2 text-sm text-zinc-500">
-                    <span className="font-medium text-zinc-400">Do On:</span>
-                    <CustomDatePicker value={doOnDate} onChange={setDoOnDate} placeholder="Select date..." />
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-zinc-500">
-                    <span className="font-medium text-zinc-400">Due By:</span>
-                    <CustomDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." />
-                  </div>
+                <EditorToolbar editor={editor} />
+                <div 
+                  className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[100px]"
+                  onClick={() => editor?.commands.focus()}
+                >
+                  <EditorContent editor={editor} className="tiptap outline-none h-full" />
                 </div>
               </div>
 
+              <div className="flex flex-col gap-5 border-t border-[var(--border)] pt-4">
+                
+                <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
+                  <label className="flex items-center gap-2 cursor-pointer hover:text-[var(--foreground)] font-medium">
+                    <input type="checkbox" checked={isToday} onChange={(e) => setIsToday(e.target.checked)} className="rounded border-[var(--border)]" />
+                    Today
+                  </label>
+
+                  <div className="relative" ref={projectDropdownRef}>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
+                      className={`flex items-center gap-1.5 font-medium px-3 py-1 rounded-full border transition-colors text-[12px] ${getProjectColor(projectId)}`}
+                    >
+                      <Folder className="w-3.5 h-3.5" />
+                      {selectedProject?.name || "No Project"}
+                    </button>
+                    {isProjectDropdownOpen && (
+                      <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50">
+                        <button type="button" onClick={() => { setProjectId(null); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">None</button>
+                        {projects?.map(p => (
+                          <button key={p._id} type="button" onClick={() => { setProjectId(p._id); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">{p.name}</button>
+                        ))}
+                        <div className="border-t border-[var(--border)] my-1"></div>
+                        <button type="button" onClick={() => { setIsProjectDropdownOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">+ Create Project</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-x-8 gap-y-4">
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Matrix Tags</span>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setIsUrgent(!isUrgent)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isUrgent ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>Urgent</button>
+                      <button type="button" onClick={() => setIsImportant(!isImportant)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isImportant ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>Important</button>
+                      <button type="button" onClick={() => setIsForFunsies(!isForFunsies)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isForFunsies ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>For Funsies</button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">List</span>
+                    <div className="flex gap-2">
+                      {['Current', 'Waiting For', 'Someday Maybe'].map(listName => (
+                        <button key={listName} type="button" onClick={() => setListCategory(listName as any)} className={`text-xs px-3 py-1 rounded-full transition-all border ${listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+                          {listName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Dates</span>
+                  <div className="flex flex-wrap items-center gap-6">
+                    <div className="flex items-center gap-2 text-sm text-zinc-500">
+                      <span className="font-medium text-zinc-400">Do On:</span>
+                      <CustomDatePicker value={doOnDate} onChange={setDoOnDate} placeholder="Select date..." />
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-zinc-500">
+                      <span className="font-medium text-zinc-400">Due By:</span>
+                      <CustomDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." />
+                    </div>
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </form>
 
       {isModalOpen && (

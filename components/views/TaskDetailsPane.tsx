@@ -130,7 +130,11 @@ function PaneContent() {
   const searchParams = useSearchParams();
   const taskId = searchParams.get("taskId") as Id<"tasks"> | null;
 
-  const task = useQuery(api.tasks.getTask, taskId ? { id: taskId } : "skip");
+  // MAGIC SLIDE TRICK: We keep the old task ID in memory so it doesn't go blank while sliding out
+  const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTask = useMutation(api.tasks.deleteTask);
 
@@ -138,6 +142,17 @@ function PaneContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
+
+  // Sync URL changes to the local sliding animation state
+  useEffect(() => {
+    if (taskId) {
+      setDisplayTaskId(taskId);
+      const timer = setTimeout(() => setIsOpen(true), 10);
+      return () => clearTimeout(timer);
+    } else {
+      setIsOpen(false);
+    }
+  }, [taskId]);
 
   const editor = useEditor({
     extensions: [
@@ -163,26 +178,21 @@ function PaneContent() {
     }
   }, [task?.description, editor]);
 
-  // FIXED: Bulletproof close command
-  const closePane = () => router.push("/");
-
-  // FIXED: Use capture phase to prevent background elements from swallowing the click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (showDeleteModal) return;
+      if (showDeleteModal || !isOpen) return;
       if (paneRef.current && !paneRef.current.contains(e.target as Node)) {
-        closePane();
+        router.replace(window.location.pathname, { scroll: false });
       }
     };
-    
     document.addEventListener("mousedown", handleClickOutside, true);
     return () => document.removeEventListener("mousedown", handleClickOutside, true);
-  }, [showDeleteModal, router]);
+  }, [showDeleteModal, router, isOpen]);
 
-  if (!taskId) return null;
+  const closePane = () => router.replace(window.location.pathname, { scroll: false });
 
   const handleUpdate = (field: string, value: any) => {
-    updateTask({ id: taskId, [field]: value });
+    if (displayTaskId) updateTask({ id: displayTaskId, [field]: value });
   };
 
   return (
@@ -200,15 +210,18 @@ function PaneContent() {
         .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
       `}</style>
 
+      {/* SMOOTH SLIDE: Instead of unmounting, it physically translates off the right side of the screen */}
       <div 
         ref={paneRef} 
         onMouseMove={(e) => {
-          if (!paneRef.current) return;
+          if (!paneRef.current || !isOpen) return;
           const rect = paneRef.current.getBoundingClientRect();
           setIsNearBottom(rect.bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
-        className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300"
+        className={`fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-40 flex flex-col transition-all duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] transform ${
+          isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
+        }`}
       >
 
         {task === undefined ? (
@@ -375,7 +388,7 @@ function PaneContent() {
               <button 
                 type="button"
                 autoFocus
-                onClick={() => { deleteTask({ id: taskId }); closePane(); }} 
+                onClick={() => { deleteTask({ id: displayTaskId as any }); closePane(); setShowDeleteModal(false); }} 
                 className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#1c1c1c]"
               >
                 Yes, Delete
