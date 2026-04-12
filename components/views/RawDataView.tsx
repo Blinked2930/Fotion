@@ -201,9 +201,14 @@ export function RawDataView() {
                           onBlur={(e) => { if(e.target.value.trim() !== task.title) handleUpdate(task._id, "title", e.target.value.trim() || "Unknown Task") }}
                           className="bg-transparent flex-1 min-w-0 outline-none font-medium truncate"
                         />
-                        {/* Bulletproofed root router push */}
                         <button 
-                          onClick={() => router.push(`/?taskId=${task._id}`)}
+                          type="button"
+                          onClick={(e) => {
+                            // FIXED: Stop the click from bubbling up and triggering background dismissals
+                            e.preventDefault();
+                            e.stopPropagation();
+                            router.push(`/?taskId=${task._id}`);
+                          }}
                           className="flex-shrink-0 p-1.5 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-sm rounded text-zinc-500 hover:text-[var(--foreground)] sm:opacity-0 sm:group-hover/title:opacity-100 transition-all"
                           title="Open Task Details"
                         >

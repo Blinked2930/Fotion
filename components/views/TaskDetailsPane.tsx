@@ -26,7 +26,7 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
     </div>
-    <div className="flex-1 flex items-center text-[14px] min-w-0">
+    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full overflow-hidden">
       {children}
     </div>
   </div>
@@ -62,20 +62,20 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
 
   return (
     <>
-      <div className="relative w-fit" ref={ref}>
+      <div className="relative w-fit max-w-full" ref={ref}>
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className={`outline-none px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border ${getProjectColor(value)}`}
+          className={`outline-none px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border max-w-full truncate ${getProjectColor(value)}`}
         >
-          <Folder className="w-3.5 h-3.5" />
-          <span className={!value ? "opacity-60" : ""}>{selectedProject?.name || "Empty"}</span>
+          <Folder className="w-3.5 h-3.5 shrink-0" />
+          <span className={`truncate ${!value ? "opacity-60" : ""}`}>{selectedProject?.name || "Empty"}</span>
         </button>
 
         {isOpen && (
           <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[300px] overflow-y-auto">
             <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800">None</button>
             {projects?.map((p) => (
-              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 truncate">
                 {p.name}
               </button>
             ))}
@@ -114,7 +114,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
 const EditorToolbar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
   return (
-    <div className="flex items-center gap-1 mb-3">
+    <div className="flex items-center gap-1 mb-3 flex-wrap">
       <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
       <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
       <div className="w-px h-4 bg-[var(--border)] mx-1" />
@@ -176,13 +176,21 @@ function PaneContent() {
     }
   }, [task?.description, editor]);
 
+  // FIXED: Bulletproof race-condition prevention
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (showDeleteModal || !isOpen) return;
-      if (paneRef.current && !paneRef.current.contains(e.target as Node)) {
+      
+      const target = e.target as HTMLElement;
+      // If the user clicked on a button somewhere else (like another task), DO NOT close the pane yet.
+      // This prevents the conflicting URL router commands that froze the app.
+      if (target.closest('button')) return;
+
+      if (paneRef.current && !paneRef.current.contains(target)) {
         router.replace(window.location.pathname, { scroll: false });
       }
     };
+    
     document.addEventListener("mousedown", handleClickOutside, true);
     return () => document.removeEventListener("mousedown", handleClickOutside, true);
   }, [showDeleteModal, router, isOpen]);
@@ -196,6 +204,9 @@ function PaneContent() {
   return (
     <>
       <style>{`
+        /* WIGGLY TEXT FIX: Extremely strict word-wrapping inside the editor */
+        .tiptap { outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; }
+        .tiptap * { max-width: 100%; }
         .tiptap ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
         .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
         .tiptap p { margin-bottom: 0.5rem; }
@@ -205,9 +216,7 @@ function PaneContent() {
         .tiptap ul[data-type="taskList"] li > label input[type="checkbox"] { accent-color: #3b82f6; width: 1rem; height: 1rem; margin-top: 0.25rem; cursor: pointer; }
         .tiptap ul[data-type="taskList"] li > div { flex: 1; }
         .tiptap p.is-editor-empty:first-child::before { color: #a1a1aa; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
-        .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
         
-        /* FIX: Render checkboxes in dark mode properly */
         @media (prefers-color-scheme: dark) {
           .tiptap input[type="checkbox"] {
             color-scheme: dark;
@@ -215,7 +224,6 @@ function PaneContent() {
         }
       `}</style>
 
-      {/* PERMANENT DRAWER: This never unmounts, fixing the React freeze bug. It just slides off screen. */}
       <div 
         ref={paneRef} 
         onMouseMove={(e) => {
@@ -224,7 +232,8 @@ function PaneContent() {
           setIsNearBottom(rect.bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
-        className={`fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-40 flex flex-col transition-all duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] transform ${
+        // WIGGLY TEXT FIX: added max-w-full
+        className={`fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-40 flex flex-col transition-all duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] transform max-w-full ${
           isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
         }`}
       >
@@ -236,7 +245,8 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-32">
+          // WIGGLY TEXT FIX: added overflow-x-hidden
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-32 max-w-full">
             
             <input
               type="text"
@@ -247,7 +257,7 @@ function PaneContent() {
               placeholder="Task title"
             />
 
-            <div className="flex flex-col gap-1 sm:gap-2 text-[15px]">
+            <div className="flex flex-col gap-1 sm:gap-2 text-[15px] max-w-full">
 
               <PropertyRow icon={CheckSquare} label="Today">
                 <input 
@@ -327,7 +337,7 @@ function PaneContent() {
 
             <hr className="border-[var(--border)] my-6" />
 
-            <div className="space-y-4 pb-4">
+            <div className="space-y-4 pb-4 max-w-full">
               <div className="flex items-center gap-2 text-zinc-500 font-medium text-sm mb-4">
                 <AlignLeft className="w-4 h-4" />
                 <span>Notes</span>
@@ -336,10 +346,11 @@ function PaneContent() {
               <EditorToolbar editor={editor} />
               
               <div 
-                className="w-full text-[15px] text-[var(--foreground)] leading-relaxed cursor-text min-h-[150px]"
+                className="w-full text-[15px] text-[var(--foreground)] leading-relaxed cursor-text min-h-[150px] max-w-full overflow-hidden"
                 onClick={() => editor?.commands.focus()}
               >
-                <EditorContent editor={editor} className="tiptap outline-none h-full" />
+                {/* WIGGLY TEXT FIX: break-words class added to force strict wrapping */}
+                <EditorContent editor={editor} className="tiptap outline-none h-full break-words" />
               </div>
             </div>
           </div>
