@@ -160,18 +160,13 @@ function PaneContent() {
     }
   }, [task?.description, editor]);
 
-  // Handle clicking outside the pane to close it
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      // If the delete confirmation modal is open, don't close the pane
       if (showDeleteModal) return;
-      
-      // If clicking outside the side pane completely
       if (paneRef.current && !paneRef.current.contains(e.target as Node)) {
         router.push("/");
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showDeleteModal, router]);
@@ -203,7 +198,8 @@ function PaneContent() {
 
       <div ref={paneRef} className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
         
-        <div className="flex sm:hidden items-center justify-between p-4 border-b border-[var(--border)]">
+        {/* Tighter Mobile Header (py-2 instead of py-4) */}
+        <div className="flex sm:hidden items-center justify-between py-2 px-4 border-b border-[var(--border)]">
           <button onClick={closePane} className="flex items-center gap-1 text-zinc-500 hover:text-[var(--foreground)] font-medium">
             <ChevronLeft className="w-5 h-5 -ml-1" /> Back
           </button>
@@ -215,14 +211,15 @@ function PaneContent() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 sm:px-10 sm:py-8 space-y-8">
+        {/* Adjusted padding on main body */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 sm:py-8 space-y-6 sm:space-y-8">
           
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => handleUpdate("title", title)}
-            className="w-full text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300"
+            className="w-full text-2xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300"
             placeholder="Task title"
           />
 
@@ -307,7 +304,7 @@ function PaneContent() {
           <hr className="border-[var(--border)] my-6" />
 
           {/* NOTES */}
-          <div className="space-y-4">
+          <div className="space-y-4 pb-4">
             <div className="flex items-center gap-2 text-zinc-500 font-medium text-sm mb-4">
               <AlignLeft className="w-4 h-4" />
               <span>Notes</span>
@@ -321,8 +318,8 @@ function PaneContent() {
           </div>
         </div>
 
-        {/* FOOTER */}
-        <div className="p-4 border-t border-[var(--border)] flex justify-end pb-8 sm:pb-4 bg-[var(--background)]">
+        {/* Tighter Mobile Footer */}
+        <div className="p-3 pb-6 sm:p-4 border-t border-[var(--border)] flex justify-end bg-[var(--background)]">
           <button
             onClick={() => setShowDeleteModal(true)}
             className="flex items-center gap-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 px-3 py-1.5 rounded-md transition-colors font-medium"
