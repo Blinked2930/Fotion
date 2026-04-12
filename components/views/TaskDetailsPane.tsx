@@ -16,8 +16,10 @@ import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
-
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
+
+// Import the color logic
+import { getProjectColor, getListColor } from "./NewTaskForm";
 
 const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string, children: React.ReactNode }) => (
   <div className="flex items-start sm:items-center min-h-[40px] group hover:bg-zinc-50 dark:hover:bg-zinc-900/30 -mx-2 px-2 py-1.5 sm:py-0 rounded transition-colors">
@@ -64,14 +66,15 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
       <div className="relative w-full max-w-[200px]" ref={ref}>
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full text-left bg-transparent text-[14px] text-[var(--foreground)] outline-none hover:bg-zinc-100 dark:hover:bg-zinc-800 px-2 py-1 -ml-2 rounded transition-colors"
+          className={`w-full text-left outline-none px-2 py-1 -ml-2 rounded transition-colors flex items-center gap-1.5 font-medium border ${getProjectColor(value)}`}
         >
-          <span className={!value ? "text-zinc-400" : ""}>{selectedProject?.name || "Empty"}</span>
+          <Folder className="w-3.5 h-3.5" />
+          <span className={!value ? "opacity-60" : ""}>{selectedProject?.name || "Empty"}</span>
         </button>
 
         {isOpen && (
           <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[300px] overflow-y-auto">
-            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">None</button>
+            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800">None</button>
             {projects?.map((p) => (
               <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 {p.name}
@@ -160,7 +163,6 @@ function PaneContent() {
     }
   }, [task?.description, editor]);
 
-  // Handle clicking outside the pane to close it safely
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (showDeleteModal) return;
@@ -172,7 +174,6 @@ function PaneContent() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showDeleteModal, router]);
 
-  // INSTANT RENDER: Return null ONLY if there is no taskId parameter at all
   if (!taskId) return null;
 
   const closePane = () => router.replace(window.location.pathname, { scroll: false });
@@ -198,20 +199,13 @@ function PaneContent() {
 
       <div ref={paneRef} className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
         
-        {/* Tighter Mobile Header */}
-        <div className="flex sm:hidden items-center justify-between py-2 px-4 border-b border-[var(--border)]">
-          <button type="button" onClick={closePane} className="flex items-center gap-1 text-zinc-500 hover:text-[var(--foreground)] font-medium">
-            <ChevronLeft className="w-5 h-5 -ml-1" /> Back
-          </button>
-        </div>
-
+        {/* Desktop Header */}
         <div className="hidden sm:flex items-center justify-end p-4 border-b border-[var(--border)] text-zinc-500 h-14">
           <button type="button" onClick={closePane} className="p-1.5 rounded-md hover:bg-[var(--subtle-bg)] hover:text-[var(--foreground)] transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* LOADING SKELETON / CONTENT SWAP */}
         {task === undefined ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />
@@ -219,14 +213,14 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 sm:py-8 space-y-6 sm:space-y-8">
+          <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-10 sm:py-8 space-y-6 sm:space-y-8 pb-32 sm:pb-8">
             
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => handleUpdate("title", title)}
-              className="w-full text-2xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300"
+              className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300"
               placeholder="Task title"
             />
 
@@ -244,9 +238,9 @@ function PaneContent() {
               <PropertyRow icon={PlayCircle} label="Status">
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { id: 'todo', label: 'To Do', activeClass: 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 border-transparent' },
-                    { id: 'in-progress', label: 'In Progress', activeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400 border-transparent' },
-                    { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-transparent' }
+                    { id: 'todo', label: 'To Do', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' },
+                    { id: 'in-progress', label: 'In Progress', activeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50' },
+                    { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50' }
                   ].map((s) => (
                     <button
                       key={s.id}
@@ -275,15 +269,15 @@ function PaneContent() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => handleUpdate("isUrgent", !task.isUrgent)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                   >Urgent</button>
                   <button
                     onClick={() => handleUpdate("isImportant", !task.isImportant)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isImportant ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                   >Important</button>
                   <button
                     onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                   >For Funsies</button>
                 </div>
               </PropertyRow>
@@ -294,7 +288,7 @@ function PaneContent() {
                      <button
                      key={listName}
                      onClick={() => handleUpdate("listCategory", listName)}
-                     className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${task.listCategory === listName ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                     className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                    >
                      {listName}
                    </button>
@@ -310,7 +304,6 @@ function PaneContent() {
 
             <hr className="border-[var(--border)] my-6" />
 
-            {/* NOTES */}
             <div className="space-y-4 pb-4">
               <div className="flex items-center gap-2 text-zinc-500 font-medium text-sm mb-4">
                 <AlignLeft className="w-4 h-4" />
@@ -326,9 +319,9 @@ function PaneContent() {
           </div>
         )}
 
-        {/* Tighter Mobile Footer */}
+        {/* Desktop Footer (hidden on mobile) */}
         {task !== undefined && task !== null && (
-          <div className="p-3 pb-6 sm:p-4 border-t border-[var(--border)] flex justify-end bg-[var(--background)]">
+          <div className="hidden sm:flex p-4 border-t border-[var(--border)] justify-end bg-[var(--background)]">
             <button
               onClick={() => setShowDeleteModal(true)}
               className="flex items-center gap-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 px-3 py-1.5 rounded-md transition-colors font-medium"
@@ -338,6 +331,19 @@ function PaneContent() {
             </button>
           </div>
         )}
+
+        {/* Floating Mobile Action Pills */}
+        <div className="fixed bottom-6 left-0 w-full px-4 flex justify-between items-center z-50 sm:hidden pointer-events-none">
+          <button type="button" onClick={closePane} className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-sm transition-transform active:scale-95">
+            <ChevronLeft className="w-4 h-4 -ml-1" /> Back
+          </button>
+          {task !== undefined && task !== null && (
+            <button type="button" onClick={() => setShowDeleteModal(true)} className="pointer-events-auto flex items-center gap-1.5 bg-red-500 text-white shadow-xl shadow-red-500/20 rounded-full px-5 py-3 font-medium text-sm transition-transform active:scale-95">
+              <Trash2 className="w-4 h-4" /> Delete
+            </button>
+          )}
+        </div>
+
       </div>
 
       {showDeleteModal && (

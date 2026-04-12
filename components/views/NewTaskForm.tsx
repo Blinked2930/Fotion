@@ -12,6 +12,33 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
 
+// Helper for consistent random project colors
+export const getProjectColor = (id: string | null | undefined) => {
+  if (!id) return "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]";
+  const colors = [
+    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50",
+    "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50",
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50",
+    "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border-cyan-200 dark:border-cyan-900/50",
+    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50",
+    "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border-violet-200 dark:border-violet-900/50",
+    "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 border-fuchsia-200 dark:border-fuchsia-900/50",
+    "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-900/50",
+  ];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+};
+
+export const getListColor = (list: string) => {
+  switch (list) {
+    case 'Current': return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50';
+    case 'Someday Maybe': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-900/50';
+    case 'Waiting For':
+    default: return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]';
+  }
+};
+
 const EditorToolbar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
   return (
@@ -76,7 +103,6 @@ export function NewTaskForm() {
       if (isModalOpen) return;
       if (projectDropdownRef.current && projectDropdownRef.current.contains(event.target as Node)) return;
       
-      // If clicking outside entirely
       if (formRef.current && !formRef.current.contains(event.target as Node)) {
         setIsProjectDropdownOpen(false); 
         
@@ -84,7 +110,6 @@ export function NewTaskForm() {
         const hasNotes = editor && !editor.isEmpty;
         const hasTags = stateRef.current.isUrgent || stateRef.current.isImportant || stateRef.current.isForFunsies || stateRef.current.isToday || stateRef.current.listCategory !== "Current" || stateRef.current.doOnDate || stateRef.current.doByDate || stateRef.current.projectId;
 
-        // Auto-save logic with "Unknown Task" fallback
         if (stateRef.current.title.trim() !== "" || hasNotes || hasTags) {
           createTask({
             title: stateRef.current.title.trim() || "Unknown Task",
@@ -119,6 +144,7 @@ export function NewTaskForm() {
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
     });
     resetForm();
+    setIsExpanded(false); // Folds back up cleanly!
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -175,7 +201,7 @@ export function NewTaskForm() {
         </div>
             
         {isExpanded && (
-          <div className="mt-4 space-y-5 animate-in fade-in slide-in-from-top-1 duration-200 w-full ml-7 pr-7">
+          <div className="mt-4 space-y-5 animate-in fade-in slide-in-from-top-1 duration-200 w-full sm:ml-7 sm:pr-7">
             
             <div>
               <EditorToolbar editor={editor} />
@@ -196,16 +222,16 @@ export function NewTaskForm() {
                   <button 
                     type="button" 
                     onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
-                    className="flex items-center gap-1.5 hover:text-[var(--foreground)] font-medium bg-zinc-50 dark:bg-zinc-800/50 px-2 py-1 rounded border border-[var(--border)]"
+                    className={`flex items-center gap-1.5 font-medium px-2 py-1 rounded border transition-colors ${getProjectColor(projectId)}`}
                   >
                     <Folder className="w-3.5 h-3.5" />
                     {selectedProject?.name || "No Project"}
                   </button>
                   {isProjectDropdownOpen && (
                     <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50">
-                      <button type="button" onClick={() => { setProjectId(null); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800">None</button>
+                      <button type="button" onClick={() => { setProjectId(null); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">None</button>
                       {projects?.map(p => (
-                        <button key={p._id} type="button" onClick={() => { setProjectId(p._id); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800">{p.name}</button>
+                        <button key={p._id} type="button" onClick={() => { setProjectId(p._id); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">{p.name}</button>
                       ))}
                       <div className="border-t border-[var(--border)] my-1"></div>
                       <button type="button" onClick={() => { setIsProjectDropdownOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">+ Create Project</button>
@@ -218,9 +244,9 @@ export function NewTaskForm() {
                 <div>
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Matrix Tags</span>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => setIsUrgent(!isUrgent)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isUrgent ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-transparent" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>Urgent</button>
-                    <button type="button" onClick={() => setIsImportant(!isImportant)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isImportant ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-transparent" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>Important</button>
-                    <button type="button" onClick={() => setIsForFunsies(!isForFunsies)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isForFunsies ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-transparent" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>For Funsies</button>
+                    <button type="button" onClick={() => setIsUrgent(!isUrgent)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isUrgent ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>Urgent</button>
+                    <button type="button" onClick={() => setIsImportant(!isImportant)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isImportant ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>Important</button>
+                    <button type="button" onClick={() => setIsForFunsies(!isForFunsies)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isForFunsies ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>For Funsies</button>
                   </div>
                 </div>
 
@@ -228,7 +254,7 @@ export function NewTaskForm() {
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">List</span>
                   <div className="flex gap-2">
                     {['Current', 'Waiting For', 'Someday Maybe'].map(listName => (
-                      <button key={listName} type="button" onClick={() => setListCategory(listName as any)} className={`text-xs px-3 py-1 rounded-full transition-all border ${listCategory === listName ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+                      <button key={listName} type="button" onClick={() => setListCategory(listName as any)} className={`text-xs px-3 py-1 rounded-full transition-all border ${listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
                         {listName}
                       </button>
                     ))}
@@ -255,10 +281,9 @@ export function NewTaskForm() {
         )}
       </form>
 
-      {/* CREATE PROJECT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-[var(--border)]">
+          <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-[var(--border)] relative" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-lg text-[var(--foreground)] mb-4">New Project</h3>
             <input 
               autoFocus
@@ -267,11 +292,15 @@ export function NewTaskForm() {
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
-              className="w-full bg-transparent border border-[var(--border)] rounded-lg p-2 text-[var(--foreground)] mb-6 outline-none focus:border-blue-500"
+              className="w-full bg-transparent border border-[var(--border)] rounded-lg p-2 text-[var(--foreground)] mb-6 outline-none focus:border-blue-500 text-[14px]"
             />
             <div className="flex justify-end gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">Cancel</button>
-              <button onClick={handleCreateProject} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg">Create</button>
+              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleCreateProject} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">
+                Create
+              </button>
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ import {
   List as ListIcon, Folder, Sigma, Check, Maximize2
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
+import { getProjectColor, getListColor } from "./NewTaskForm";
 
 const NotionHeader = ({ icon: Icon, label, minWidth }: { icon: any, label: string, minWidth?: string }) => (
   <th className="border border-[var(--border)] px-3 py-2 font-normal text-zinc-500 dark:text-zinc-400 text-[13px] bg-zinc-50/50 dark:bg-zinc-900/50 text-left align-middle" style={{ minWidth: minWidth || '140px' }}>
@@ -104,21 +105,16 @@ function BeautifulDropdown({
 
 const StatusPill = (status: string) => {
   const styles: Record<string, string> = {
-    'todo': 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    'in-progress': 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-    'done': 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    'todo': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50',
+    'in-progress': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-900/50',
+    'done': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-900/50',
   };
   const labels: Record<string, string> = { 'todo': 'To Do', 'in-progress': 'In Progress', 'done': 'Done' };
   return <span className={`px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap ${styles[status] || styles['todo']}`}>{labels[status] || status}</span>;
 };
 
 const ListPill = (list: string) => {
-  const styles: Record<string, string> = {
-    'Current': 'bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-    'Waiting For': 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
-    'Someday Maybe': 'bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-  };
-  return <span className={`px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap ${styles[list] || styles['Waiting For']}`}>{list}</span>;
+  return <span className={`px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap border ${getListColor(list)}`}>{list}</span>;
 };
 
 export function RawDataView() {
@@ -164,7 +160,7 @@ export function RawDataView() {
   const ProjectPill = (id: string) => {
     const p = projects.find(proj => proj._id === id);
     if (!p) return <span className="text-zinc-400 text-xs">Empty</span>;
-    return <span className="px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{p.name}</span>;
+    return <span className={`px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap border ${getProjectColor(id)}`}>{p.name}</span>;
   };
 
   return (
@@ -186,7 +182,7 @@ export function RawDataView() {
                 <NotionHeader icon={CheckSquare} label="Urgent?" minWidth="100px" />
                 <NotionHeader icon={CheckSquare} label="For Funsies" minWidth="110px" />
                 <NotionHeader icon={Folder} label="Project" minWidth="160px" />
-                <NotionHeader icon={ListIcon} label="List" minWidth="160px" />
+                <NotionHeader icon={ListIcon} label="Pipelines" minWidth="160px" />
                 <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
                 <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
               </tr>
@@ -292,6 +288,7 @@ export function RawDataView() {
         </div>
       </div>
 
+      {/* INLINE PROJECT CREATION MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-[var(--border)] relative" onClick={e => e.stopPropagation()}>

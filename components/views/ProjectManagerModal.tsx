@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { X, Folder, Edit2, Trash2, Check, Archive, AlertTriangle, Plus } from "lucide-react";
+import { getProjectColor } from "./NewTaskForm";
 
 export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const projects = useQuery(api.projects.getProjects);
@@ -16,7 +17,6 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
   const [editName, setEditName] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   
-  // Custom Delete Confirm State
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -46,10 +46,9 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-lg border border-[var(--border)] flex flex-col max-h-[80vh] overflow-hidden relative" onClick={e => e.stopPropagation()}>
         
-        {/* HEADER */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
-            <Folder className="w-5 h-5 text-blue-500" />
+            <Folder className="w-5 h-5 text-zinc-500" />
             <h3 className="font-bold text-lg text-[var(--foreground)]">Project Manager</h3>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors">
@@ -57,7 +56,6 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
           </button>
         </div>
 
-        {/* QUICK ADD PROJECT */}
         <div className="p-4 border-b border-[var(--border)] bg-zinc-50/50 dark:bg-[#151515]">
           <div className="flex items-center gap-2">
             <input 
@@ -77,7 +75,6 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
           </div>
         </div>
 
-        {/* PROJECT LIST */}
         <div className="flex-1 overflow-y-auto p-2">
           {projects?.length === 0 && (
             <p className="text-zinc-500 text-center py-8 text-sm">No active projects.</p>
@@ -85,7 +82,6 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
           {projects?.map(project => (
             <div key={project._id} className="flex items-center justify-between p-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg group transition-colors">
               
-              {/* Name or Edit Field */}
               {editingId === project._id ? (
                 <div className="flex-1 flex items-center gap-2 mr-4">
                   <input 
@@ -98,10 +94,12 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
                   <button onClick={() => handleSave(project._id)} className="p-1 text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded"><Check className="w-4 h-4" /></button>
                 </div>
               ) : (
-                <span className="text-[15px] font-medium text-[var(--foreground)]">{project.name}</span>
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full border ${getProjectColor(project._id).split(' ')[0]}`} />
+                  <span className="text-[15px] font-medium text-[var(--foreground)]">{project.name}</span>
+                </div>
               )}
 
-              {/* Action Buttons */}
               {editingId !== project._id && (
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button title="Edit Name" onClick={() => { setEditingId(project._id); setEditName(project.name); }} className="p-1.5 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded">
@@ -119,7 +117,6 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
           ))}
         </div>
 
-        {/* CUSTOM BEAUTIFUL DELETE CONFIRMATION OVERLAY */}
         {deleteConfirmId && (
           <div className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1c1c1c]/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
             <div className="text-center w-full max-w-sm">
@@ -141,7 +138,6 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
