@@ -65,7 +65,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
       <div className="relative w-full max-w-[200px]" ref={ref}>
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full text-left outline-none px-3 py-1 -ml-2 rounded-full transition-colors flex items-center gap-1.5 font-medium text-xs border ${getProjectColor(value)}`}
+          className={`w-full text-left outline-none px-3 py-1 -ml-2 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border ${getProjectColor(value)}`}
         >
           <Folder className="w-3.5 h-3.5" />
           <span className={!value ? "opacity-60" : ""}>{selectedProject?.name || "Empty"}</span>
@@ -196,6 +196,7 @@ function PaneContent() {
         .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
       `}</style>
 
+      {/* Pane Layout */}
       <div ref={paneRef} className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
 
         {task === undefined ? (
@@ -205,7 +206,8 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-8 py-10 sm:px-10 sm:py-12 space-y-6 sm:space-y-8 pb-32 sm:pb-32">
+          // Main Body Padding (Extra bottom padding to clear floating action pills)
+          <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-32">
             
             <input
               type="text"
@@ -237,7 +239,7 @@ function PaneContent() {
                     <button
                       key={s.id}
                       onClick={() => handleUpdate('status', s.id)}
-                      className={`px-3 py-1 text-xs font-medium rounded-full transition-all border ${
+                      className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${
                         task.status === s.id 
                           ? s.activeClass 
                           : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
@@ -261,15 +263,15 @@ function PaneContent() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => handleUpdate("isUrgent", !task.isUrgent)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                    className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                   >Urgent</button>
                   <button
                     onClick={() => handleUpdate("isImportant", !task.isImportant)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                    className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                   >Important</button>
                   <button
                     onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                    className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                   >For Funsies</button>
                 </div>
               </PropertyRow>
@@ -280,7 +282,7 @@ function PaneContent() {
                      <button
                      key={listName}
                      onClick={() => handleUpdate("listCategory", listName)}
-                     className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                     className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                    >
                      {listName}
                    </button>
@@ -314,16 +316,24 @@ function PaneContent() {
           </div>
         )}
 
-        {/* Floating Action Pills (Unified Desktop & Mobile) */}
-        <div className="absolute bottom-6 left-0 w-full px-8 flex justify-between items-center z-50 pointer-events-none">
-          <button type="button" onClick={closePane} className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-sm transition-transform active:scale-95">
-            <X className="w-4 h-4 -ml-1" /> Close
+        {/* Unified Floating Action Pills (Desktop & Mobile) */}
+        <div className="absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-between items-center z-50 pointer-events-none">
+          <button 
+            type="button" 
+            onClick={closePane} 
+            className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-[13px] sm:text-sm transition-transform active:scale-95"
+          >
+            <ChevronLeft className="w-4 h-4 -ml-1 sm:hidden" />
+            <X className="w-4 h-4 -ml-1 hidden sm:block" />
+            <span className="sm:hidden">Back</span>
+            <span className="hidden sm:block">Close</span>
           </button>
+
           {task !== undefined && task !== null && (
             <button 
               type="button" 
               onClick={() => setShowDeleteModal(true)} 
-              className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-zinc-400 shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-sm transition-all active:scale-95 active:border-red-500 active:text-red-500 hover:border-red-500 hover:text-red-500"
+              className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-zinc-500 shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-[13px] sm:text-sm transition-all active:scale-95 active:border-red-500 active:text-red-500 hover:border-red-500 hover:text-red-500"
             >
               <Trash2 className="w-4 h-4" /> Delete
             </button>
@@ -353,7 +363,6 @@ function PaneContent() {
               >
                 Cancel
               </button>
-              {/* Added autoFocus so hitting 'Enter' automatically deletes */}
               <button 
                 type="button"
                 autoFocus

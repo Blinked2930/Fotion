@@ -22,7 +22,7 @@ const NotionHeader = ({ icon: Icon, label, minWidth }: { icon: any, label: strin
 );
 
 const NotionCell = ({ children }: { children: React.ReactNode }) => (
-  <td className="border border-[var(--border)] px-3 py-1.5 text-[13px] text-[var(--foreground)] align-middle h-[36px]">
+  <td className="border border-[var(--border)] px-3 py-1.5 text-[13px] text-[var(--foreground)] align-middle h-[40px]">
     {children}
   </td>
 );
@@ -73,7 +73,7 @@ function BeautifulDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full text-left flex items-center justify-between p-1 -ml-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
       >
-        {value ? renderPill(value) : <span className="text-zinc-400 text-xs px-1">{placeholder}</span>}
+        {value ? renderPill(value) : <span className="text-zinc-400 text-xs px-2">{placeholder}</span>}
       </button>
       {isOpen && (
         <div className="absolute top-full left-0 z-[100] mt-1 min-w-[140px] bg-white dark:bg-[#252525] border border-[var(--border)] rounded-lg shadow-xl py-1">
@@ -103,18 +103,19 @@ function BeautifulDropdown({
   );
 }
 
+// FULLY STANDARDIZED PILLS: px-3 py-0.5 rounded-full border text-[12px]
 const StatusPill = (status: string) => {
   const styles: Record<string, string> = {
-    'todo': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50',
-    'in-progress': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-900/50',
-    'done': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-900/50',
+    'todo': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50',
+    'in-progress': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50',
+    'done': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50',
   };
   const labels: Record<string, string> = { 'todo': 'To Do', 'in-progress': 'In Progress', 'done': 'Done' };
-  return <span className={`px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap ${styles[status] || styles['todo']}`}>{labels[status] || status}</span>;
+  return <span className={`px-3 py-0.5 rounded-full border text-[12px] font-medium whitespace-nowrap ${styles[status] || styles['todo']}`}>{labels[status] || status}</span>;
 };
 
 const ListPill = (list: string) => {
-  return <span className={`px-2 py-0.5 rounded-full text-[12px] font-medium whitespace-nowrap border ${getListColor(list)}`}>{list}</span>;
+  return <span className={`px-3 py-0.5 rounded-full border text-[12px] font-medium whitespace-nowrap ${getListColor(list)}`}>{list}</span>;
 };
 
 export function RawDataView() {
@@ -160,7 +161,7 @@ export function RawDataView() {
   const ProjectPill = (id: string) => {
     const p = projects.find(proj => proj._id === id);
     if (!p) return <span className="text-zinc-400 text-xs">Empty</span>;
-    return <span className={`px-3 py-1 rounded-full text-[11px] font-medium whitespace-nowrap border ${getProjectColor(id)}`}>{p.name}</span>;
+    return <span className={`px-3 py-0.5 rounded-full border text-[12px] font-medium whitespace-nowrap ${getProjectColor(id)}`}>{p.name}</span>;
   };
 
   return (
