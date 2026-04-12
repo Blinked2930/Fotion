@@ -7,7 +7,7 @@ import { calculateQuadrant } from "@/lib/eisenhower";
 import { useRouter } from "next/navigation";
 import { 
   Loader2, Type, PlayCircle, Calendar, CheckSquare, 
-  List as ListIcon, Folder, Sigma, Check
+  List as ListIcon, Folder, Sigma, Check, Maximize2
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
@@ -169,7 +169,11 @@ export function RawDataView() {
 
   return (
     <>
-      <div className="w-full overflow-x-auto pb-48 hide-scrollbar">
+      <style dangerouslySetInnerHTML={{__html: `
+        .no-scroll-bar::-webkit-scrollbar { display: none; }
+        .no-scroll-bar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}} />
+      <div className="w-full overflow-x-auto pb-48 no-scroll-bar">
         <div className="inline-block min-w-full align-middle">
           <table className="w-full text-left border-collapse border border-[var(--border)]">
             <thead>
@@ -193,20 +197,20 @@ export function RawDataView() {
                 return (
                   <tr key={task._id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors group">
                     
-                    {/* UPDATED TITLE CELL WITH HOVER OPEN BUTTON */}
                     <NotionCell>
-                      <div className="group/title relative flex items-center w-full">
+                      <div className="group/title relative flex items-center w-full gap-2">
                         <input 
                           type="text" 
                           defaultValue={task.title} 
                           onBlur={(e) => { if(e.target.value.trim() !== task.title) handleUpdate(task._id, "title", e.target.value.trim() || "Unknown Task") }}
-                          className="bg-transparent w-full outline-none font-medium truncate pr-16"
+                          className="bg-transparent flex-1 min-w-0 outline-none font-medium truncate"
                         />
                         <button 
                           onClick={() => router.push(`?taskId=${task._id}`)}
-                          className="absolute right-0 opacity-0 group-hover/title:opacity-100 px-2 py-0.5 text-[11px] font-medium bg-white dark:bg-[#252525] border border-[var(--border)] shadow-sm rounded text-zinc-500 hover:text-[var(--foreground)] transition-all"
+                          className="flex-shrink-0 p-1.5 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-sm rounded text-zinc-500 hover:text-[var(--foreground)] sm:opacity-0 sm:group-hover/title:opacity-100 transition-all"
+                          title="Open Task Details"
                         >
-                          OPEN
+                          <Maximize2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </NotionCell>
