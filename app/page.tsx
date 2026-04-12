@@ -1,6 +1,6 @@
 "use client"; 
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { EisenhowerMatrix } from "@/components/views/EisenhowerMatrix";
 import { NewTaskForm } from "@/components/views/NewTaskForm";
 import { ViewTabs, ViewType } from "@/components/ui/ViewTabs";
@@ -10,8 +10,44 @@ import { PipelinesView } from "@/components/views/PipelinesView";
 import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
-import { Show, SignIn, UserButton } from "@clerk/nextjs";
-import { Folder, Zap } from "lucide-react";
+import { Show, SignIn, useClerk } from "@clerk/nextjs";
+import { Folder, Zap, Settings, LogOut } from "lucide-react";
+
+// NEW: Minimalist Custom Menu
+function CustomUserMenu() {
+  const { signOut } = useClerk();
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className="p-1.5 text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+      >
+        <Settings className="w-4 h-4" />
+      </button>
+      {isOpen && (
+        <div className="absolute top-full right-0 mt-1 w-40 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50">
+          <button 
+            onClick={() => signOut()} 
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <LogOut className="w-4 h-4" /> Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Home() {
   const [activeView, setActiveView] = useState<ViewType>("Matrix");
@@ -36,7 +72,9 @@ export default function Home() {
                 <Zap className="w-4 h-4" /> Project Import
               </button>
               <div className="w-px h-5 bg-[var(--border)] mx-1"></div>
-              <UserButton appearance={{ elements: { avatarBox: "w-7 h-7 rounded-md border border-[var(--border)] shadow-sm" } }} />
+              
+              {/* Replacing standard profile image with our custom gear menu */}
+              <CustomUserMenu />
             </div>
           </div>
         </header>
