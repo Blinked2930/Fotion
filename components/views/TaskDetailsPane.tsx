@@ -62,10 +62,12 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
 
   return (
     <>
-      <div className="relative w-full max-w-[200px]" ref={ref}>
+      {/* FIXED: Removed w-full and max-w-[200px], set to w-fit so it hugs content */}
+      <div className="relative w-fit" ref={ref}>
+        {/* FIXED: Removed w-full, text-left, and -ml-2 to perfectly match other pills */}
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full text-left outline-none px-3 py-1 -ml-2 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border ${getProjectColor(value)}`}
+          className={`outline-none px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border ${getProjectColor(value)}`}
         >
           <Folder className="w-3.5 h-3.5" />
           <span className={!value ? "opacity-60" : ""}>{selectedProject?.name || "Empty"}</span>
@@ -206,7 +208,6 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          // Main Body Padding (Extra bottom padding to clear floating action pills)
           <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-32">
             
             <input
