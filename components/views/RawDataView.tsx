@@ -103,7 +103,6 @@ function BeautifulDropdown({
   );
 }
 
-// FULLY STANDARDIZED PILLS: px-3 py-0.5 rounded-full border text-[12px]
 const StatusPill = (status: string) => {
   const styles: Record<string, string> = {
     'todo': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50',
@@ -202,8 +201,9 @@ export function RawDataView() {
                           onBlur={(e) => { if(e.target.value.trim() !== task.title) handleUpdate(task._id, "title", e.target.value.trim() || "Unknown Task") }}
                           className="bg-transparent flex-1 min-w-0 outline-none font-medium truncate"
                         />
+                        {/* Bulletproofed root router push */}
                         <button 
-                          onClick={() => router.push(`?taskId=${task._id}`)}
+                          onClick={() => router.push(`/?taskId=${task._id}`)}
                           className="flex-shrink-0 p-1.5 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-sm rounded text-zinc-500 hover:text-[var(--foreground)] sm:opacity-0 sm:group-hover/title:opacity-100 transition-all"
                           title="Open Task Details"
                         >

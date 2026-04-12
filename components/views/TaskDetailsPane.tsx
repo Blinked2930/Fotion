@@ -130,7 +130,6 @@ function PaneContent() {
   const searchParams = useSearchParams();
   const taskId = searchParams.get("taskId") as Id<"tasks"> | null;
 
-  // MAGIC SLIDE TRICK: We keep the old task ID in memory so it doesn't go blank while sliding out
   const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -143,7 +142,6 @@ function PaneContent() {
   const [isNearBottom, setIsNearBottom] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
 
-  // Sync URL changes to the local sliding animation state
   useEffect(() => {
     if (taskId) {
       setDisplayTaskId(taskId);
@@ -208,9 +206,16 @@ function PaneContent() {
         .tiptap ul[data-type="taskList"] li > div { flex: 1; }
         .tiptap p.is-editor-empty:first-child::before { color: #a1a1aa; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
         .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
+        
+        /* FIX: Render checkboxes in dark mode properly */
+        @media (prefers-color-scheme: dark) {
+          .tiptap input[type="checkbox"] {
+            color-scheme: dark;
+          }
+        }
       `}</style>
 
-      {/* SMOOTH SLIDE: Instead of unmounting, it physically translates off the right side of the screen */}
+      {/* PERMANENT DRAWER: This never unmounts, fixing the React freeze bug. It just slides off screen. */}
       <div 
         ref={paneRef} 
         onMouseMove={(e) => {
@@ -224,9 +229,9 @@ function PaneContent() {
         }`}
       >
 
-        {task === undefined ? (
+        {(!displayTaskId || task === undefined) ? (
           <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />
+            {displayTaskId && <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />}
           </div>
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>

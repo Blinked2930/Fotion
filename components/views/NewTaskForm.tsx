@@ -123,7 +123,7 @@ export function NewTaskForm() {
             projectId: stateRef.current.projectId as any,
           });
           setIsExpanded(false);
-          setTimeout(() => resetForm(), 300); // Wait for collapse animation to clear text
+          setTimeout(() => resetForm(), 300);
         } else {
           setIsExpanded(false);
         }
@@ -145,7 +145,7 @@ export function NewTaskForm() {
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
     });
     setIsExpanded(false);
-    setTimeout(() => resetForm(), 300); // Wait for collapse animation to clear text
+    setTimeout(() => resetForm(), 300);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -186,6 +186,12 @@ export function NewTaskForm() {
         .tiptap ul[data-type="taskList"] li > label input[type="checkbox"] { accent-color: #3b82f6; width: 1rem; height: 1rem; margin-top: 0.25rem; cursor: pointer; }
         .tiptap p.is-editor-empty:first-child::before { color: #a1a1aa; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
         .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
+        
+        @media (prefers-color-scheme: dark) {
+          .tiptap input[type="checkbox"] {
+            color-scheme: dark;
+          }
+        }
       `}</style>
       <form 
         ref={formRef}
@@ -210,22 +216,23 @@ export function NewTaskForm() {
           </div>
         </div>
             
-        {/* SMOOTH COLLAPSE: Uses CSS Grid Trick to transition max-height beautifully */}
-        <div className={`grid transition-all duration-[300ms] ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
+        <div className={`grid transition-all duration-[300ms] ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
           <div className="overflow-hidden">
-            <div className="space-y-5 w-full sm:ml-7 sm:pr-7 pb-1">
+            {/* Tighter vertical spacing here */}
+            <div className="space-y-3 w-full sm:ml-7 sm:pr-7 pb-1">
               
               <div>
                 <EditorToolbar editor={editor} />
                 <div 
-                  className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[100px]"
+                  className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[50px]"
                   onClick={() => editor?.commands.focus()}
                 >
                   <EditorContent editor={editor} className="tiptap outline-none h-full" />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-5 border-t border-[var(--border)] pt-4">
+              {/* Reduced gap from gap-5 to gap-4 */}
+              <div className="flex flex-col gap-4 border-t border-[var(--border)] pt-4">
                 
                 <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
                   <label className="flex items-center gap-2 cursor-pointer hover:text-[var(--foreground)] font-medium">

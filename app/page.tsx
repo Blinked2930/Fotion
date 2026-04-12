@@ -11,9 +11,33 @@ import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { Show, SignIn, useClerk } from "@clerk/nextjs";
-import { Folder, Zap, Settings, LogOut } from "lucide-react";
+import { Folder, Zap, Settings, LogOut, Download } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
-// NEW: Minimalist Custom Menu
+// Sub-component to handle the export safely
+function ExportButton() {
+  const tasks = useQuery(api.tasks.getTasks);
+  
+  const handleExport = () => {
+    if (!tasks) return;
+    const json = JSON.stringify(tasks, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fotion-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <button onClick={handleExport} className="flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-[var(--foreground)] transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
+      <Download className="w-4 h-4" /> Export
+    </button>
+  );
+}
+
 function CustomUserMenu() {
   const { signOut } = useClerk();
   const [isOpen, setIsOpen] = useState(false);
@@ -55,7 +79,7 @@ export default function Home() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
+    <div className="min-h-screen bg-[var(--background)] overflow-x-hidden">
       
       <Show when="signed-in">
         <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
@@ -64,16 +88,16 @@ export default function Home() {
               <span className="font-semibold text-[var(--foreground)] tracking-tight">Fotion</span>
             </div>
             
-            <div className="flex items-center gap-3">
-              <button onClick={() => setIsProjectModalOpen(true)} className="flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-[var(--foreground)] transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <ExportButton />
+              <button onClick={() => setIsProjectModalOpen(true)} className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-[var(--foreground)] transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 <Folder className="w-4 h-4" /> Projects
               </button>
               <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors px-2 py-1 rounded-md">
-                <Zap className="w-4 h-4" /> Project Import
+                <Zap className="w-4 h-4" /> Import
               </button>
               <div className="w-px h-5 bg-[var(--border)] mx-1"></div>
               
-              {/* Replacing standard profile image with our custom gear menu */}
               <CustomUserMenu />
             </div>
           </div>
