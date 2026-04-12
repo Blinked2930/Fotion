@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { calculateQuadrant } from "@/lib/eisenhower";
+import { useRouter } from "next/navigation";
 import { 
   Loader2, Type, PlayCircle, Calendar, CheckSquare, 
   List as ListIcon, Folder, Sigma, Check
@@ -37,7 +38,6 @@ const NotionCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () 
   </button>
 );
 
-// --- BEAUTIFUL CUSTOM DROPDOWNS ---
 function BeautifulDropdown({ 
   value, 
   options, 
@@ -122,6 +122,7 @@ const ListPill = (list: string) => {
 };
 
 export function RawDataView() {
+  const router = useRouter();
   const tasks = useQuery(api.tasks.getTasks);
   const projects = useQuery(api.projects.getProjects);
   const updateTask = useMutation(api.tasks.updateTask);
@@ -168,7 +169,7 @@ export function RawDataView() {
 
   return (
     <>
-      <div className="w-full overflow-x-auto pb-48">
+      <div className="w-full overflow-x-auto pb-48 hide-scrollbar">
         <div className="inline-block min-w-full align-middle">
           <table className="w-full text-left border-collapse border border-[var(--border)]">
             <thead>
@@ -191,13 +192,23 @@ export function RawDataView() {
                 const quadrant = calculateQuadrant(task.isForFunsies, task.isUrgent, task.isImportant);
                 return (
                   <tr key={task._id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors group">
+                    
+                    {/* UPDATED TITLE CELL WITH HOVER OPEN BUTTON */}
                     <NotionCell>
-                      <input 
-                        type="text" 
-                        defaultValue={task.title} 
-                        onBlur={(e) => { if(e.target.value.trim() !== task.title) handleUpdate(task._id, "title", e.target.value.trim() || "Unknown Task") }}
-                        className="bg-transparent w-full outline-none font-medium truncate"
-                      />
+                      <div className="group/title relative flex items-center w-full">
+                        <input 
+                          type="text" 
+                          defaultValue={task.title} 
+                          onBlur={(e) => { if(e.target.value.trim() !== task.title) handleUpdate(task._id, "title", e.target.value.trim() || "Unknown Task") }}
+                          className="bg-transparent w-full outline-none font-medium truncate pr-16"
+                        />
+                        <button 
+                          onClick={() => router.push(`?taskId=${task._id}`)}
+                          className="absolute right-0 opacity-0 group-hover/title:opacity-100 px-2 py-0.5 text-[11px] font-medium bg-white dark:bg-[#252525] border border-[var(--border)] shadow-sm rounded text-zinc-500 hover:text-[var(--foreground)] transition-all"
+                        >
+                          OPEN
+                        </button>
+                      </div>
                     </NotionCell>
                     
                     <NotionCell>
@@ -277,7 +288,6 @@ export function RawDataView() {
         </div>
       </div>
 
-      {/* INLINE PROJECT CREATION MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-[var(--border)] relative" onClick={e => e.stopPropagation()}>
