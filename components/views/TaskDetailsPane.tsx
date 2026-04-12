@@ -18,11 +18,11 @@ import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
-// Import the color logic
 import { getProjectColor, getListColor } from "./NewTaskForm";
 
 const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string, children: React.ReactNode }) => (
-  <div className="flex items-start sm:items-center min-h-[40px] group hover:bg-zinc-50 dark:hover:bg-zinc-900/30 -mx-2 px-2 py-1.5 sm:py-0 rounded transition-colors">
+  // Reduced vertical padding here to tighten properties vertically on mobile
+  <div className="flex items-start sm:items-center min-h-[40px] group hover:bg-zinc-50 dark:hover:bg-zinc-900/30 -mx-2 px-2 py-0.5 sm:py-0 rounded transition-colors">
     <div className="w-[140px] flex items-center gap-2 text-zinc-500 text-[14px] shrink-0 pt-1 sm:pt-0">
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
@@ -199,7 +199,7 @@ function PaneContent() {
 
       <div ref={paneRef} className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
         
-        {/* Desktop Header */}
+        {/* Desktop Header (hidden on mobile) */}
         <div className="hidden sm:flex items-center justify-end p-4 border-b border-[var(--border)] text-zinc-500 h-14">
           <button type="button" onClick={closePane} className="p-1.5 rounded-md hover:bg-[var(--subtle-bg)] hover:text-[var(--foreground)] transition-colors">
             <X className="w-5 h-5" />
@@ -213,7 +213,8 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-10 sm:py-8 space-y-6 sm:space-y-8 pb-32 sm:pb-8">
+          {/* Mobile Padding Refinement (px-8 instead of px-4) */}
+          <div className="flex-1 overflow-y-auto px-8 py-6 sm:px-10 sm:py-8 space-y-4 sm:space-y-8 pb-32 sm:pb-8">
             
             <input
               type="text"
@@ -224,7 +225,7 @@ function PaneContent() {
               placeholder="Task title"
             />
 
-            <div className="flex flex-col gap-2 text-[15px]">
+            <div className="flex flex-col gap-1 sm:gap-2 text-[15px]">
 
               <PropertyRow icon={CheckSquare} label="Today">
                 <input 
@@ -282,7 +283,7 @@ function PaneContent() {
                 </div>
               </PropertyRow>
 
-              <PropertyRow icon={List} label="List">
+              <PropertyRow icon={List} label="Pipelines">
                 <div className="flex flex-wrap gap-2">
                   {['Current', 'Waiting For', 'Someday Maybe'].map(listName => (
                      <button
@@ -338,7 +339,12 @@ function PaneContent() {
             <ChevronLeft className="w-4 h-4 -ml-1" /> Back
           </button>
           {task !== undefined && task !== null && (
-            <button type="button" onClick={() => setShowDeleteModal(true)} className="pointer-events-auto flex items-center gap-1.5 bg-red-500 text-white shadow-xl shadow-red-500/20 rounded-full px-5 py-3 font-medium text-sm transition-transform active:scale-95">
+            // SMOOTHER DELETE PILL: Outline style that only activates red on focus/active
+            <button 
+              type="button" 
+              onClick={() => setShowDeleteModal(true)} 
+              className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-zinc-400 shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-sm transition-all active:scale-95 active:border-red-500 active:text-red-500"
+            >
               <Trash2 className="w-4 h-4" /> Delete
             </button>
           )}
@@ -346,6 +352,7 @@ function PaneContent() {
 
       </div>
 
+      {/* Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm animate-in zoom-in-95 duration-200 border border-[var(--border)]">
