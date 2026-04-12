@@ -12,7 +12,6 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
 
-// Helper for consistent random project colors
 export const getProjectColor = (id: string | null | undefined) => {
   if (!id) return "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]";
   const colors = [
@@ -144,12 +143,21 @@ export function NewTaskForm() {
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
     });
     resetForm();
-    setIsExpanded(false); // Folds back up cleanly!
+    setIsExpanded(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  // NEW: Cmd+Enter / Ctrl+Enter handler capturing from anywhere in the form
+  const handleKeyDownCapture = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
       handleSubmit();
     }
   };
@@ -181,6 +189,7 @@ export function NewTaskForm() {
       <form 
         ref={formRef}
         onSubmit={handleSubmit}
+        onKeyDownCapture={handleKeyDownCapture}
         className={`relative flex flex-col transition-all rounded-lg -mx-2 px-2 border ${
           isExpanded ? "bg-white dark:bg-[#1f1f1f] border-[var(--border)] shadow-md py-3 my-2 z-30" : "border-transparent bg-transparent py-1.5 hover:bg-[var(--subtle-bg)]"
         }`}
@@ -205,8 +214,12 @@ export function NewTaskForm() {
             
             <div>
               <EditorToolbar editor={editor} />
-              <div className="w-full bg-transparent outline-none text-sm text-[var(--foreground)] placeholder:text-zinc-400">
-                <EditorContent editor={editor} className="tiptap outline-none max-h-[200px] overflow-y-auto" />
+              {/* NEW: cursor-text min-h-[100px] + onClick to reliably focus editor and show blinking cursor */}
+              <div 
+                className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[100px]"
+                onClick={() => editor?.commands.focus()}
+              >
+                <EditorContent editor={editor} className="tiptap outline-none h-full" />
               </div>
             </div>
 
@@ -219,10 +232,11 @@ export function NewTaskForm() {
                 </label>
 
                 <div className="relative" ref={projectDropdownRef}>
+                  {/* NEW: Project Button is now a full pill */}
                   <button 
                     type="button" 
                     onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
-                    className={`flex items-center gap-1.5 font-medium px-2 py-1 rounded border transition-colors ${getProjectColor(projectId)}`}
+                    className={`flex items-center gap-1.5 font-medium px-3 py-1 rounded-full border transition-colors text-[12px] ${getProjectColor(projectId)}`}
                   >
                     <Folder className="w-3.5 h-3.5" />
                     {selectedProject?.name || "No Project"}

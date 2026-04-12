@@ -114,7 +114,7 @@ const StatusPill = (status: string) => {
 };
 
 const ListPill = (list: string) => {
-  return <span className={`px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap border ${getListColor(list)}`}>{list}</span>;
+  return <span className={`px-2 py-0.5 rounded-full text-[12px] font-medium whitespace-nowrap border ${getListColor(list)}`}>{list}</span>;
 };
 
 export function RawDataView() {
@@ -160,7 +160,7 @@ export function RawDataView() {
   const ProjectPill = (id: string) => {
     const p = projects.find(proj => proj._id === id);
     if (!p) return <span className="text-zinc-400 text-xs">Empty</span>;
-    return <span className={`px-2 py-0.5 rounded text-[12px] font-medium whitespace-nowrap border ${getProjectColor(id)}`}>{p.name}</span>;
+    return <span className={`px-3 py-1 rounded-full text-[11px] font-medium whitespace-nowrap border ${getProjectColor(id)}`}>{p.name}</span>;
   };
 
   return (
@@ -191,7 +191,7 @@ export function RawDataView() {
               {tasks.map((task) => {
                 const quadrant = calculateQuadrant(task.isForFunsies, task.isUrgent, task.isImportant);
                 return (
-                  <tr key={task._id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors group">
+                  <tr key={task._id} className="hover:bg-zinc-50 dark:bg-zinc-900/40 transition-colors group">
                     
                     <NotionCell>
                       <div className="group/title relative flex items-center w-full gap-2">
@@ -288,7 +288,6 @@ export function RawDataView() {
         </div>
       </div>
 
-      {/* INLINE PROJECT CREATION MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-[var(--border)] relative" onClick={e => e.stopPropagation()}>

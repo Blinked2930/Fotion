@@ -21,7 +21,6 @@ import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
 
 const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string, children: React.ReactNode }) => (
-  // Reduced vertical padding here to tighten properties vertically on mobile
   <div className="flex items-start sm:items-center min-h-[40px] group hover:bg-zinc-50 dark:hover:bg-zinc-900/30 -mx-2 px-2 py-0.5 sm:py-0 rounded transition-colors">
     <div className="w-[140px] flex items-center gap-2 text-zinc-500 text-[14px] shrink-0 pt-1 sm:pt-0">
       <Icon className="w-4 h-4 text-zinc-400" />
@@ -66,7 +65,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
       <div className="relative w-full max-w-[200px]" ref={ref}>
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full text-left outline-none px-2 py-1 -ml-2 rounded transition-colors flex items-center gap-1.5 font-medium border ${getProjectColor(value)}`}
+          className={`w-full text-left outline-none px-3 py-1 -ml-2 rounded-full transition-colors flex items-center gap-1.5 font-medium text-xs border ${getProjectColor(value)}`}
         >
           <Folder className="w-3.5 h-3.5" />
           <span className={!value ? "opacity-60" : ""}>{selectedProject?.name || "Empty"}</span>
@@ -198,13 +197,6 @@ function PaneContent() {
       `}</style>
 
       <div ref={paneRef} className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
-        
-        {/* Desktop Header (hidden on mobile) */}
-        <div className="hidden sm:flex items-center justify-end p-4 border-b border-[var(--border)] text-zinc-500 h-14">
-          <button type="button" onClick={closePane} className="p-1.5 rounded-md hover:bg-[var(--subtle-bg)] hover:text-[var(--foreground)] transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
         {task === undefined ? (
           <div className="flex-1 flex items-center justify-center">
@@ -213,8 +205,7 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          {/* Mobile Padding Refinement (px-8 instead of px-4) */}
-          <div className="flex-1 overflow-y-auto px-8 py-6 sm:px-10 sm:py-8 space-y-4 sm:space-y-8 pb-32 sm:pb-8">
+          <div className="flex-1 overflow-y-auto px-8 py-10 sm:px-10 sm:py-12 space-y-6 sm:space-y-8 pb-32 sm:pb-32">
             
             <input
               type="text"
@@ -313,37 +304,26 @@ function PaneContent() {
 
               <EditorToolbar editor={editor} />
               
-              <div className="min-h-[300px] text-[15px] text-[var(--foreground)] leading-relaxed">
-                <EditorContent editor={editor} className="tiptap outline-none" />
+              <div 
+                className="w-full text-[15px] text-[var(--foreground)] leading-relaxed cursor-text min-h-[150px]"
+                onClick={() => editor?.commands.focus()}
+              >
+                <EditorContent editor={editor} className="tiptap outline-none h-full" />
               </div>
             </div>
           </div>
         )}
 
-        {/* Desktop Footer (hidden on mobile) */}
-        {task !== undefined && task !== null && (
-          <div className="hidden sm:flex p-4 border-t border-[var(--border)] justify-end bg-[var(--background)]">
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="flex items-center gap-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 px-3 py-1.5 rounded-md transition-colors font-medium"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </button>
-          </div>
-        )}
-
-        {/* Floating Mobile Action Pills */}
-        <div className="fixed bottom-6 left-0 w-full px-4 flex justify-between items-center z-50 sm:hidden pointer-events-none">
+        {/* Floating Action Pills (Unified Desktop & Mobile) */}
+        <div className="absolute bottom-6 left-0 w-full px-8 flex justify-between items-center z-50 pointer-events-none">
           <button type="button" onClick={closePane} className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-sm transition-transform active:scale-95">
-            <ChevronLeft className="w-4 h-4 -ml-1" /> Back
+            <X className="w-4 h-4 -ml-1" /> Close
           </button>
           {task !== undefined && task !== null && (
-            // SMOOTHER DELETE PILL: Outline style that only activates red on focus/active
             <button 
               type="button" 
               onClick={() => setShowDeleteModal(true)} 
-              className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-zinc-400 shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-sm transition-all active:scale-95 active:border-red-500 active:text-red-500"
+              className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-zinc-400 shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-sm transition-all active:scale-95 active:border-red-500 active:text-red-500 hover:border-red-500 hover:text-red-500"
             >
               <Trash2 className="w-4 h-4" /> Delete
             </button>
@@ -373,10 +353,12 @@ function PaneContent() {
               >
                 Cancel
               </button>
+              {/* Added autoFocus so hitting 'Enter' automatically deletes */}
               <button 
                 type="button"
+                autoFocus
                 onClick={() => { deleteTask({ id: taskId }); closePane(); }} 
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#1c1c1c]"
               >
                 Yes, Delete
               </button>

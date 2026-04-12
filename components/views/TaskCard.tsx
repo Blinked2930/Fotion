@@ -111,9 +111,11 @@ export function TaskCard({ task }: TaskCardProps) {
               >
                 Cancel
               </button>
+              {/* Added autoFocus for Enter key confirmation */}
               <button 
+                autoFocus
                 onClick={confirmDelete} 
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#1c1c1c]"
               >
                 Yes, Delete
               </button>
