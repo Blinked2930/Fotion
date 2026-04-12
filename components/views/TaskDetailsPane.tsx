@@ -136,8 +136,6 @@ function PaneContent() {
 
   const [title, setTitle] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
-  // NEW: State for the magic proximity hover
   const [isNearBottom, setIsNearBottom] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
 
@@ -165,20 +163,23 @@ function PaneContent() {
     }
   }, [task?.description, editor]);
 
+  // FIXED: Bulletproof close command
+  const closePane = () => router.push("/");
+
+  // FIXED: Use capture phase to prevent background elements from swallowing the click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (showDeleteModal) return;
       if (paneRef.current && !paneRef.current.contains(e.target as Node)) {
-        router.replace(window.location.pathname, { scroll: false });
+        closePane();
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => document.removeEventListener("mousedown", handleClickOutside, true);
   }, [showDeleteModal, router]);
 
   if (!taskId) return null;
-
-  const closePane = () => router.replace(window.location.pathname, { scroll: false });
 
   const handleUpdate = (field: string, value: any) => {
     updateTask({ id: taskId, [field]: value });
@@ -199,13 +200,11 @@ function PaneContent() {
         .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
       `}</style>
 
-      {/* Pane Layout with Mouse Proximity Tracking */}
       <div 
         ref={paneRef} 
         onMouseMove={(e) => {
           if (!paneRef.current) return;
           const rect = paneRef.current.getBoundingClientRect();
-          // If the mouse is within 180px of the bottom of the pane, trigger hover
           setIsNearBottom(rect.bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
@@ -328,7 +327,6 @@ function PaneContent() {
           </div>
         )}
 
-        {/* Floating Action Pills (Proximity Hover on Desktop, Always on Mobile) */}
         <div className={`absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out ${isNearBottom ? "sm:opacity-100 sm:translate-y-0" : "sm:opacity-0 sm:translate-y-2"}`}>
           <button 
             type="button" 
@@ -354,7 +352,6 @@ function PaneContent() {
 
       </div>
 
-      {/* Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm animate-in zoom-in-95 duration-200 border border-[var(--border)]">
