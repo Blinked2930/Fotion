@@ -62,9 +62,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
 
   return (
     <>
-      {/* FIXED: Removed w-full and max-w-[200px], set to w-fit so it hugs content */}
       <div className="relative w-fit" ref={ref}>
-        {/* FIXED: Removed w-full, text-left, and -ml-2 to perfectly match other pills */}
         <button 
           onClick={() => setIsOpen(!isOpen)}
           className={`outline-none px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border ${getProjectColor(value)}`}
@@ -138,6 +136,9 @@ function PaneContent() {
 
   const [title, setTitle] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // NEW: State for the magic proximity hover
+  const [isNearBottom, setIsNearBottom] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
 
   const editor = useEditor({
@@ -198,8 +199,18 @@ function PaneContent() {
         .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
       `}</style>
 
-      {/* Pane Layout */}
-      <div ref={paneRef} className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
+      {/* Pane Layout with Mouse Proximity Tracking */}
+      <div 
+        ref={paneRef} 
+        onMouseMove={(e) => {
+          if (!paneRef.current) return;
+          const rect = paneRef.current.getBoundingClientRect();
+          // If the mouse is within 180px of the bottom of the pane, trigger hover
+          setIsNearBottom(rect.bottom - e.clientY < 180);
+        }}
+        onMouseLeave={() => setIsNearBottom(false)}
+        className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300"
+      >
 
         {task === undefined ? (
           <div className="flex-1 flex items-center justify-center">
@@ -317,8 +328,8 @@ function PaneContent() {
           </div>
         )}
 
-        {/* Unified Floating Action Pills (Desktop & Mobile) */}
-        <div className="absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-between items-center z-50 pointer-events-none">
+        {/* Floating Action Pills (Proximity Hover on Desktop, Always on Mobile) */}
+        <div className={`absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out ${isNearBottom ? "sm:opacity-100 sm:translate-y-0" : "sm:opacity-0 sm:translate-y-2"}`}>
           <button 
             type="button" 
             onClick={closePane} 
