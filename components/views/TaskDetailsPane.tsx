@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
   ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, 
-  Bold, Italic, ListOrdered
+  Bold, Italic, ListOrdered, Loader2
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -63,6 +63,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
     <>
       <div className="relative w-full max-w-[200px]" ref={ref}>
         <button 
+          type="button"
           onClick={() => setIsOpen(!isOpen)}
           className="w-full text-left bg-transparent text-[14px] text-[var(--foreground)] outline-none hover:bg-zinc-100 dark:hover:bg-zinc-800 px-2 py-1 -ml-2 rounded transition-colors"
         >
@@ -71,14 +72,14 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
 
         {isOpen && (
           <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[300px] overflow-y-auto">
-            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">None</button>
+            <button type="button" onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">None</button>
             {projects?.map((p) => (
-              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <button type="button" key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 {p.name}
               </button>
             ))}
             <div className="border-t border-[var(--border)] my-1"></div>
-            <button onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-[14px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
+            <button type="button" onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-[14px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
               + Create New Project
             </button>
           </div>
@@ -99,8 +100,8 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
               className="w-full bg-transparent border border-[var(--border)] rounded-lg p-2 text-[var(--foreground)] mb-6 outline-none focus:border-blue-500"
             />
             <div className="flex justify-end gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">Cancel</button>
-              <button onClick={handleCreate} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg">Create</button>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">Cancel</button>
+              <button type="button" onClick={handleCreate} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg">Create</button>
             </div>
           </div>
         </div>
@@ -113,12 +114,12 @@ const EditorToolbar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
   return (
     <div className="flex items-center gap-1 mb-3">
-      <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
       <div className="w-px h-4 bg-[var(--border)] mx-1" />
-      <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
     </div>
   );
 };
@@ -179,8 +180,6 @@ function PaneContent() {
     updateTask({ id: taskId, [field]: value });
   };
 
-  if (task === undefined || task === null) return null;
-
   return (
     <>
       <style>{`
@@ -196,177 +195,97 @@ function PaneContent() {
         .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
       `}</style>
 
+      {/* The shell renders immediately so the slide-in animation is instant */}
       <div ref={paneRef} className="fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] sm:shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
         
-        {/* Tighter Mobile Header (py-2 instead of py-4) */}
+        {/* Tighter Mobile Header with larger touch target (p-2) */}
         <div className="flex sm:hidden items-center justify-between py-2 px-4 border-b border-[var(--border)]">
-          <button onClick={closePane} className="flex items-center gap-1 text-zinc-500 hover:text-[var(--foreground)] font-medium">
+          <button type="button" onClick={closePane} className="flex items-center gap-1 text-zinc-500 hover:text-[var(--foreground)] font-medium p-2 -ml-2">
             <ChevronLeft className="w-5 h-5 -ml-1" /> Back
           </button>
         </div>
 
         <div className="hidden sm:flex items-center justify-end p-4 border-b border-[var(--border)] text-zinc-500 h-14">
-          <button onClick={closePane} className="p-1.5 rounded-md hover:bg-[var(--subtle-bg)] hover:text-[var(--foreground)] transition-colors">
+          <button type="button" onClick={closePane} className="p-1.5 rounded-md hover:bg-[var(--subtle-bg)] hover:text-[var(--foreground)] transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Adjusted padding on main body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 sm:py-8 space-y-6 sm:space-y-8">
-          
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => handleUpdate("title", title)}
-            className="w-full text-2xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300"
-            placeholder="Task title"
-          />
+        {/* Dynamic Data Section */}
+        {task === undefined ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-zinc-300 dark:text-zinc-700" />
+          </div>
+        ) : task === null ? (
+          <div className="flex-1 flex items-center justify-center text-zinc-500">
+            Task not found
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 sm:py-8 space-y-6 sm:space-y-8">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => handleUpdate("title", title)}
+              className="w-full text-2xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300"
+              placeholder="Task title"
+            />
 
-          <div className="flex flex-col gap-2 text-[15px]">
+            <div className="flex flex-col gap-2 text-[15px]">
 
-            <PropertyRow icon={CheckSquare} label="Today">
-              <input 
-                type="checkbox" 
-                checked={!!task.isToday} 
-                onChange={(e) => handleUpdate("isToday", e.target.checked)}
-                className="w-4 h-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-              />
-            </PropertyRow>
-            
-            <PropertyRow icon={PlayCircle} label="Status">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'todo', label: 'To Do', activeClass: 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 border-transparent' },
-                  { id: 'in-progress', label: 'In Progress', activeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400 border-transparent' },
-                  { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-transparent' }
-                ].map((s) => (
+              <PropertyRow icon={CheckSquare} label="Today">
+                <input 
+                  type="checkbox" 
+                  checked={!!task.isToday} 
+                  onChange={(e) => handleUpdate("isToday", e.target.checked)}
+                  className="w-4 h-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+              </PropertyRow>
+              
+              <PropertyRow icon={PlayCircle} label="Status">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'todo', label: 'To Do', activeClass: 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 border-transparent' },
+                    { id: 'in-progress', label: 'In Progress', activeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400 border-transparent' },
+                    { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-transparent' }
+                  ].map((s) => (
+                    <button
+                      type="button"
+                      key={s.id}
+                      onClick={() => handleUpdate('status', s.id)}
+                      className={`px-3 py-1 text-xs font-medium rounded-full transition-all border ${
+                        task.status === s.id 
+                          ? s.activeClass 
+                          : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </PropertyRow>
+
+              <PropertyRow icon={Calendar} label="Due By Date">
+                <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} />
+              </PropertyRow>
+
+              <PropertyRow icon={Calendar} label="Do On Date">
+                <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} />
+              </PropertyRow>
+
+              <PropertyRow icon={Sigma} label="Matrix Tags">
+                <div className="flex flex-wrap gap-2">
                   <button
-                    key={s.id}
-                    onClick={() => handleUpdate('status', s.id)}
-                    className={`px-3 py-1 text-xs font-medium rounded-full transition-all border ${
-                      task.status === s.id 
-                        ? s.activeClass 
-                        : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </PropertyRow>
-
-            <PropertyRow icon={Calendar} label="Due By Date">
-              <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} />
-            </PropertyRow>
-
-            <PropertyRow icon={Calendar} label="Do On Date">
-              <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} />
-            </PropertyRow>
-
-            <PropertyRow icon={Sigma} label="Matrix Tags">
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleUpdate("isUrgent", !task.isUrgent)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
-                >Urgent</button>
-                <button
-                  onClick={() => handleUpdate("isImportant", !task.isImportant)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isImportant ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
-                >Important</button>
-                <button
-                  onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
-                >For Funsies</button>
-              </div>
-            </PropertyRow>
-
-            <PropertyRow icon={List} label="List">
-              <div className="flex flex-wrap gap-2">
-                {['Current', 'Waiting For', 'Someday Maybe'].map(listName => (
-                   <button
-                   key={listName}
-                   onClick={() => handleUpdate("listCategory", listName)}
-                   className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${task.listCategory === listName ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
-                 >
-                   {listName}
-                 </button>
-                ))}
-              </div>
-            </PropertyRow>
-
-            <PropertyRow icon={Folder} label="Project">
-              <ProjectSelect value={task.projectId} onChange={(val) => handleUpdate("projectId", val)} />
-            </PropertyRow>
-
-          </div>
-
-          <hr className="border-[var(--border)] my-6" />
-
-          {/* NOTES */}
-          <div className="space-y-4 pb-4">
-            <div className="flex items-center gap-2 text-zinc-500 font-medium text-sm mb-4">
-              <AlignLeft className="w-4 h-4" />
-              <span>Notes</span>
-            </div>
-
-            <EditorToolbar editor={editor} />
-            
-            <div className="min-h-[300px] text-[15px] text-[var(--foreground)] leading-relaxed">
-              <EditorContent editor={editor} className="tiptap outline-none" />
-            </div>
-          </div>
-        </div>
-
-        {/* Tighter Mobile Footer */}
-        <div className="p-3 pb-6 sm:p-4 border-t border-[var(--border)] flex justify-end bg-[var(--background)]">
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            className="flex items-center gap-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 px-3 py-1.5 rounded-md transition-colors font-medium"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete
-          </button>
-        </div>
-      </div>
-
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center animate-in fade-in duration-200 p-4">
-          <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm animate-in zoom-in-95 duration-200 border border-[var(--border)]">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-              </div>
-              <h3 className="font-bold text-lg text-[var(--foreground)]">Delete Task?</h3>
-            </div>
-            <p className="text-zinc-500 text-[15px] mb-8 leading-relaxed">
-              Are you sure you want to delete <span className="font-medium text-[var(--foreground)]">"{title || "this task"}"</span>? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setShowDeleteModal(false)} 
-                className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => { deleteTask({ id: taskId }); closePane(); }} 
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors"
-              >
-                Yes, Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-export function TaskDetailsPane() {
-  return (
-    <Suspense fallback={null}>
-      <PaneContent />
-    </Suspense>
-  );
-}
+                    type="button"
+                    onClick={() => handleUpdate("isUrgent", !task.isUrgent)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                  >Urgent</button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdate("isImportant", !task.isImportant)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isImportant ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                  >Important</button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-transparent' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50
