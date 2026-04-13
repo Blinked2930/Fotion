@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
-import { Folder, Check, PlayCircle, Calendar, Inbox, Loader2 } from "lucide-react";
+import { Folder, Check, PlayCircle, Calendar, Inbox, Loader2, List, AlignLeft } from "lucide-react";
 import { getProjectColor } from "./NewTaskForm";
 
 export function ProjectsView() {
@@ -35,8 +35,37 @@ export function ProjectsView() {
   const completedTasks = filteredTasks.filter(t => t.status === "done").length;
   const progressPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
-  // Group tasks by completion to keep the active ones at the top
-  const activeTasks = filteredTasks.filter(t => t.status !== "done");
+  // Group tasks and apply Intelligent Matrix Sorting to Active Tasks
+  const activeTasks = filteredTasks
+    .filter(t => t.status !== "done")
+    .sort((a, b) => {
+      // 1. "Today" always goes to the very top
+      if (a.isToday && !b.isToday) return -1;
+      if (!a.isToday && b.isToday) return 1;
+
+      // 2. Matrix Priority Scoring (Q1 -> Q2 -> Q3 -> Q4)
+      const getScore = (t: any) => {
+        if (t.isUrgent && t.isImportant) return 4; // Q1
+        if (t.isImportant) return 3;               // Q2
+        if (t.isUrgent) return 2;                  // Q3
+        return 1;                                  // Q4
+      };
+      
+      const scoreA = getScore(a);
+      const scoreB = getScore(b);
+      
+      if (scoreA !== scoreB) {
+        return scoreB - scoreA; // Higher score comes first
+      }
+
+      // 3. Tie-breaker: Earliest Due Date wins
+      if (a.doByDate && !b.doByDate) return -1;
+      if (!a.doByDate && b.doByDate) return 1;
+      if (a.doByDate && b.doByDate) return a.doByDate - b.doByDate;
+
+      return 0; // Leave unchanged if perfectly tied
+    });
+
   const doneTasks = filteredTasks.filter(t => t.status === "done");
 
   const toggleTaskCompletion = (e: React.MouseEvent, taskId: any, isDone: boolean) => {
@@ -47,8 +76,10 @@ export function ProjectsView() {
   return (
     <div className="w-full pb-32 animate-in fade-in duration-300">
       
-      {/* 1. HORIZONTAL PROJECT SELECTOR */}
-      <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-[var(--border)]">
+      {/* 1. HORIZONTAL PROJECT SELECTOR 
+          FIX: Added pt-2 so the ring-offset on the active pill doesn't get clipped by the boundary
+      */}
+      <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pt-2 pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-[var(--border)]">
         <button
           onClick={() => setSelectedProjectId("ALL")}
           className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-all border ${selectedProjectId === "ALL" ? "bg-zinc-800 border-zinc-800 text-white dark:bg-zinc-200 dark:border-zinc-200 dark:text-zinc-900 shadow-sm" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}
@@ -125,25 +156,45 @@ export function ProjectsView() {
                       onClick={(e) => toggleTaskCompletion(e, task._id, false)}
                       className="mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border border-zinc-300 dark:border-zinc-600 bg-transparent hover:border-blue-400"
                     />
-                    <div className="flex flex-col min-w-0">
+                    <div className="flex flex-col min-w-0 w-full">
                       <span className="text-[15px] font-medium text-[var(--foreground)] truncate">{task.title}</span>
+                      
+                      {/* Tags */}
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         {task.isUrgent && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">Urgent</span>}
                         {task.isImportant && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">Important</span>}
                         {task.isToday && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400">Today</span>}
+                        {task.isForFunsies && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">Funsies</span>}
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-xs text-zinc-500 shrink-0 sm:pl-4 sm:border-l border-[var(--border)] pt-2 sm:pt-0 mt-2 sm:mt-0 ml-8 sm:ml-0">
+                  {/* Richer Metadata */}
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-zinc-500 shrink-0 sm:pl-4 sm:border-l border-[var(--border)] pt-2 sm:pt-0 mt-2 sm:mt-0 ml-8 sm:ml-0">
+                    
                     <div className="flex items-center gap-1.5">
                       <PlayCircle className="w-3.5 h-3.5 text-zinc-400" />
                       <span className="capitalize">{task.status.replace('-', ' ')}</span>
                     </div>
+
+                    <div className="flex items-center gap-1.5 hidden sm:flex">
+                      <List className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>{task.listCategory || "Current"}</span>
+                    </div>
+
                     {task.doByDate && (
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>{new Date(task.doByDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                        <span className={task.doByDate < Date.now() ? "text-red-500 font-medium" : ""}>
+                          {new Date(task.doByDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Notes Indicator */}
+                    {task.description && task.description !== "<p></p>" && (
+                      <div className="flex items-center gap-1.5" title="Contains notes">
+                        <AlignLeft className="w-3.5 h-3.5 text-zinc-400" />
                       </div>
                     )}
                   </div>
