@@ -25,7 +25,7 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
     </div>
-    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full">
+    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full overflow-hidden">
       {children}
     </div>
   </div>
@@ -71,17 +71,15 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
         </button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[250px] overflow-y-auto">
-            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">None</span>
-            </button>
+          <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[300px] overflow-y-auto">
+            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800">None</button>
             {projects?.map((p) => (
-              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
-                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border truncate max-w-full ${getProjectColor(p._id)}`}>{p.name}</span>
+              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 truncate">
+                {p.name}
               </button>
             ))}
             <div className="border-t border-[var(--border)] my-1"></div>
-            <button onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-2 text-[13px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
+            <button onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-[14px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
               + Create New Project
             </button>
           </div>
@@ -137,34 +135,21 @@ function PaneContent() {
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    const handleFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        setIsKeyboardOpen(true);
-      }
-    };
-    const handleFocusOut = () => setIsKeyboardOpen(false);
-    
-    document.addEventListener('focusin', handleFocusIn);
-    document.addEventListener('focusout', handleFocusOut);
-    return () => {
-      document.removeEventListener('focusin', handleFocusIn);
-      document.removeEventListener('focusout', handleFocusOut);
-    };
-  }, []);
-
-  const isPaneOpen = !!taskId;
-
+  // HARDWARE ACCELERATION BUG FIX: Use requestAnimationFrame to force Safari to paint the DOM
   useEffect(() => {
     if (taskId) {
       setDisplayTaskId(taskId);
-      const timer = setTimeout(() => setIsOpen(true), 10);
-      return () => clearTimeout(timer);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsOpen(true);
+        });
+      });
     } else {
       setIsOpen(false);
     }
   }, [taskId]);
+
+  const isPaneOpen = !!taskId;
 
   const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
   const updateTask = useMutation(api.tasks.updateTask);
@@ -189,12 +174,28 @@ function PaneContent() {
   });
 
   useEffect(() => {
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        setIsKeyboardOpen(true);
+      }
+    };
+    const handleFocusOut = () => setIsKeyboardOpen(false);
+    
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, []);
+
+  useEffect(() => {
     if (task) {
       setTitle(task.title);
     }
   }, [task]);
 
-  // TITLE AUTO-RESIZE LOGIC
   useEffect(() => {
     if (titleRef.current) {
       titleRef.current.style.height = 'auto';
@@ -213,7 +214,6 @@ function PaneContent() {
       if (showDeleteModal || !isPaneOpen) return;
       const target = e.target as HTMLElement;
       
-      // If clicking inside a modal or a button, ignore
       if (target.closest('button') || target.closest('input') || target.closest('.fixed.inset-0')) return;
 
       if (paneRef.current && !paneRef.current.contains(target)) {
@@ -291,6 +291,7 @@ function PaneContent() {
         }
       `}</style>
 
+      {/* HARDWARE ACCELERATION BUG FIX: transform-gpu and will-change-transform guarantee solid paint rendering */}
       <div 
         ref={paneRef} 
         onMouseMove={(e) => {
@@ -299,8 +300,8 @@ function PaneContent() {
           setIsNearBottom(rect.bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
-        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-40 flex flex-col transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] max-w-full overflow-x-hidden ${
-          isPaneOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
+        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-[60] flex flex-col transition-transform duration-[350ms] ease-out transform-gpu will-change-transform backface-hidden max-w-full overflow-x-hidden ${
+          isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
         }`}
       >
 
@@ -313,7 +314,6 @@ function PaneContent() {
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
             
-            {/* TITLE FIX: Auto-resizing textarea that elegantly wraps text onto multiple lines */}
             <textarea
               ref={titleRef}
               value={title}
