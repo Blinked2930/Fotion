@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Plus, Folder, Bold, Italic, List, ListOrdered, CheckSquare } from "lucide-react";
+import { Plus, Folder, Check } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -38,20 +38,6 @@ export const getListColor = (list: string) => {
   }
 };
 
-const EditorToolbar = ({ editor }: { editor: any }) => {
-  if (!editor) return null;
-  return (
-    <div className="flex items-center gap-1 mb-2">
-      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><Bold className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><Italic className="w-3.5 h-3.5" /></button>
-      <div className="w-px h-3 bg-[var(--border)] mx-1" />
-      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><List className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><ListOrdered className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><CheckSquare className="w-3.5 h-3.5" /></button>
-    </div>
-  );
-};
-
 export function NewTaskForm() {
   const createTask = useMutation(api.tasks.createTask);
   const projects = useQuery(api.projects.getProjects);
@@ -80,7 +66,7 @@ export function NewTaskForm() {
       StarterKit,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Add notes..." })
+      Placeholder.configure({ placeholder: "Type notes here... (Use 1. or - or [ ] for lists)" })
     ],
     content: "",
     immediatelyRender: false,
@@ -98,7 +84,8 @@ export function NewTaskForm() {
   };
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    // Changed to pointerdown to fix mobile click-throughs
+    function handleClickOutside(event: PointerEvent | MouseEvent) {
       if (isModalOpen) return;
       if (projectDropdownRef.current && projectDropdownRef.current.contains(event.target as Node)) return;
       
@@ -129,8 +116,8 @@ export function NewTaskForm() {
         }
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, [createTask, isModalOpen, editor]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -218,25 +205,30 @@ export function NewTaskForm() {
             
         <div className={`grid transition-all duration-[300ms] ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
           <div className="overflow-hidden">
-            {/* Tighter vertical spacing here */}
             <div className="space-y-3 w-full sm:ml-7 sm:pr-7 pb-1">
               
               <div>
-                <EditorToolbar editor={editor} />
+                {/* Toolbar Removed to save space. TipTap handles Cmd+B and Markdown automatically! */}
                 <div 
-                  className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[50px]"
+                  className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[50px] pt-2"
                   onClick={() => editor?.commands.focus()}
                 >
                   <EditorContent editor={editor} className="tiptap outline-none h-full" />
                 </div>
               </div>
 
-              {/* Reduced gap from gap-5 to gap-4 */}
               <div className="flex flex-col gap-4 border-t border-[var(--border)] pt-4">
                 
                 <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
                   <label className="flex items-center gap-2 cursor-pointer hover:text-[var(--foreground)] font-medium">
-                    <input type="checkbox" checked={isToday} onChange={(e) => setIsToday(e.target.checked)} className="rounded border-[var(--border)]" />
+                    {/* CUTE CHECKBOX: Replaces native input */}
+                    <button 
+                      type="button" 
+                      onClick={() => setIsToday(!isToday)} 
+                      className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${isToday ? 'bg-blue-500 border-blue-500' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}
+                    >
+                      {isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                    </button>
                     Today
                   </label>
 
@@ -286,7 +278,7 @@ export function NewTaskForm() {
 
                 <div>
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Dates</span>
-                  <div className="flex flex-wrap items-center gap-6">
+                  <div className="flex flex-wrap items-center gap-6 relative z-10">
                     <div className="flex items-center gap-2 text-sm text-zinc-500">
                       <span className="font-medium text-zinc-400">Do On:</span>
                       <CustomDatePicker value={doOnDate} onChange={setDoOnDate} placeholder="Select date..." />

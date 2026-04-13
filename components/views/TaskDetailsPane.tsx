@@ -7,8 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
-  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, 
-  Bold, Italic, ListOrdered, Loader2
+  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -42,11 +41,12 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    // Changed to pointerdown for better mobile touch reliability
+    const handleClickOutside = (e: PointerEvent | MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, []);
 
   const handleCreate = async () => {
@@ -111,20 +111,6 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   );
 }
 
-const EditorToolbar = ({ editor }: { editor: any }) => {
-  if (!editor) return null;
-  return (
-    <div className="flex items-center gap-1 mb-3 flex-wrap">
-      <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
-      <div className="w-px h-4 bg-[var(--border)] mx-1" />
-      <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
-    </div>
-  );
-};
-
 function PaneContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -157,7 +143,7 @@ function PaneContent() {
       StarterKit,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Add your notes here..." })
+      Placeholder.configure({ placeholder: "Type your notes here... (Use 1. or - or [ ] for lists)" })
     ],
     content: task?.description || "",
     immediatelyRender: false, 
@@ -176,14 +162,11 @@ function PaneContent() {
     }
   }, [task?.description, editor]);
 
-  // FIXED: Bulletproof race-condition prevention
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: PointerEvent | MouseEvent) => {
       if (showDeleteModal || !isOpen) return;
       
       const target = e.target as HTMLElement;
-      // If the user clicked on a button somewhere else (like another task), DO NOT close the pane yet.
-      // This prevents the conflicting URL router commands that froze the app.
       if (target.closest('button')) return;
 
       if (paneRef.current && !paneRef.current.contains(target)) {
@@ -191,8 +174,9 @@ function PaneContent() {
       }
     };
     
-    document.addEventListener("mousedown", handleClickOutside, true);
-    return () => document.removeEventListener("mousedown", handleClickOutside, true);
+    // Changed to pointerdown to avoid mobile tap delays
+    document.addEventListener("pointerdown", handleClickOutside, true);
+    return () => document.removeEventListener("pointerdown", handleClickOutside, true);
   }, [showDeleteModal, router, isOpen]);
 
   const closePane = () => router.replace(window.location.pathname, { scroll: false });
@@ -204,7 +188,6 @@ function PaneContent() {
   return (
     <>
       <style>{`
-        /* WIGGLY TEXT FIX: Extremely strict word-wrapping inside the editor */
         .tiptap { outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; }
         .tiptap * { max-width: 100%; }
         .tiptap ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
@@ -224,6 +207,7 @@ function PaneContent() {
         }
       `}</style>
 
+      {/* ANTI-GHOST FIX: added 'invisible opacity-0' when closed so it mathematically disappears from interaction bounds */}
       <div 
         ref={paneRef} 
         onMouseMove={(e) => {
@@ -232,9 +216,8 @@ function PaneContent() {
           setIsNearBottom(rect.bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
-        // WIGGLY TEXT FIX: added max-w-full
         className={`fixed top-0 right-0 h-full w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-40 flex flex-col transition-all duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] transform max-w-full ${
-          isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
+          isOpen ? "translate-x-0 sm:shadow-2xl visible opacity-100" : "translate-x-full shadow-none pointer-events-none invisible opacity-0"
         }`}
       >
 
@@ -245,7 +228,6 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          // WIGGLY TEXT FIX: added overflow-x-hidden
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-32 max-w-full">
             
             <input
@@ -260,12 +242,14 @@ function PaneContent() {
             <div className="flex flex-col gap-1 sm:gap-2 text-[15px] max-w-full">
 
               <PropertyRow icon={CheckSquare} label="Today">
-                <input 
-                  type="checkbox" 
-                  checked={!!task.isToday} 
-                  onChange={(e) => handleUpdate("isToday", e.target.checked)}
-                  className="w-4 h-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                />
+                {/* CUTE CHECKBOX: Replaces native input */}
+                <button 
+                  type="button" 
+                  onClick={() => handleUpdate("isToday", !task.isToday)} 
+                  className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-blue-500 border-blue-500' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}
+                >
+                  {task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                </button>
               </PropertyRow>
               
               <PropertyRow icon={PlayCircle} label="Status">
@@ -338,18 +322,11 @@ function PaneContent() {
             <hr className="border-[var(--border)] my-6" />
 
             <div className="space-y-4 pb-4 max-w-full">
-              <div className="flex items-center gap-2 text-zinc-500 font-medium text-sm mb-4">
-                <AlignLeft className="w-4 h-4" />
-                <span>Notes</span>
-              </div>
-
-              <EditorToolbar editor={editor} />
-              
+              {/* Removed Notes Header and Toolbar to save vertical space */}
               <div 
                 className="w-full text-[15px] text-[var(--foreground)] leading-relaxed cursor-text min-h-[150px] max-w-full overflow-hidden"
                 onClick={() => editor?.commands.focus()}
               >
-                {/* WIGGLY TEXT FIX: break-words class added to force strict wrapping */}
                 <EditorContent editor={editor} className="tiptap outline-none h-full break-words" />
               </div>
             </div>
