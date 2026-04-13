@@ -7,11 +7,11 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
-  Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered
+  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
-import { Extension, textInputRule } from '@tiptap/core';
+import { Extension, InputRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
@@ -20,14 +20,16 @@ import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 import { getProjectColor, getListColor } from "./NewTaskForm";
 
-// CUSTOM TIP-TAP EXTENSION: Restores Mobile Double-Space for Period
+// STRICT TYPESCRIPT FIX: Using raw InputRule to safely handle dynamic replacements
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
   addInputRules() {
     return [
-      textInputRule({
+      new InputRule({
         find: /([^\s])  $/,
-        replace: ({ match }) => `${match[1]}. `,
+        handler: ({ state, range, match }) => {
+          state.tr.insertText(`${match[1]}. `, range.from, range.to);
+        },
       }),
     ];
   },
@@ -39,7 +41,7 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
     </div>
-    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full">
+    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full overflow-hidden">
       {children}
     </div>
   </div>
@@ -245,7 +247,6 @@ function PaneContent() {
 
   const closePane = () => router.replace(window.location.pathname, { scroll: false });
 
-  // SWIPE TO DISMISS GESTURE
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
   };
@@ -258,10 +259,8 @@ function PaneContent() {
     const dx = touchStart.x - touchEndX;
     const dy = Math.abs(touchStart.y - touchEndY);
     
-    // Ignore vertical scrolls
     if (dy > 40) return;
     
-    // If user swiped Right quickly across the pane, dismiss it
     if (dx < -60) {
       closePane();
     }
@@ -456,7 +455,6 @@ function PaneContent() {
         <div className={`floating-action-pills absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-end sm:justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out ${
           isKeyboardOpen ? "opacity-0 translate-y-10" : (isNearBottom ? "sm:opacity-100 sm:translate-y-0" : "sm:opacity-0 sm:translate-y-2 opacity-100 translate-y-0")
         }`}>
-          {/* Desktop-only Close Button */}
           <button 
             type="button" 
             onClick={closePane} 
@@ -465,7 +463,6 @@ function PaneContent() {
             <X className="w-4 h-4 -ml-1" /> Close
           </button>
 
-          {/* Delete Button */}
           {task !== undefined && task !== null && (
             <button 
               type="button" 
