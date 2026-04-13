@@ -27,16 +27,15 @@ function ExportButton() {
       "Is For Funsies", "Do On Date", "Due By Date", "Notes (Plain Text)"
     ];
 
-    // Converts HTML to clean plain text for the CSV
     const stripHtml = (html: string) => {
       if (!html) return "";
       return html
-        .replace(/<\/(p|div|h[1-6])>/gi, '\n') // Add newlines after paragraphs
-        .replace(/<br\s*\/?>/gi, '\n')         // Add newlines for <br>
-        .replace(/<li>/gi, '- ')               // Turn list items into dashes
+        .replace(/<\/(p|div|h[1-6])>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<li>/gi, '- ')
         .replace(/<\/li>/gi, '\n')
-        .replace(/<[^>]*>?/gm, '')             // Strip all remaining HTML tags
-        .replace(/&nbsp;/g, ' ')               // Clean up spaces
+        .replace(/<[^>]*>?/gm, '')
+        .replace(/&nbsp;/g, ' ')
         .trim();
     };
 
@@ -124,6 +123,40 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
+  // SWIPE LOGIC
+  const views: ViewType[] = ["Matrix", "Today", "Pipelines", "Raw Data"];
+  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    
+    const dx = touchStart.x - touchEndX;
+    const dy = Math.abs(touchStart.y - touchEndY);
+    
+    // Ignore vertical scrolling
+    if (dy > 40) return;
+    
+    // Safety lock: Don't change tabs if scrolling the Raw Data table or an input field
+    const target = e.target as HTMLElement;
+    if (target.closest('.no-swipe-zone') || target.tagName === 'INPUT' || target.closest('.tiptap') || target.closest('button')) return;
+
+    if (dx > 60) {
+      // Swipe Left -> Next tab
+      const idx = views.indexOf(activeView);
+      if (idx < views.length - 1) setActiveView(views[idx + 1]);
+    } else if (dx < -60) {
+      // Swipe Right -> Prev tab
+      const idx = views.indexOf(activeView);
+      if (idx > 0) setActiveView(views[idx - 1]);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden">
       <Show when="signed-in">
@@ -147,7 +180,7 @@ export default function Home() {
           </div>
         </header>
 
-        <main className="pt-4 pb-12 relative">
+        <main className="pt-4 pb-12 relative min-h-[80vh]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <ViewTabs activeView={activeView} onViewChange={setActiveView} />
             <div className="mb-4">

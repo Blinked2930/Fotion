@@ -163,7 +163,7 @@ export function RawDataView() {
         .no-scroll-bar::-webkit-scrollbar { display: none; }
         .no-scroll-bar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
-      <div className="w-full overflow-x-auto pb-64 no-scroll-bar">
+      <div className="w-full overflow-x-auto pb-64 no-scroll-bar no-swipe-zone">
         <div className="inline-block min-w-full align-middle">
           <table className="w-full text-left border-collapse border border-[var(--border)]">
             <thead>
@@ -221,14 +221,12 @@ export function RawDataView() {
                     
                     <NotionCell>
                       <div className="whitespace-nowrap min-w-[130px]">
-                        {/* ALIGN FIX: expand right */}
                         <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate(task._id, "doByDate", val)} alignPopover="right" />
                       </div>
                     </NotionCell>
                     
                     <NotionCell>
                       <div className="whitespace-nowrap min-w-[130px]">
-                        {/* ALIGN FIX: expand right */}
                         <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate(task._id, "doOnDate", val)} alignPopover="right" />
                       </div>
                     </NotionCell>

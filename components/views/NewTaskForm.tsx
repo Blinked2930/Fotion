@@ -7,10 +7,23 @@ import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare } fro
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Extension, textInputRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
+
+const DoubleSpaceFix = Extension.create({
+  name: 'doubleSpaceFix',
+  addInputRules() {
+    return [
+      textInputRule({
+        find: /([^\s])  $/,
+        replace: ({ match }) => `${match[1]}. `,
+      }),
+    ];
+  },
+});
 
 export const getProjectColor = (id: string | null | undefined) => {
   if (!id) return "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]";
@@ -80,7 +93,8 @@ export function NewTaskForm() {
       StarterKit,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Type notes here... (Use 1. or - or [ ] for lists)" })
+      Placeholder.configure({ placeholder: "Type notes here... (Use 1. or - or [ ] for lists)" }),
+      DoubleSpaceFix
     ],
     content: "",
     immediatelyRender: false,
@@ -100,17 +114,11 @@ export function NewTaskForm() {
   useEffect(() => {
     function handleClickOutside(event: PointerEvent | MouseEvent) {
       if (isModalOpen) return;
-      
-      // 1. If clicking inside the project dropdown, let it do its thing
       if (projectDropdownRef.current && projectDropdownRef.current.contains(event.target as Node)) return;
       
-      // 2. If clicking outside the project dropdown (even inside the form), close the dropdown!
-      if (isProjectDropdownOpen) {
-        setIsProjectDropdownOpen(false);
-      }
-      
-      // 3. If clicking completely outside the form, save and collapse the form
       if (formRef.current && !formRef.current.contains(event.target as Node)) {
+        setIsProjectDropdownOpen(false); 
+        
         const descriptionHTML = editor?.getHTML() || "";
         const hasNotes = editor && !editor.isEmpty;
         const hasTags = stateRef.current.isUrgent || stateRef.current.isImportant || stateRef.current.isForFunsies || stateRef.current.isToday || stateRef.current.listCategory !== "Current" || stateRef.current.doOnDate || stateRef.current.doByDate || stateRef.current.projectId;
@@ -293,17 +301,13 @@ export function NewTaskForm() {
                       {selectedProject?.name || "No Project"}
                     </button>
                     {isProjectDropdownOpen && (
-                      <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[250px] overflow-y-auto">
-                        <button type="button" onClick={() => { setProjectId(null); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">None</span>
-                        </button>
+                      <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50">
+                        <button type="button" onClick={() => { setProjectId(null); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">None</button>
                         {projects?.map(p => (
-                          <button key={p._id} type="button" onClick={() => { setProjectId(p._id); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border truncate max-w-full ${getProjectColor(p._id)}`}>{p.name}</span>
-                          </button>
+                          <button key={p._id} type="button" onClick={() => { setProjectId(p._id); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">{p.name}</button>
                         ))}
                         <div className="border-t border-[var(--border)] my-1"></div>
-                        <button type="button" onClick={() => { setIsProjectDropdownOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-2 text-[13px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">+ Create Project</button>
+                        <button type="button" onClick={() => { setIsProjectDropdownOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">+ Create Project</button>
                       </div>
                     )}
                   </div>
@@ -340,7 +344,6 @@ export function NewTaskForm() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-zinc-500">
                       <span className="font-medium text-zinc-400">Due By:</span>
-                      {/* ALIGN FIX: Expands to the right so it doesn't hit the left screen edge */}
                       <CustomDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." alignPopover="right" />
                     </div>
                   </div>

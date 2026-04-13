@@ -7,10 +7,11 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
-  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered
+  Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Extension, textInputRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
@@ -19,13 +20,26 @@ import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 import { getProjectColor, getListColor } from "./NewTaskForm";
 
+// CUSTOM TIP-TAP EXTENSION: Restores Mobile Double-Space for Period
+const DoubleSpaceFix = Extension.create({
+  name: 'doubleSpaceFix',
+  addInputRules() {
+    return [
+      textInputRule({
+        find: /([^\s])  $/,
+        replace: ({ match }) => `${match[1]}. `,
+      }),
+    ];
+  },
+});
+
 const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string, children: React.ReactNode }) => (
   <div className="flex items-start sm:items-center min-h-[40px] group hover:bg-zinc-50 dark:hover:bg-zinc-900/30 -mx-2 px-2 py-0.5 sm:py-0 rounded transition-colors">
     <div className="w-[140px] flex items-center gap-2 text-zinc-500 text-[14px] shrink-0 pt-1 sm:pt-0">
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
     </div>
-    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full overflow-hidden">
+    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full">
       {children}
     </div>
   </div>
@@ -71,15 +85,17 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
         </button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[300px] overflow-y-auto">
-            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800">None</button>
+          <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[250px] overflow-y-auto">
+            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">None</span>
+            </button>
             {projects?.map((p) => (
-              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 truncate">
-                {p.name}
+              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border truncate max-w-full ${getProjectColor(p._id)}`}>{p.name}</span>
               </button>
             ))}
             <div className="border-t border-[var(--border)] my-1"></div>
-            <button onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-[14px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
+            <button onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-2 text-[13px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
               + Create New Project
             </button>
           </div>
@@ -135,43 +151,7 @@ function PaneContent() {
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
-  // HARDWARE ACCELERATION BUG FIX: Use requestAnimationFrame to force Safari to paint the DOM
-  useEffect(() => {
-    if (taskId) {
-      setDisplayTaskId(taskId);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsOpen(true);
-        });
-      });
-    } else {
-      setIsOpen(false);
-    }
-  }, [taskId]);
-
-  const isPaneOpen = !!taskId;
-
-  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
-  const updateTask = useMutation(api.tasks.updateTask);
-  const deleteTask = useMutation(api.tasks.deleteTask);
-
-  const [title, setTitle] = useState("");
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isNearBottom, setIsNearBottom] = useState(false);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Type your notes here... (Use 1. or - or [ ] for lists)" })
-    ],
-    content: task?.description || "",
-    immediatelyRender: false, 
-    onBlur: ({ editor }) => {
-      handleUpdate("description", editor.getHTML());
-    },
-  });
+  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
 
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
@@ -189,6 +169,44 @@ function PaneContent() {
       document.removeEventListener('focusout', handleFocusOut);
     };
   }, []);
+
+  const isPaneOpen = !!taskId;
+
+  useEffect(() => {
+    if (taskId) {
+      setDisplayTaskId(taskId);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsOpen(true);
+        });
+      });
+    } else {
+      setIsOpen(false);
+    }
+  }, [taskId]);
+
+  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
+  const updateTask = useMutation(api.tasks.updateTask);
+  const deleteTask = useMutation(api.tasks.deleteTask);
+
+  const [title, setTitle] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(false);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Placeholder.configure({ placeholder: "Type your notes here... (Use 1. or - or [ ] for lists)" }),
+      DoubleSpaceFix
+    ],
+    content: task?.description || "",
+    immediatelyRender: false, 
+    onBlur: ({ editor }) => {
+      handleUpdate("description", editor.getHTML());
+    },
+  });
 
   useEffect(() => {
     if (task) {
@@ -226,6 +244,28 @@ function PaneContent() {
   }, [showDeleteModal, router, isPaneOpen]);
 
   const closePane = () => router.replace(window.location.pathname, { scroll: false });
+
+  // SWIPE TO DISMISS GESTURE
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    
+    const dx = touchStart.x - touchEndX;
+    const dy = Math.abs(touchStart.y - touchEndY);
+    
+    // Ignore vertical scrolls
+    if (dy > 40) return;
+    
+    // If user swiped Right quickly across the pane, dismiss it
+    if (dx < -60) {
+      closePane();
+    }
+  };
 
   const handleUpdate = (field: string, value: any) => {
     if (displayTaskId) updateTask({ id: displayTaskId, [field]: value });
@@ -291,9 +331,10 @@ function PaneContent() {
         }
       `}</style>
 
-      {/* HARDWARE ACCELERATION BUG FIX: transform-gpu and will-change-transform guarantee solid paint rendering */}
       <div 
         ref={paneRef} 
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
         onMouseMove={(e) => {
           if (!paneRef.current || !isOpen) return;
           const rect = paneRef.current.getBoundingClientRect();
@@ -412,27 +453,26 @@ function PaneContent() {
           </div>
         )}
 
-        <div className={`floating-action-pills absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out ${
+        <div className={`floating-action-pills absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-end sm:justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out ${
           isKeyboardOpen ? "opacity-0 translate-y-10" : (isNearBottom ? "sm:opacity-100 sm:translate-y-0" : "sm:opacity-0 sm:translate-y-2 opacity-100 translate-y-0")
         }`}>
+          {/* Desktop-only Close Button */}
           <button 
             type="button" 
             onClick={closePane} 
-            className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-[13px] sm:text-sm transition-transform active:scale-95"
+            className="hidden sm:flex pointer-events-auto items-center gap-1.5 bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-[13px] sm:text-sm transition-transform active:scale-95"
           >
-            <ChevronLeft className="w-4 h-4 -ml-1 sm:hidden" />
-            <X className="w-4 h-4 -ml-1 hidden sm:block" />
-            <span className="sm:hidden">Back</span>
-            <span className="hidden sm:block">Close</span>
+            <X className="w-4 h-4 -ml-1" /> Close
           </button>
 
+          {/* Delete Button */}
           {task !== undefined && task !== null && (
             <button 
               type="button" 
               onClick={() => setShowDeleteModal(true)} 
               className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-zinc-500 shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-[13px] sm:text-sm transition-all active:scale-95 active:border-red-500 active:text-red-500 hover:border-red-500 hover:text-red-500"
             >
-              <Trash2 className="w-4 h-4" /> Delete
+              <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Delete</span>
             </button>
           )}
         </div>
