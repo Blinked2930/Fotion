@@ -40,7 +40,6 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
     </div>
-    {/* BUG FIX: Removed overflow-hidden so the absolute dropdowns are no longer clipped! */}
     <div className="flex-1 flex flex-wrap items-center text-[14px] min-w-0 max-w-full">
       {children}
     </div>
@@ -152,6 +151,7 @@ function PaneContent() {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+
   const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
 
   useEffect(() => {
@@ -329,6 +329,10 @@ function PaneContent() {
         }
       `}</style>
 
+      {/* 100% SOLID TRANSPARENCY FIX: 
+          bg-white and dark:bg-[#121212] are hardcoded. 
+          Removed backface-hidden which causes Safari glitches. 
+      */}
       <div 
         ref={paneRef} 
         onTouchStart={onTouchStart}
@@ -339,7 +343,7 @@ function PaneContent() {
           setIsNearBottom(rect.bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
-        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-[60] flex flex-col transition-transform duration-[350ms] ease-out transform-gpu will-change-transform backface-hidden max-w-full overflow-x-hidden ${
+        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-white dark:bg-[#121212] sm:border-l border-[var(--border)] z-[60] flex flex-col transition-transform duration-[350ms] ease-out transform-gpu will-change-transform max-w-full overflow-x-hidden ${
           isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
         }`}
       >
