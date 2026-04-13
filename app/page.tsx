@@ -7,6 +7,7 @@ import { ViewTabs, ViewType } from "@/components/ui/ViewTabs";
 import { RawDataView } from "@/components/views/RawDataView";
 import { TodayView } from "@/components/views/TodayView";
 import { PipelinesView } from "@/components/views/PipelinesView";
+import { ProjectsView } from "@/components/views/ProjectsView"; // <-- NEW IMPORT
 import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
@@ -123,8 +124,8 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
-  // SWIPE LOGIC
-  const views: ViewType[] = ["Matrix", "Today", "Pipelines", "Raw Data"];
+  // SWIPE LOGIC (Updated to include Projects)
+  const views: ViewType[] = ["Matrix", "Today", "Pipelines", "Projects", "Raw Data"];
   const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -139,19 +140,15 @@ export default function Home() {
     const dx = touchStart.x - touchEndX;
     const dy = Math.abs(touchStart.y - touchEndY);
     
-    // Ignore vertical scrolling
     if (dy > 40) return;
     
-    // Safety lock: Don't change tabs if scrolling the Raw Data table or an input field
     const target = e.target as HTMLElement;
     if (target.closest('.no-swipe-zone') || target.tagName === 'INPUT' || target.closest('.tiptap') || target.closest('button')) return;
 
     if (dx > 60) {
-      // Swipe Left -> Next tab
       const idx = views.indexOf(activeView);
       if (idx < views.length - 1) setActiveView(views[idx + 1]);
     } else if (dx < -60) {
-      // Swipe Right -> Prev tab
       const idx = views.indexOf(activeView);
       if (idx > 0) setActiveView(views[idx - 1]);
     }
@@ -188,9 +185,10 @@ export default function Home() {
             </div>
             <div className="mt-4">
               {activeView === "Matrix" && <EisenhowerMatrix />}
-              {activeView === "Raw Data" && <RawDataView />}
               {activeView === "Today" && <TodayView />}
               {activeView === "Pipelines" && <PipelinesView />}
+              {activeView === "Projects" && <ProjectsView />}
+              {activeView === "Raw Data" && <RawDataView />}
             </div>
           </div>
           <TaskDetailsPane />

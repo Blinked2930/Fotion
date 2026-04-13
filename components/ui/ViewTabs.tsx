@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LayoutGrid, ListTodo, Calendar, Database } from "lucide-react";
+import { LayoutGrid, ListTodo, Calendar, Database, FolderGit2 } from "lucide-react";
 
-export type ViewType = "Matrix" | "Pipelines" | "Today" | "Raw Data";
+export type ViewType = "Matrix" | "Pipelines" | "Today" | "Projects" | "Raw Data";
 
 const defaultTabs: { id: ViewType; icon: any; label: string }[] = [
   { id: "Matrix", icon: LayoutGrid, label: "Matrix" },
   { id: "Pipelines", icon: ListTodo, label: "Pipelines" },
   { id: "Today", icon: Calendar, label: "Today" },
+  { id: "Projects", icon: FolderGit2, label: "Projects" },
   { id: "Raw Data", icon: Database, label: "Raw Data" },
 ];
 
