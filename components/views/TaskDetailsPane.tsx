@@ -20,7 +20,6 @@ import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 import { getProjectColor, getListColor } from "./NewTaskForm";
 
-// STRICT TYPESCRIPT FIX: Using raw InputRule to safely handle dynamic replacements
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
   addInputRules() {
@@ -41,7 +40,8 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
     </div>
-    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full overflow-hidden">
+    {/* BUG FIX: Removed overflow-hidden so the absolute dropdowns are no longer clipped! */}
+    <div className="flex-1 flex flex-wrap items-center text-[14px] min-w-0 max-w-full">
       {children}
     </div>
   </div>
@@ -152,7 +152,6 @@ function PaneContent() {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
-
   const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
 
   useEffect(() => {

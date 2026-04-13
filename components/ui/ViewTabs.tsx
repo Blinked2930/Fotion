@@ -13,7 +13,15 @@ const defaultTabs: { id: ViewType; icon: any; label: string }[] = [
   { id: "Raw Data", icon: Database, label: "Raw Data" },
 ];
 
-export function ViewTabs({ activeView, onViewChange }: { activeView: ViewType; onViewChange: (view: ViewType) => void }) {
+export function ViewTabs({ 
+  activeView, 
+  onViewChange,
+  onOrderChange 
+}: { 
+  activeView: ViewType; 
+  onViewChange: (view: ViewType) => void;
+  onOrderChange?: (views: ViewType[]) => void;
+}) {
   const [tabs, setTabs] = useState(defaultTabs);
   const [draggedTab, setDraggedTab] = useState<ViewType | null>(null);
 
@@ -24,12 +32,18 @@ export function ViewTabs({ activeView, onViewChange }: { activeView: ViewType; o
         const order = JSON.parse(saved) as ViewType[];
         const reordered = order.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
         const missing = defaultTabs.filter(t => !order.includes(t.id));
-        setTabs([...reordered, ...missing]);
+        const finalTabs = [...reordered, ...missing];
+        
+        setTabs(finalTabs);
+        // Instantly notify the parent component of the loaded custom order
+        if (onOrderChange) onOrderChange(finalTabs.map(t => t.id));
       } catch (e) {
         console.error("Failed to parse tab order", e);
       }
+    } else {
+      if (onOrderChange) onOrderChange(defaultTabs.map(t => t.id));
     }
-  }, []);
+  }, [onOrderChange]);
 
   const handleDragStart = (e: React.DragEvent, id: ViewType) => {
     setDraggedTab(id);
@@ -60,6 +74,9 @@ export function ViewTabs({ activeView, onViewChange }: { activeView: ViewType; o
     
     setTabs(newTabs);
     localStorage.setItem("fotion-tab-order", JSON.stringify(newTabs.map(t => t.id)));
+    
+    // Notify the parent of the new drag-and-dropped order
+    if (onOrderChange) onOrderChange(newTabs.map(t => t.id));
   };
 
   return (

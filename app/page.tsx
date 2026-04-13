@@ -7,7 +7,7 @@ import { ViewTabs, ViewType } from "@/components/ui/ViewTabs";
 import { RawDataView } from "@/components/views/RawDataView";
 import { TodayView } from "@/components/views/TodayView";
 import { PipelinesView } from "@/components/views/PipelinesView";
-import { ProjectsView } from "@/components/views/ProjectsView"; // <-- NEW IMPORT
+import { ProjectsView } from "@/components/views/ProjectsView";
 import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
@@ -124,8 +124,8 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
-  // SWIPE LOGIC (Updated to include Projects)
-  const views: ViewType[] = ["Matrix", "Today", "Pipelines", "Projects", "Raw Data"];
+  // SWIPE LOGIC (Dynamic based on custom ViewTabs order)
+  const [swipeViews, setSwipeViews] = useState<ViewType[]>(["Matrix", "Pipelines", "Today", "Projects", "Raw Data"]);
   const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -140,17 +140,19 @@ export default function Home() {
     const dx = touchStart.x - touchEndX;
     const dy = Math.abs(touchStart.y - touchEndY);
     
-    if (dy > 40) return;
+    if (dy > 40) return; // Ignore vertical scrolling
     
     const target = e.target as HTMLElement;
     if (target.closest('.no-swipe-zone') || target.tagName === 'INPUT' || target.closest('.tiptap') || target.closest('button')) return;
 
     if (dx > 60) {
-      const idx = views.indexOf(activeView);
-      if (idx < views.length - 1) setActiveView(views[idx + 1]);
+      // Swipe Left -> Next tab
+      const idx = swipeViews.indexOf(activeView);
+      if (idx < swipeViews.length - 1) setActiveView(swipeViews[idx + 1]);
     } else if (dx < -60) {
-      const idx = views.indexOf(activeView);
-      if (idx > 0) setActiveView(views[idx - 1]);
+      // Swipe Right -> Prev tab
+      const idx = swipeViews.indexOf(activeView);
+      if (idx > 0) setActiveView(swipeViews[idx - 1]);
     }
   };
 
@@ -179,7 +181,11 @@ export default function Home() {
 
         <main className="pt-4 pb-12 relative min-h-[80vh]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <ViewTabs activeView={activeView} onViewChange={setActiveView} />
+            <ViewTabs 
+              activeView={activeView} 
+              onViewChange={setActiveView} 
+              onOrderChange={setSwipeViews} // Pushes custom order to the swipe engine!
+            />
             <div className="mb-4">
               <NewTaskForm />
             </div>
