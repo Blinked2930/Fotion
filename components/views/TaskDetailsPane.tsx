@@ -25,7 +25,6 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
     </div>
-    {/* BUG FIX: Removed overflow-hidden entirely so calendars pop out cleanly */}
     <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full">
       {children}
     </div>
@@ -72,15 +71,17 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
         </button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[300px] overflow-y-auto">
-            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800">None</button>
+          <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[250px] overflow-y-auto">
+            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">None</span>
+            </button>
             {projects?.map((p) => (
-              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-1.5 text-[14px] text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 truncate">
-                {p.name}
+              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border truncate max-w-full ${getProjectColor(p._id)}`}>{p.name}</span>
               </button>
             ))}
             <div className="border-t border-[var(--border)] my-1"></div>
-            <button onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-[14px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
+            <button onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-2 text-[13px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
               + Create New Project
             </button>
           </div>
@@ -119,7 +120,7 @@ const EditorToolbar = ({ editor }: { editor: any }) => {
       <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
       <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
       <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
+      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List Ordered className="w-4 h-4" /></button>
       <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
     </div>
   );
@@ -337,12 +338,13 @@ function PaneContent() {
               </PropertyRow>
 
               <PropertyRow icon={Calendar} label="Due By Date">
-                {/* ALIGN FIX: expand left so it fits perfectly */}
-                <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" />
+                {/* ALIGN FIX: expand right safely */}
+                <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="right" />
               </PropertyRow>
 
               <PropertyRow icon={Calendar} label="Do On Date">
-                <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" />
+                {/* ALIGN FIX: expand right safely */}
+                <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="right" />
               </PropertyRow>
 
               <PropertyRow icon={Sigma} label="Matrix Tags">
