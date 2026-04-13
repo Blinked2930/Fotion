@@ -80,7 +80,7 @@ export function NewTaskForm() {
       StarterKit,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Capture your thoughts here..." })
+      Placeholder.configure({ placeholder: "Type notes here... (Use 1. or - or [ ] for lists)" })
     ],
     content: "",
     immediatelyRender: false,
@@ -177,7 +177,7 @@ export function NewTaskForm() {
   return (
     <>
       <style>{`
-        .tiptap { outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; }
+        .tiptap { min-height: 50px; outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; cursor: text; }
         .tiptap * { max-width: 100%; }
         .tiptap ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
         .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
@@ -228,8 +228,11 @@ export function NewTaskForm() {
         ref={formRef}
         onSubmit={handleSubmit}
         onKeyDownCapture={handleKeyDownCapture}
-        className={`relative flex flex-col transition-all rounded-lg -mx-2 px-2 border ${
-          isExpanded ? "bg-white dark:bg-[#1f1f1f] border-[var(--border)] shadow-md py-3 my-2 z-30" : "border-transparent bg-transparent py-1.5 hover:bg-[var(--subtle-bg)]"
+        // BOUNDARY FIX: Added mx-2 and nice px-4 padding on mobile so it doesn't touch the screen edge
+        className={`relative flex flex-col transition-all rounded-xl border mx-2 sm:mx-0 ${
+          isExpanded 
+            ? "bg-white dark:bg-[#1f1f1f] border-[var(--border)] shadow-xl py-4 px-4 sm:px-6 my-4 z-30" 
+            : "border-transparent bg-transparent py-2 px-3 sm:px-4 hover:bg-[var(--subtle-bg)]"
         }`}
       >
         <div className="flex items-center gap-2 w-full">
@@ -249,9 +252,8 @@ export function NewTaskForm() {
             
         <div className={`grid transition-all duration-[300ms] ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
           <div className={isExpanded ? "overflow-visible" : "overflow-hidden"}>
-            <div className="space-y-4 w-full sm:ml-7 sm:pr-7 pb-1">
+            <div className="space-y-3 w-full sm:ml-7 sm:pr-7 pb-1">
               
-              {/* BREATHABLE CANVAS: Wraps the editor in a distinct, padded soft-grey box */}
               <div className="w-full bg-zinc-50 dark:bg-[#1a1a1a] rounded-xl p-3 border border-[var(--border)] mt-2">
                 <EditorToolbar editor={editor} />
                 <div 
@@ -262,8 +264,7 @@ export function NewTaskForm() {
                 </div>
               </div>
 
-              {/* REMOVED: Top border. Let the elements breathe naturally. */}
-              <div className="flex flex-col gap-4 pt-2">
+              <div className="flex flex-col gap-4 border-t border-[var(--border)] pt-4">
                 
                 <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
                   <label className="flex items-center gap-2 cursor-pointer hover:text-[var(--foreground)] font-medium">
@@ -326,11 +327,13 @@ export function NewTaskForm() {
                   <div className="flex flex-wrap items-center gap-6 relative z-10">
                     <div className="flex items-center gap-2 text-sm text-zinc-500">
                       <span className="font-medium text-zinc-400">Do On:</span>
-                      <CustomDatePicker value={doOnDate} onChange={setDoOnDate} placeholder="Select date..." />
+                      {/* ALIGN FIX: Do On expands RIGHT so it doesn't get clipped */}
+                      <CustomDatePicker value={doOnDate} onChange={setDoOnDate} placeholder="Select date..." alignPopover="right" />
                     </div>
                     <div className="flex items-center gap-2 text-sm text-zinc-500">
                       <span className="font-medium text-zinc-400">Due By:</span>
-                      <CustomDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." />
+                      {/* ALIGN FIX: Due By expands LEFT to stay perfectly on screen */}
+                      <CustomDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." alignPopover="left" />
                     </div>
                   </div>
                 </div>

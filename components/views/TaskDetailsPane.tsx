@@ -25,7 +25,8 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
     </div>
-    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full overflow-hidden">
+    {/* BUG FIX: Removed overflow-hidden entirely so calendars pop out cleanly */}
+    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full">
       {children}
     </div>
   </div>
@@ -134,7 +135,6 @@ function PaneContent() {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
 
-  // KEYBOARD DETECTION
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
@@ -164,7 +164,6 @@ function PaneContent() {
     }
   }, [taskId]);
 
-  // MOVED THESE UP: Database queries must happen before the editor initializes!
   const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTask = useMutation(api.tasks.deleteTask);
@@ -201,7 +200,7 @@ function PaneContent() {
     const handleClickOutside = (e: PointerEvent | MouseEvent) => {
       if (showDeleteModal || !isPaneOpen) return;
       const target = e.target as HTMLElement;
-      if (target.closest('button')) return;
+      if (target.closest('button') || target.closest('input')) return;
 
       if (paneRef.current && !paneRef.current.contains(target)) {
         router.replace(window.location.pathname, { scroll: false });
@@ -292,7 +291,7 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
             
             <input
               type="text"
@@ -338,11 +337,12 @@ function PaneContent() {
               </PropertyRow>
 
               <PropertyRow icon={Calendar} label="Due By Date">
-                <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} />
+                {/* ALIGN FIX: expand left so it fits perfectly */}
+                <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" />
               </PropertyRow>
 
               <PropertyRow icon={Calendar} label="Do On Date">
-                <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} />
+                <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" />
               </PropertyRow>
 
               <PropertyRow icon={Sigma} label="Matrix Tags">

@@ -221,13 +221,15 @@ export function RawDataView() {
                     
                     <NotionCell>
                       <div className="whitespace-nowrap min-w-[130px]">
-                        <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate(task._id, "doByDate", val)} />
+                        {/* ALIGN FIX: expand right */}
+                        <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate(task._id, "doByDate", val)} alignPopover="right" />
                       </div>
                     </NotionCell>
                     
                     <NotionCell>
                       <div className="whitespace-nowrap min-w-[130px]">
-                        <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate(task._id, "doOnDate", val)} />
+                        {/* ALIGN FIX: expand right */}
+                        <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate(task._id, "doOnDate", val)} alignPopover="right" />
                       </div>
                     </NotionCell>
 

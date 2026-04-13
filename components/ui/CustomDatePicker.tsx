@@ -6,18 +6,19 @@ import { ChevronLeft, ChevronRight, XCircle } from "lucide-react";
 export function CustomDatePicker({ 
   value, 
   onChange, 
-  placeholder = "Empty" 
+  placeholder = "Empty",
+  alignPopover = "right" // Defines which direction the calendar pops open
 }: { 
   value?: number | null, 
   onChange: (val: number | null) => void, 
-  placeholder?: string 
+  placeholder?: string,
+  alignPopover?: "left" | "right" | "center"
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewDate, setViewDate] = useState(value ? new Date(value) : new Date());
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Upgraded to pointerdown for instant mobile tap response
     const handleClickOutside = (e: PointerEvent | MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
     };
@@ -42,12 +43,18 @@ export function CustomDatePicker({
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
 
+  // Dynamic positioning classes based on your requested layout
+  const alignmentClasses = {
+    left: "right-0 origin-top-right", // Anchors right, expands left
+    right: "left-0 origin-top-left",  // Anchors left, expands right
+    center: "left-1/2 -translate-x-1/2 origin-top"
+  };
+
   return (
     <div className="relative flex items-center gap-2 group/date" ref={ref}>
       <button 
         type="button"
         onClick={(e) => { e.preventDefault(); setIsOpen(!isOpen); }}
-        // Upgraded to rounded-full pill to match all other Fotion UI tags
         className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${value ? 'bg-white dark:bg-[#252525] border-[var(--border)] text-[var(--foreground)] shadow-sm' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
       >
         {displayString}
@@ -64,8 +71,7 @@ export function CustomDatePicker({
       )}
 
       {isOpen && (
-        // GEOMETRY FIX: right-0 anchors it to the right on mobile (expanding left). sm:left-0 reverts it on desktop.
-        <div className="absolute top-full right-0 sm:left-0 sm:right-auto mt-2 w-60 sm:w-64 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-xl p-3 z-[100] animate-in fade-in zoom-in-95 origin-top-right sm:origin-top-left duration-100">
+        <div className={`absolute top-full mt-2 w-64 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-xl p-3 z-[100] animate-in fade-in zoom-in-95 duration-100 ${alignmentClasses[alignPopover]}`}>
           <div className="flex items-center justify-between mb-3">
             <button type="button" onClick={prevMonth} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 hover:text-[var(--foreground)] transition-colors"><ChevronLeft className="w-4 h-4" /></button>
             <span className="text-[14px] font-semibold text-[var(--foreground)]">
@@ -94,7 +100,7 @@ export function CustomDatePicker({
                   className={`w-7 h-7 sm:w-8 sm:h-8 rounded text-[13px] flex items-center justify-center transition-colors ${
                     isSelected ? 'bg-blue-500 text-white font-medium shadow-sm' : 
                     isToday ? 'bg-zinc-100 dark:bg-zinc-800 text-blue-500 font-semibold hover:bg-zinc-200 dark:hover:bg-zinc-700' : 
-                    'text-[var(--foreground)] hover:bg-zinc-100 dark:bg:hover:bg-zinc-800'
+                    'text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800'
                   }`}
                 >
                   {day}
