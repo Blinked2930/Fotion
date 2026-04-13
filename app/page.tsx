@@ -15,30 +15,37 @@ import { Folder, Zap, Settings, LogOut, Download } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-// CSV Export Button
 function ExportButton() {
   const tasks = useQuery(api.tasks.getTasks);
   
   const handleExport = () => {
     if (!tasks || tasks.length === 0) return;
 
-    // 1. Define the CSV Headers
     const headers = [
       "Task ID", "Created At", "Title", "Status", "Pipelines", 
       "Project ID", "Is Today", "Is Urgent", "Is Important", 
-      "Is For Funsies", "Do On Date", "Due By Date", "Description (HTML)"
+      "Is For Funsies", "Do On Date", "Due By Date", "Notes (Plain Text)"
     ];
 
-    // 2. Helper to safely format spreadsheet cells
+    // Converts HTML to clean plain text for the CSV
+    const stripHtml = (html: string) => {
+      if (!html) return "";
+      return html
+        .replace(/<\/(p|div|h[1-6])>/gi, '\n') // Add newlines after paragraphs
+        .replace(/<br\s*\/?>/gi, '\n')         // Add newlines for <br>
+        .replace(/<li>/gi, '- ')               // Turn list items into dashes
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<[^>]*>?/gm, '')             // Strip all remaining HTML tags
+        .replace(/&nbsp;/g, ' ')               // Clean up spaces
+        .trim();
+    };
+
     const escapeCsvCell = (cell: any) => {
       if (cell === null || cell === undefined) return '""';
       const stringValue = String(cell);
-      // Escape double quotes by doubling them (""), then wrap the whole string in quotes 
-      // This protects any commas or newlines existing inside the task's text
       return `"${stringValue.replace(/"/g, '""')}"`;
     };
 
-    // 3. Map the Task Data to Rows
     const csvRows = tasks.map(task => {
       return [
         task._id,
@@ -53,14 +60,12 @@ function ExportButton() {
         !!task.isForFunsies,
         task.doOnDate ? new Date(task.doOnDate).toLocaleDateString() : "",
         task.doByDate ? new Date(task.doByDate).toLocaleDateString() : "",
-        task.description || ""
+        stripHtml(task.description || "")
       ].map(escapeCsvCell).join(",");
     });
 
-    // 4. Combine into final CSV String
     const csvString = [headers.map(escapeCsvCell).join(","), ...csvRows].join("\n");
 
-    // 5. Trigger the Browser Download
     const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -121,7 +126,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden">
-      
       <Show when="signed-in">
         <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
@@ -138,7 +142,6 @@ export default function Home() {
                 <Zap className="w-4 h-4" /> Import
               </button>
               <div className="w-px h-5 bg-[var(--border)] mx-1"></div>
-              
               <CustomUserMenu />
             </div>
           </div>

@@ -28,14 +28,8 @@ const NotionCell = ({ children }: { children: React.ReactNode }) => (
 );
 
 const NotionCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (
-  <button onClick={onChange} className="flex items-center w-full h-full">
-    {checked ? (
-      <div className="w-4 h-4 rounded bg-blue-500 flex items-center justify-center shadow-sm">
-        <Check className="w-3 h-3 text-white" strokeWidth={3} />
-      </div>
-    ) : (
-      <div className="w-4 h-4 rounded border border-zinc-300 dark:border-zinc-600 bg-transparent"></div>
-    )}
+  <button onClick={onChange} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${checked ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
+    {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
   </button>
 );
 
@@ -204,7 +198,6 @@ export function RawDataView() {
                         <button 
                           type="button"
                           onClick={(e) => {
-                            // FIXED: Stop the click from bubbling up and triggering background dismissals
                             e.preventDefault();
                             e.stopPropagation();
                             router.push(`/?taskId=${task._id}`);
