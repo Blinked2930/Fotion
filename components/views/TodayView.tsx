@@ -16,7 +16,20 @@ export function TodayView() {
     );
   }
 
-  const todayTasks = tasks.filter(t => t.isToday);
+  // Generate today's date string once for comparison
+  const todayStr = new Date().toDateString();
+  const isDateToday = (timestamp?: number) => {
+    if (!timestamp) return false;
+    return new Date(timestamp).toDateString() === todayStr;
+  };
+
+  // A task makes the cut if it's explicitly marked "Today", or scheduled/due today
+  const todayTasks = tasks.filter(t => 
+    t.isToday || 
+    isDateToday(t.doOnDate) || 
+    isDateToday(t.doByDate)
+  );
+
   const activeTasks = todayTasks.filter(t => t.status !== "done");
   const doneTasks = todayTasks.filter(t => t.status === "done");
 
@@ -26,7 +39,7 @@ export function TodayView() {
         <h2 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
           <Sun className="w-6 h-6 text-amber-500" /> Today's Focus
         </h2>
-        <p className="text-zinc-500 text-sm mt-1">Tasks scheduled for completion today.</p>
+        <p className="text-zinc-500 text-sm mt-1">Tasks scheduled, due, or explicitly marked for today.</p>
       </div>
 
       {todayTasks.length === 0 ? (
@@ -38,7 +51,8 @@ export function TodayView() {
         <div className="space-y-6">
           {activeTasks.length > 0 && (
             <div className="space-y-2">
-              {activeTasks.map(task => <TaskCard key={task._id} task={task} />)}
+              {/* Suppress the redundant 'Today' pill via hideTodayTag */}
+              {activeTasks.map(task => <TaskCard key={task._id} task={task} hideTodayTag={true} />)}
             </div>
           )}
           
@@ -46,7 +60,7 @@ export function TodayView() {
             <div className="pt-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 ml-1">Completed</h3>
               <div className="space-y-2 opacity-60">
-                {doneTasks.map(task => <TaskCard key={task._id} task={task} />)}
+                {doneTasks.map(task => <TaskCard key={task._id} task={task} hideTodayTag={true} />)}
               </div>
             </div>
           )}

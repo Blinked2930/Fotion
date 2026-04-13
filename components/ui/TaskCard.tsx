@@ -27,13 +27,15 @@ export function TaskCard({
   compact = false,
   hideMatrixTags = false,
   hidePipelineTag = false,
-  hideProjectTag = false
+  hideProjectTag = false,
+  hideTodayTag = false
 }: { 
   task: any, 
   compact?: boolean,
   hideMatrixTags?: boolean,
   hidePipelineTag?: boolean,
-  hideProjectTag?: boolean
+  hideProjectTag?: boolean,
+  hideTodayTag?: boolean
 }) {
   const router = useRouter();
   const updateTask = useMutation(api.tasks.updateTask);
@@ -86,7 +88,7 @@ export function TaskCard({
           <div className="flex items-center gap-1.5 sm:gap-2 mt-2 flex-wrap">
             {!hideMatrixTags && task.isUrgent && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50">Urgent</span>}
             {!hideMatrixTags && task.isImportant && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">Important</span>}
-            {task.isToday && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50">Today</span>}
+            {!hideTodayTag && task.isToday && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50">Today</span>}
             {task.isForFunsies && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50">For Funsies</span>}
           </div>
         </div>
