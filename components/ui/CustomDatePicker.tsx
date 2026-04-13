@@ -7,7 +7,7 @@ export function CustomDatePicker({
   value, 
   onChange, 
   placeholder = "Empty",
-  alignPopover = "right" // Defines which direction the calendar pops open
+  alignPopover = "right" 
 }: { 
   value?: number | null, 
   onChange: (val: number | null) => void, 
@@ -20,6 +20,7 @@ export function CustomDatePicker({
 
   useEffect(() => {
     const handleClickOutside = (e: PointerEvent | MouseEvent) => {
+      // Don't close if clicking the mobile backdrop, the backdrop handles its own clicks
       if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
     };
     document.addEventListener("pointerdown", handleClickOutside);
@@ -43,11 +44,12 @@ export function CustomDatePicker({
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
 
-  // Dynamic positioning classes based on your requested layout
+  // GEOMETRY FIX: These alignment classes now ONLY apply on desktop (sm:). 
+  // Mobile always uses fixed centering.
   const alignmentClasses = {
-    left: "right-0 origin-top-right", // Anchors right, expands left
-    right: "left-0 origin-top-left",  // Anchors left, expands right
-    center: "left-1/2 -translate-x-1/2 origin-top"
+    left: "sm:right-0 sm:origin-top-right", 
+    right: "sm:left-0 sm:origin-top-left",  
+    center: "sm:left-1/2 sm:-translate-x-1/2 sm:origin-top"
   };
 
   return (
@@ -71,44 +73,58 @@ export function CustomDatePicker({
       )}
 
       {isOpen && (
-        <div className={`absolute top-full mt-2 w-64 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-xl p-3 z-[100] animate-in fade-in zoom-in-95 duration-100 ${alignmentClasses[alignPopover]}`}>
-          <div className="flex items-center justify-between mb-3">
-            <button type="button" onClick={prevMonth} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 hover:text-[var(--foreground)] transition-colors"><ChevronLeft className="w-4 h-4" /></button>
-            <span className="text-[14px] font-semibold text-[var(--foreground)]">
-              {viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-            </span>
-            <button type="button" onClick={nextMonth} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 hover:text-[var(--foreground)] transition-colors"><ChevronRight className="w-4 h-4" /></button>
+        <>
+          {/* MOBILE MODAL BACKDROP: Blurs the screen and traps the click */}
+          <div 
+            className="fixed inset-0 z-[90] sm:hidden bg-black/5 dark:bg-black/40 backdrop-blur-[2px]"
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setIsOpen(false); }}
+          />
+
+          {/* MOBILE: Fixed Center Modal | DESKTOP: Absolute Dropdown */}
+          <div className={`
+            fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px]
+            sm:absolute sm:top-full sm:mt-2 sm:w-64 sm:translate-x-0 sm:translate-y-0
+            ${alignmentClasses[alignPopover]}
+            bg-white dark:bg-[#252525] border border-[var(--border)] shadow-2xl sm:shadow-xl rounded-2xl sm:rounded-xl p-4 sm:p-3 z-[100] animate-in fade-in zoom-in-95 duration-200
+          `}>
+            <div className="flex items-center justify-between mb-4 sm:mb-3">
+              <button type="button" onClick={prevMonth} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 hover:text-[var(--foreground)] transition-colors"><ChevronLeft className="w-5 h-5 sm:w-4 sm:h-4" /></button>
+              <span className="text-[15px] sm:text-[14px] font-semibold text-[var(--foreground)]">
+                {viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+              </span>
+              <button type="button" onClick={nextMonth} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 hover:text-[var(--foreground)] transition-colors"><ChevronRight className="w-5 h-5 sm:w-4 sm:h-4" /></button>
+            </div>
+            
+            <div className="grid grid-cols-7 gap-1 mb-2 sm:mb-1">
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                <div key={day} className="text-center text-[11px] sm:text-[10px] font-semibold text-zinc-400 py-1">{day}</div>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-7 gap-1 sm:gap-1">
+              {blanks.map(b => <div key={`blank-${b}`} className="w-9 h-9 sm:w-8 sm:h-8" />)}
+              {days.map(day => {
+                const isSelected = value && new Date(value).getDate() === day && new Date(value).getMonth() === viewDate.getMonth() && new Date(value).getFullYear() === viewDate.getFullYear();
+                const isToday = new Date().getDate() === day && new Date().getMonth() === viewDate.getMonth() && new Date().getFullYear() === viewDate.getFullYear();
+                
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => handleSelectDate(day)}
+                    className={`w-9 h-9 sm:w-8 sm:h-8 rounded-lg sm:rounded text-[14px] sm:text-[13px] flex items-center justify-center transition-colors ${
+                      isSelected ? 'bg-blue-500 text-white font-medium shadow-sm' : 
+                      isToday ? 'bg-zinc-100 dark:bg-zinc-800 text-blue-500 font-semibold hover:bg-zinc-200 dark:hover:bg-zinc-700' : 
+                      'text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-              <div key={day} className="text-center text-[10px] font-semibold text-zinc-400 py-1">{day}</div>
-            ))}
-          </div>
-          
-          <div className="grid grid-cols-7 gap-1">
-            {blanks.map(b => <div key={`blank-${b}`} className="w-7 h-7 sm:w-8 sm:h-8" />)}
-            {days.map(day => {
-              const isSelected = value && new Date(value).getDate() === day && new Date(value).getMonth() === viewDate.getMonth() && new Date(value).getFullYear() === viewDate.getFullYear();
-              const isToday = new Date().getDate() === day && new Date().getMonth() === viewDate.getMonth() && new Date().getFullYear() === viewDate.getFullYear();
-              
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => handleSelectDate(day)}
-                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded text-[13px] flex items-center justify-center transition-colors ${
-                    isSelected ? 'bg-blue-500 text-white font-medium shadow-sm' : 
-                    isToday ? 'bg-zinc-100 dark:bg-zinc-800 text-blue-500 font-semibold hover:bg-zinc-200 dark:hover:bg-zinc-700' : 
-                    'text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                  }`}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

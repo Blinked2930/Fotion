@@ -135,6 +135,7 @@ function PaneContent() {
   const [isOpen, setIsOpen] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
@@ -188,8 +189,18 @@ function PaneContent() {
   });
 
   useEffect(() => {
-    if (task) setTitle(task.title);
+    if (task) {
+      setTitle(task.title);
+    }
   }, [task]);
+
+  // TITLE AUTO-RESIZE LOGIC
+  useEffect(() => {
+    if (titleRef.current) {
+      titleRef.current.style.height = 'auto';
+      titleRef.current.style.height = `${titleRef.current.scrollHeight}px`;
+    }
+  }, [title, isOpen]);
 
   useEffect(() => {
     if (task && editor && task.description !== editor.getHTML()) {
@@ -201,7 +212,9 @@ function PaneContent() {
     const handleClickOutside = (e: PointerEvent | MouseEvent) => {
       if (showDeleteModal || !isPaneOpen) return;
       const target = e.target as HTMLElement;
-      if (target.closest('button') || target.closest('input')) return;
+      
+      // If clicking inside a modal or a button, ignore
+      if (target.closest('button') || target.closest('input') || target.closest('.fixed.inset-0')) return;
 
       if (paneRef.current && !paneRef.current.contains(target)) {
         router.replace(window.location.pathname, { scroll: false });
@@ -216,6 +229,12 @@ function PaneContent() {
 
   const handleUpdate = (field: string, value: any) => {
     if (displayTaskId) updateTask({ id: displayTaskId, [field]: value });
+  };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setTitle(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
   return (
@@ -280,7 +299,7 @@ function PaneContent() {
           setIsNearBottom(rect.bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
-        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-40 flex flex-col transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] max-w-full ${
+        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-40 flex flex-col transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] max-w-full overflow-x-hidden ${
           isPaneOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
         }`}
       >
@@ -294,12 +313,14 @@ function PaneContent() {
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
             
-            <input
-              type="text"
+            {/* TITLE FIX: Auto-resizing textarea that elegantly wraps text onto multiple lines */}
+            <textarea
+              ref={titleRef}
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={handleTitleChange}
               onBlur={() => handleUpdate("title", title)}
-              className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300"
+              rows={1}
+              className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300 resize-none overflow-hidden block py-1 leading-tight"
               placeholder="Task title"
             />
 
