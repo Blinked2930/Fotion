@@ -131,7 +131,28 @@ function PaneContent() {
 
   const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
   const [isOpen, setIsOpen] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
+
+  // KEYBOARD DETECTION
+  useEffect(() => {
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        setIsKeyboardOpen(true);
+      }
+    };
+    const handleFocusOut = () => setIsKeyboardOpen(false);
+    
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, []);
+
+  const isPaneOpen = !!taskId;
 
   useEffect(() => {
     if (taskId) {
@@ -143,12 +164,21 @@ function PaneContent() {
     }
   }, [taskId]);
 
+  // MOVED THESE UP: Database queries must happen before the editor initializes!
+  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
+  const updateTask = useMutation(api.tasks.updateTask);
+  const deleteTask = useMutation(api.tasks.deleteTask);
+
+  const [title, setTitle] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Type your notes here..." })
+      Placeholder.configure({ placeholder: "Type your notes here... (Use 1. or - or [ ] for lists)" })
     ],
     content: task?.description || "",
     immediatelyRender: false, 
@@ -156,13 +186,6 @@ function PaneContent() {
       handleUpdate("description", editor.getHTML());
     },
   });
-
-  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
-  const updateTask = useMutation(api.tasks.updateTask);
-  const deleteTask = useMutation(api.tasks.deleteTask);
-
-  const [title, setTitle] = useState("");
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (task) setTitle(task.title);
@@ -176,9 +199,9 @@ function PaneContent() {
 
   useEffect(() => {
     const handleClickOutside = (e: PointerEvent | MouseEvent) => {
-      if (showDeleteModal || !isOpen) return;
+      if (showDeleteModal || !isPaneOpen) return;
       const target = e.target as HTMLElement;
-      if (target.closest('button') || target.closest('input')) return;
+      if (target.closest('button')) return;
 
       if (paneRef.current && !paneRef.current.contains(target)) {
         router.replace(window.location.pathname, { scroll: false });
@@ -187,7 +210,7 @@ function PaneContent() {
     
     document.addEventListener("pointerdown", handleClickOutside, true);
     return () => document.removeEventListener("pointerdown", handleClickOutside, true);
-  }, [showDeleteModal, router, isOpen]);
+  }, [showDeleteModal, router, isPaneOpen]);
 
   const closePane = () => router.replace(window.location.pathname, { scroll: false });
 
@@ -198,7 +221,7 @@ function PaneContent() {
   return (
     <>
       <style>{`
-        .tiptap { outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; min-height: 100px; cursor: text; }
+        .tiptap { min-height: 150px; outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; cursor: text; }
         .tiptap * { max-width: 100%; }
         .tiptap ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
         .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
@@ -244,17 +267,21 @@ function PaneContent() {
           .tiptap input[type="checkbox"] { border-color: #52525b; }
         }
 
-        /* KEYBOARD HIDE LOGIC: If screen height drops below 500px (meaning keyboard is open), hide the pills */
         @media (max-height: 500px) {
           .floating-action-pills { display: none !important; }
         }
       `}</style>
 
-      {/* Pane Layout */}
       <div 
         ref={paneRef} 
+        onMouseMove={(e) => {
+          if (!paneRef.current || !isOpen) return;
+          const rect = paneRef.current.getBoundingClientRect();
+          setIsNearBottom(rect.bottom - e.clientY < 180);
+        }}
+        onMouseLeave={() => setIsNearBottom(false)}
         className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-40 flex flex-col transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] max-w-full ${
-          isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
+          isPaneOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
         }`}
       >
 
@@ -265,7 +292,7 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
+          <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
             
             <input
               type="text"
@@ -357,19 +384,16 @@ function PaneContent() {
 
             <hr className="border-[var(--border)] my-6" />
 
-            <div className="space-y-3 pb-4 max-w-full">
-              {/* BREATHABLE CANVAS: The notes section is isolated and comfortable */}
-              <div className="w-full bg-zinc-50 dark:bg-[#1a1a1a] rounded-xl p-3 border border-[var(--border)] mt-2">
-                <EditorToolbar editor={editor} />
-                {/* SCROLL FIX: Removed the wrapper div onClick. TipTap completely owns the focus now. */}
-                <EditorContent editor={editor} className="tiptap outline-none w-full break-words text-[15px] text-[var(--foreground)] leading-relaxed mt-2" />
-              </div>
+            <div className="space-y-2 pb-4 max-w-full">
+              <EditorToolbar editor={editor} />
+              <EditorContent editor={editor} className="tiptap outline-none w-full break-words text-[15px] text-[var(--foreground)] leading-relaxed" />
             </div>
           </div>
         )}
 
-        {/* Action Pills: These perfectly vanish if the CSS media query detects a mobile keyboard! */}
-        <div className="floating-action-pills absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out sm:opacity-100 sm:translate-y-0 opacity-100 translate-y-0">
+        <div className={`floating-action-pills absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out ${
+          isKeyboardOpen ? "opacity-0 translate-y-10" : (isNearBottom ? "sm:opacity-100 sm:translate-y-0" : "sm:opacity-0 sm:translate-y-2 opacity-100 translate-y-0")
+        }`}>
           <button 
             type="button" 
             onClick={closePane} 
