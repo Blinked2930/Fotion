@@ -59,7 +59,7 @@ export function ProjectsView() {
   return (
     <div className="w-full pb-32 animate-in fade-in duration-300">
       
-      <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pt-2 pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-[var(--border)]">
+      <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pt-2 pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-[var(--border)]">
         <button
           onClick={() => setSelectedProjectId("ALL")}
           className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-all border ${selectedProjectId === "ALL" ? "bg-zinc-800 border-zinc-800 text-white dark:bg-zinc-200 dark:border-zinc-200 dark:text-zinc-900 shadow-sm" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}
@@ -119,7 +119,6 @@ export function ProjectsView() {
                 <TaskCard 
                   key={task._id} 
                   task={task} 
-                  // If looking at a specific project, don't show the redundant project pill on every single task
                   hideProjectTag={selectedProjectId !== "ALL" && selectedProjectId !== "UNASSIGNED"} 
                 />
               ))}

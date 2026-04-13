@@ -130,7 +130,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
 const EditorToolbar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
   return (
-    <div className="flex items-center gap-1 mb-2 overflow-x-auto hide-scrollbar pb-1">
+    <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
       <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
       <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
       <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
@@ -329,10 +329,6 @@ function PaneContent() {
         }
       `}</style>
 
-      {/* 100% SOLID TRANSPARENCY FIX: 
-          bg-white and dark:bg-[#121212] are hardcoded. 
-          Removed backface-hidden which causes Safari glitches. 
-      */}
       <div 
         ref={paneRef} 
         onTouchStart={onTouchStart}
@@ -355,7 +351,7 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
             
             <textarea
               ref={titleRef}

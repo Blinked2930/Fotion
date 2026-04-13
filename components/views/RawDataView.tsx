@@ -159,11 +159,7 @@ export function RawDataView() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{__html: `
-        .no-scroll-bar::-webkit-scrollbar { display: none; }
-        .no-scroll-bar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}} />
-      <div className="w-full overflow-x-auto pb-64 no-scroll-bar no-swipe-zone">
+      <div className="w-full overflow-x-auto pb-64 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-swipe-zone">
         <div className="inline-block min-w-full align-middle">
           <table className="w-full text-left border-collapse border border-[var(--border)]">
             <thead>
