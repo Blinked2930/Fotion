@@ -18,7 +18,9 @@ export function TodayView() {
 
   // Generate today's date string once for comparison
   const todayStr = new Date().toDateString();
-  const isDateToday = (timestamp?: number) => {
+  
+  // TYPESCRIPT FIX: Explicitly tell TypeScript this parameter can be a number, undefined, OR null
+  const isDateToday = (timestamp?: number | null) => {
     if (!timestamp) return false;
     return new Date(timestamp).toDateString() === todayStr;
   };
