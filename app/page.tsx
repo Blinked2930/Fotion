@@ -15,19 +15,60 @@ import { Folder, Zap, Settings, LogOut, Download } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-// Sub-component to handle the export safely
+// CSV Export Button
 function ExportButton() {
   const tasks = useQuery(api.tasks.getTasks);
   
   const handleExport = () => {
-    if (!tasks) return;
-    const json = JSON.stringify(tasks, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
+    if (!tasks || tasks.length === 0) return;
+
+    // 1. Define the CSV Headers
+    const headers = [
+      "Task ID", "Created At", "Title", "Status", "Pipelines", 
+      "Project ID", "Is Today", "Is Urgent", "Is Important", 
+      "Is For Funsies", "Do On Date", "Due By Date", "Description (HTML)"
+    ];
+
+    // 2. Helper to safely format spreadsheet cells
+    const escapeCsvCell = (cell: any) => {
+      if (cell === null || cell === undefined) return '""';
+      const stringValue = String(cell);
+      // Escape double quotes by doubling them (""), then wrap the whole string in quotes 
+      // This protects any commas or newlines existing inside the task's text
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    };
+
+    // 3. Map the Task Data to Rows
+    const csvRows = tasks.map(task => {
+      return [
+        task._id,
+        new Date(task._creationTime).toISOString(),
+        task.title,
+        task.status,
+        task.listCategory || "Current",
+        task.projectId || "None",
+        !!task.isToday,
+        !!task.isUrgent,
+        !!task.isImportant,
+        !!task.isForFunsies,
+        task.doOnDate ? new Date(task.doOnDate).toLocaleDateString() : "",
+        task.doByDate ? new Date(task.doByDate).toLocaleDateString() : "",
+        task.description || ""
+      ].map(escapeCsvCell).join(",");
+    });
+
+    // 4. Combine into final CSV String
+    const csvString = [headers.map(escapeCsvCell).join(","), ...csvRows].join("\n");
+
+    // 5. Trigger the Browser Download
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `fotion-export-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `fotion-export-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
