@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare } from "lucide-react";
+import { Plus, Folder, Check } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -38,20 +38,6 @@ export const getListColor = (list: string) => {
   }
 };
 
-const EditorToolbar = ({ editor }: { editor: any }) => {
-  if (!editor) return null;
-  return (
-    <div className="flex items-center gap-1 mb-2 overflow-x-auto hide-scrollbar pb-1">
-      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><Bold className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><Italic className="w-3.5 h-3.5" /></button>
-      <div className="w-px h-3 bg-[var(--border)] mx-1 shrink-0" />
-      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><List className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><ListOrdered className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><CheckSquare className="w-3.5 h-3.5" /></button>
-    </div>
-  );
-};
-
 export function NewTaskForm() {
   const createTask = useMutation(api.tasks.createTask);
   const projects = useQuery(api.projects.getProjects);
@@ -80,7 +66,7 @@ export function NewTaskForm() {
       StarterKit,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Notes..." })
+      Placeholder.configure({ placeholder: "Type notes here... (Use 1. or - or [ ] for lists)" })
     ],
     content: "",
     immediatelyRender: false,
@@ -177,6 +163,8 @@ export function NewTaskForm() {
   return (
     <>
       <style>{`
+        .tiptap { min-height: 50px; outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; cursor: text; }
+        .tiptap * { max-width: 100%; }
         .tiptap ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
         .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
         .tiptap p { margin-bottom: 0.5rem; }
@@ -185,7 +173,6 @@ export function NewTaskForm() {
         .tiptap ul[data-type="taskList"] li > label { margin-right: 0.5rem; user-select: none; }
         .tiptap ul[data-type="taskList"] li > label input[type="checkbox"] { accent-color: #3b82f6; width: 1rem; height: 1rem; margin-top: 0.25rem; cursor: pointer; }
         .tiptap p.is-editor-empty:first-child::before { color: #a1a1aa; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
-        .ProseMirror:focus { outline: none !important; box-shadow: none !important; }
         
         .tiptap input[type="checkbox"] {
           appearance: none;
@@ -247,18 +234,11 @@ export function NewTaskForm() {
         </div>
             
         <div className={`grid transition-all duration-[300ms] ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
-          {/* DATEPICKER FIX: Once expanded, allow overflow-visible so calendars don't get clipped */}
           <div className={isExpanded ? "overflow-visible" : "overflow-hidden"}>
             <div className="space-y-3 w-full sm:ml-7 sm:pr-7 pb-1">
               
-              <div>
-                <EditorToolbar editor={editor} />
-                <div 
-                  className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[50px] pt-1"
-                  onClick={() => editor?.commands.focus()}
-                >
-                  <EditorContent editor={editor} className="tiptap outline-none h-full" />
-                </div>
+              <div className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 pt-1">
+                <EditorContent editor={editor} className="outline-none h-full break-words" />
               </div>
 
               <div className="flex flex-col gap-4 border-t border-[var(--border)] pt-4">

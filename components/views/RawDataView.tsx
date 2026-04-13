@@ -163,7 +163,7 @@ export function RawDataView() {
         .no-scroll-bar::-webkit-scrollbar { display: none; }
         .no-scroll-bar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
-      <div className="w-full overflow-x-auto pb-48 no-scroll-bar">
+      <div className="w-full overflow-x-auto pb-64 no-scroll-bar">
         <div className="inline-block min-w-full align-middle">
           <table className="w-full text-left border-collapse border border-[var(--border)]">
             <thead>
