@@ -124,38 +124,6 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
-  // SWIPE LOGIC (Dynamic based on custom ViewTabs order)
-  const [swipeViews, setSwipeViews] = useState<ViewType[]>(["Matrix", "Pipelines", "Today", "Projects", "Raw Data"]);
-  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    
-    const dx = touchStart.x - touchEndX;
-    const dy = Math.abs(touchStart.y - touchEndY);
-    
-    if (dy > 40) return; // Ignore vertical scrolling
-    
-    const target = e.target as HTMLElement;
-    if (target.closest('.no-swipe-zone') || target.tagName === 'INPUT' || target.closest('.tiptap') || target.closest('button')) return;
-
-    if (dx > 60) {
-      // Swipe Left -> Next tab
-      const idx = swipeViews.indexOf(activeView);
-      if (idx < swipeViews.length - 1) setActiveView(swipeViews[idx + 1]);
-    } else if (dx < -60) {
-      // Swipe Right -> Prev tab
-      const idx = swipeViews.indexOf(activeView);
-      if (idx > 0) setActiveView(swipeViews[idx - 1]);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden">
       <Show when="signed-in">
@@ -179,12 +147,12 @@ export default function Home() {
           </div>
         </header>
 
-        <main className="pt-4 pb-12 relative min-h-[80vh]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        <main className="pt-4 pb-12 relative min-h-[80vh]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <ViewTabs 
               activeView={activeView} 
               onViewChange={setActiveView} 
-              onOrderChange={setSwipeViews} // Pushes custom order to the swipe engine!
+              // Removed the onOrderChange sync since we no longer need to track array order for swiping
             />
             <div className="mb-4">
               <NewTaskForm />
