@@ -17,11 +17,12 @@ export function CustomDatePicker({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    // Upgraded to pointerdown for instant mobile tap response
+    const handleClickOutside = (e: PointerEvent | MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, []);
 
   const displayString = value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : placeholder;
@@ -46,7 +47,8 @@ export function CustomDatePicker({
       <button 
         type="button"
         onClick={(e) => { e.preventDefault(); setIsOpen(!isOpen); }}
-        className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors border ${value ? 'bg-white dark:bg-zinc-800 border-[var(--border)] text-[var(--foreground)] shadow-sm' : 'bg-transparent border-transparent text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+        // Upgraded to rounded-full pill to match all other Fotion UI tags
+        className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${value ? 'bg-white dark:bg-[#252525] border-[var(--border)] text-[var(--foreground)] shadow-sm' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
       >
         {displayString}
       </button>
@@ -62,7 +64,8 @@ export function CustomDatePicker({
       )}
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
+        // GEOMETRY FIX: right-0 anchors it to the right on mobile (expanding left). sm:left-0 reverts it on desktop.
+        <div className="absolute top-full right-0 sm:left-0 sm:right-auto mt-2 w-60 sm:w-64 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-xl p-3 z-[100] animate-in fade-in zoom-in-95 origin-top-right sm:origin-top-left duration-100">
           <div className="flex items-center justify-between mb-3">
             <button type="button" onClick={prevMonth} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 hover:text-[var(--foreground)] transition-colors"><ChevronLeft className="w-4 h-4" /></button>
             <span className="text-[14px] font-semibold text-[var(--foreground)]">
@@ -78,7 +81,7 @@ export function CustomDatePicker({
           </div>
           
           <div className="grid grid-cols-7 gap-1">
-            {blanks.map(b => <div key={`blank-${b}`} className="w-7 h-7" />)}
+            {blanks.map(b => <div key={`blank-${b}`} className="w-7 h-7 sm:w-8 sm:h-8" />)}
             {days.map(day => {
               const isSelected = value && new Date(value).getDate() === day && new Date(value).getMonth() === viewDate.getMonth() && new Date(value).getFullYear() === viewDate.getFullYear();
               const isToday = new Date().getDate() === day && new Date().getMonth() === viewDate.getMonth() && new Date().getFullYear() === viewDate.getFullYear();
@@ -88,10 +91,10 @@ export function CustomDatePicker({
                   key={day}
                   type="button"
                   onClick={() => handleSelectDate(day)}
-                  className={`w-7 h-7 rounded text-[13px] flex items-center justify-center transition-colors ${
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded text-[13px] flex items-center justify-center transition-colors ${
                     isSelected ? 'bg-blue-500 text-white font-medium shadow-sm' : 
                     isToday ? 'bg-zinc-100 dark:bg-zinc-800 text-blue-500 font-semibold hover:bg-zinc-200 dark:hover:bg-zinc-700' : 
-                    'text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                    'text-[var(--foreground)] hover:bg-zinc-100 dark:bg:hover:bg-zinc-800'
                   }`}
                 >
                   {day}

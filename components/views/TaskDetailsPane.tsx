@@ -7,7 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
-  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2
+  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -25,7 +25,7 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
     </div>
-    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full">
+    <div className="flex-1 flex items-center text-[14px] min-w-0 max-w-full overflow-hidden">
       {children}
     </div>
   </div>
@@ -110,52 +110,45 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   );
 }
 
+const EditorToolbar = ({ editor }: { editor: any }) => {
+  if (!editor) return null;
+  return (
+    <div className="flex items-center gap-1 mb-2 overflow-x-auto hide-scrollbar pb-1">
+      <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
+      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
+      <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
+      <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
+      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
+      <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
+    </div>
+  );
+};
+
 function PaneContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const taskId = searchParams.get("taskId") as Id<"tasks"> | null;
 
   const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
 
-  // BULLETPROOF KEYBOARD DETECTION
   useEffect(() => {
-    const handleFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        setIsKeyboardOpen(true);
-      }
-    };
-    const handleFocusOut = () => setIsKeyboardOpen(false);
-    
-    document.addEventListener('focusin', handleFocusIn);
-    document.addEventListener('focusout', handleFocusOut);
-    return () => {
-      document.removeEventListener('focusin', handleFocusIn);
-      document.removeEventListener('focusout', handleFocusOut);
-    };
-  }, []);
-
-  const isPaneOpen = !!taskId;
-
-  useEffect(() => {
-    if (taskId) setDisplayTaskId(taskId);
+    if (taskId) {
+      setDisplayTaskId(taskId);
+      const timer = setTimeout(() => setIsOpen(true), 10);
+      return () => clearTimeout(timer);
+    } else {
+      setIsOpen(false);
+    }
   }, [taskId]);
-
-  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
-  const updateTask = useMutation(api.tasks.updateTask);
-  const deleteTask = useMutation(api.tasks.deleteTask);
-
-  const [title, setTitle] = useState("");
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const editor = useEditor({
     extensions: [
       StarterKit,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Type your notes here... (Use 1. or - or [ ] for lists)" })
+      Placeholder.configure({ placeholder: "Type your notes here..." })
     ],
     content: task?.description || "",
     immediatelyRender: false, 
@@ -163,6 +156,13 @@ function PaneContent() {
       handleUpdate("description", editor.getHTML());
     },
   });
+
+  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
+  const updateTask = useMutation(api.tasks.updateTask);
+  const deleteTask = useMutation(api.tasks.deleteTask);
+
+  const [title, setTitle] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (task) setTitle(task.title);
@@ -176,9 +176,9 @@ function PaneContent() {
 
   useEffect(() => {
     const handleClickOutside = (e: PointerEvent | MouseEvent) => {
-      if (showDeleteModal || !isPaneOpen) return;
+      if (showDeleteModal || !isOpen) return;
       const target = e.target as HTMLElement;
-      if (target.closest('button')) return;
+      if (target.closest('button') || target.closest('input')) return;
 
       if (paneRef.current && !paneRef.current.contains(target)) {
         router.replace(window.location.pathname, { scroll: false });
@@ -187,7 +187,7 @@ function PaneContent() {
     
     document.addEventListener("pointerdown", handleClickOutside, true);
     return () => document.removeEventListener("pointerdown", handleClickOutside, true);
-  }, [showDeleteModal, router, isPaneOpen]);
+  }, [showDeleteModal, router, isOpen]);
 
   const closePane = () => router.replace(window.location.pathname, { scroll: false });
 
@@ -198,7 +198,7 @@ function PaneContent() {
   return (
     <>
       <style>{`
-        .tiptap { min-height: 150px; outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; cursor: text; }
+        .tiptap { outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; min-height: 100px; cursor: text; }
         .tiptap * { max-width: 100%; }
         .tiptap ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
         .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
@@ -243,13 +243,18 @@ function PaneContent() {
         @media (prefers-color-scheme: dark) {
           .tiptap input[type="checkbox"] { border-color: #52525b; }
         }
+
+        /* KEYBOARD HIDE LOGIC: If screen height drops below 500px (meaning keyboard is open), hide the pills */
+        @media (max-height: 500px) {
+          .floating-action-pills { display: none !important; }
+        }
       `}</style>
 
-      {/* GHOST FIX: Erased 'invisible' entirely. It is just physically off screen. */}
+      {/* Pane Layout */}
       <div 
         ref={paneRef} 
         className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-[var(--background)] sm:border-l border-[var(--border)] z-40 flex flex-col transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] max-w-full ${
-          isPaneOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
+          isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
         }`}
       >
 
@@ -260,8 +265,7 @@ function PaneContent() {
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
-          /* DATEPICKER FIX: Removed overflow-x-hidden, increased bottom padding so calendars fit */
-          <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-64 max-w-full">
             
             <input
               type="text"
@@ -353,17 +357,19 @@ function PaneContent() {
 
             <hr className="border-[var(--border)] my-6" />
 
-            <div className="space-y-4 pb-4 max-w-full">
-              {/* CHECKBOX SCROLL FIX: Removed the wrapper div onClick entirely. Let TipTap handle focus. */}
-              <EditorContent editor={editor} className="tiptap outline-none w-full break-words text-[15px] text-[var(--foreground)] leading-relaxed" />
+            <div className="space-y-3 pb-4 max-w-full">
+              {/* BREATHABLE CANVAS: The notes section is isolated and comfortable */}
+              <div className="w-full bg-zinc-50 dark:bg-[#1a1a1a] rounded-xl p-3 border border-[var(--border)] mt-2">
+                <EditorToolbar editor={editor} />
+                {/* SCROLL FIX: Removed the wrapper div onClick. TipTap completely owns the focus now. */}
+                <EditorContent editor={editor} className="tiptap outline-none w-full break-words text-[15px] text-[var(--foreground)] leading-relaxed mt-2" />
+              </div>
             </div>
           </div>
         )}
 
-        {/* Action Pills: Now perfectly vanish if any keyboard is triggered! */}
-        <div className={`absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out ${
-          isKeyboardOpen ? "opacity-0 translate-y-10" : "opacity-100 translate-y-0"
-        }`}>
+        {/* Action Pills: These perfectly vanish if the CSS media query detects a mobile keyboard! */}
+        <div className="floating-action-pills absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out sm:opacity-100 sm:translate-y-0 opacity-100 translate-y-0">
           <button 
             type="button" 
             onClick={closePane} 
@@ -409,7 +415,7 @@ function PaneContent() {
                 type="button"
                 autoFocus
                 onClick={() => { deleteTask({ id: displayTaskId as any }); closePane(); setShowDeleteModal(false); }} 
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors outline-none focus:ring-2 focus:ring-red-500"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#1c1c1c]"
               >
                 Yes, Delete
               </button>
