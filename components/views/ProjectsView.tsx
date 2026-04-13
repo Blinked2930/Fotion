@@ -115,7 +115,14 @@ export function ProjectsView() {
         <div className="space-y-6">
           {activeTasks.length > 0 && (
             <div className="space-y-2">
-              {activeTasks.map(task => <TaskCard key={task._id} task={task} />)}
+              {activeTasks.map(task => (
+                <TaskCard 
+                  key={task._id} 
+                  task={task} 
+                  // If looking at a specific project, don't show the redundant project pill on every single task
+                  hideProjectTag={selectedProjectId !== "ALL" && selectedProjectId !== "UNASSIGNED"} 
+                />
+              ))}
             </div>
           )}
 
