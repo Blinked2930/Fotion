@@ -22,11 +22,34 @@ export function EisenhowerMatrix() {
     (!t.listCategory || t.listCategory === "Current")
   );
 
+  // THE OVERRIDE LOGIC: 
+  // If 'isForFunsies' is true, it is blocked from Q1-Q4 and routed directly to Q5
   const quadrants = [
-    { id: "q1", title: "Do First", desc: "Urgent & Important", tasks: activeTasks.filter(t => t.isUrgent && t.isImportant), color: "border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/10", headerColor: "text-red-600 dark:text-red-400" },
-    { id: "q2", title: "Schedule", desc: "Important, Not Urgent", tasks: activeTasks.filter(t => !t.isUrgent && t.isImportant), color: "border-blue-200 dark:border-blue-900/50 bg-blue-50/30 dark:bg-blue-900/10", headerColor: "text-blue-600 dark:text-blue-400" },
-    { id: "q3", title: "Delegate", desc: "Urgent, Not Important", tasks: activeTasks.filter(t => t.isUrgent && !t.isImportant), color: "border-orange-200 dark:border-orange-900/50 bg-orange-50/30 dark:bg-orange-900/10", headerColor: "text-orange-600 dark:text-orange-400" },
-    { id: "q4", title: "Eliminate", desc: "Neither", tasks: activeTasks.filter(t => !t.isUrgent && !t.isImportant), color: "border-zinc-200 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-800/10", headerColor: "text-[var(--foreground)]" }
+    { 
+      id: "q1", title: "Do First", desc: "Urgent & Important", 
+      tasks: activeTasks.filter(t => t.isUrgent && t.isImportant && !t.isForFunsies), 
+      color: "border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/10", headerColor: "text-red-600 dark:text-red-400" 
+    },
+    { 
+      id: "q2", title: "Schedule", desc: "Important, Not Urgent", 
+      tasks: activeTasks.filter(t => !t.isUrgent && t.isImportant && !t.isForFunsies), 
+      color: "border-blue-200 dark:border-blue-900/50 bg-blue-50/30 dark:bg-blue-900/10", headerColor: "text-blue-600 dark:text-blue-400" 
+    },
+    { 
+      id: "q3", title: "Delegate", desc: "Urgent, Not Important", 
+      tasks: activeTasks.filter(t => t.isUrgent && !t.isImportant && !t.isForFunsies), 
+      color: "border-orange-200 dark:border-orange-900/50 bg-orange-50/30 dark:bg-orange-900/10", headerColor: "text-orange-600 dark:text-orange-400" 
+    },
+    { 
+      id: "q4", title: "Eliminate", desc: "Neither", 
+      tasks: activeTasks.filter(t => !t.isUrgent && !t.isImportant && !t.isForFunsies), 
+      color: "border-zinc-200 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-800/10", headerColor: "text-[var(--foreground)]" 
+    },
+    { 
+      id: "q5", title: "For Funsies", desc: "Because Life Needs Play", 
+      tasks: activeTasks.filter(t => t.isForFunsies), 
+      color: "border-purple-200 dark:border-purple-900/50 bg-purple-50/30 dark:bg-purple-900/10", headerColor: "text-purple-600 dark:text-purple-400" 
+    }
   ];
 
   // FILTER 2: Automatically hide any quadrants that have 0 tasks
@@ -51,7 +74,6 @@ export function EisenhowerMatrix() {
           {populatedQuadrants.map(q => (
             <div key={q.id} className={`flex flex-col h-full rounded-2xl p-3 border ${q.color}`}>
               
-              {/* TYPOGRAPHY SYNC: Exactly matches the styling from PipelinesView */}
               <div className="flex items-center justify-between mb-1 px-1">
                 <h3 className={`font-semibold text-sm ${q.headerColor}`}>{q.title}</h3>
                 <span className="text-xs font-medium text-zinc-500 bg-white dark:bg-[#252525] px-2 py-0.5 rounded-full border border-[var(--border)] shadow-sm">
