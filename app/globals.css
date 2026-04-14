@@ -31,29 +31,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Webkit Scrollbars for Desktop */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #d3d1cb;
-  border-radius: 3px;
-}
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-thumb {
-    background: #474c50;
-  }
+/* ==========================================
+   GLOBAL SCROLLBAR ERADICATION
+   Hides scrollbars on ALL elements globally 
+   while keeping scroll functionality intact.
+   ========================================== */
+
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     /* Firefox */
 }
 
-/* NEW: Utility to completely hide scrollbar on mobile views but allow scrolling */
-.hide-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-.hide-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+*::-webkit-scrollbar {
+  display: none;             /* Chrome, Safari, Opera, iOS */
 }
