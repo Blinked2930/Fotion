@@ -7,7 +7,6 @@ export default defineSchema({
     isArchived: v.boolean(),
   }),
 
-  // ADDED: The missing notes table to satisfy the type checker
   notes: defineTable({
     title: v.string(),
     content: v.string(),
@@ -40,4 +39,10 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_listCategory", ["listCategory"])
     .index("by_project", ["projectId"]),
+
+  // NEW: Preferences table to cloud-sync your tab order
+  preferences: defineTable({
+    userId: v.string(),
+    tabOrder: v.array(v.string()),
+  }).index("by_user", ["userId"]),
 });

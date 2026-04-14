@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { LayoutGrid, ListTodo, Calendar, Database, FolderGit2 } from "lucide-react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 export type ViewType = "Matrix" | "Pipelines" | "Today" | "Projects" | "Raw Data";
 
@@ -15,34 +17,29 @@ const defaultTabs: { id: ViewType; icon: any; label: string }[] = [
 
 export function ViewTabs({ 
   activeView, 
-  onViewChange,
-  onOrderChange 
+  onViewChange
 }: { 
   activeView: ViewType; 
   onViewChange: (view: ViewType) => void;
-  onOrderChange?: (views: ViewType[]) => void;
 }) {
+  // Hook up to our new Convex Cloud endpoints!
+  const preferences = useQuery(api.preferences.get);
+  const updateTabOrder = useMutation(api.preferences.updateTabOrder);
+
   const [tabs, setTabs] = useState(defaultTabs);
   const [draggedTab, setDraggedTab] = useState<ViewType | null>(null);
 
+  // When the cloud preferences load, update the local UI state
   useEffect(() => {
-    const saved = localStorage.getItem("fotion-tab-order");
-    if (saved) {
-      try {
-        const order = JSON.parse(saved) as ViewType[];
-        const reordered = order.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
-        const missing = defaultTabs.filter(t => !order.includes(t.id));
-        const finalTabs = [...reordered, ...missing];
-        
-        setTabs(finalTabs);
-        if (onOrderChange) onOrderChange(finalTabs.map(t => t.id));
-      } catch (e) {
-        console.error("Failed to parse tab order", e);
-      }
-    } else {
-        if (onOrderChange) onOrderChange(defaultTabs.map(t => t.id));
+    if (preferences?.tabOrder) {
+      const order = preferences.tabOrder as ViewType[];
+      const reordered = order.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
+      // In case we added new hardcoded tabs since they last saved their order
+      const missing = defaultTabs.filter(t => !order.includes(t.id));
+      
+      setTabs([...reordered, ...missing]);
     }
-  }, [onOrderChange]);
+  }, [preferences?.tabOrder]);
 
   const handleDragStart = (e: React.DragEvent, id: ViewType) => {
     setDraggedTab(id);
@@ -72,9 +69,9 @@ export function ViewTabs({
     newTabs.splice(targetIdx, 0, removed);
     
     setTabs(newTabs);
-    localStorage.setItem("fotion-tab-order", JSON.stringify(newTabs.map(t => t.id)));
     
-    if (onOrderChange) onOrderChange(newTabs.map(t => t.id));
+    // Push the new custom order to the Convex Cloud!
+    updateTabOrder({ tabOrder: newTabs.map(t => t.id) });
   };
 
   return (
