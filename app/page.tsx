@@ -128,7 +128,8 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden">
       <Show when="signed-in">
         <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
+          {/* WIDE MODE: Changed max-w-6xl to max-w-[1600px] and added lg:px-10 */}
+          <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
             <div className="flex items-center text-[15px]">
               <span className="font-semibold text-[var(--foreground)] tracking-tight">Fotion</span>
             </div>
@@ -148,11 +149,11 @@ export default function Home() {
         </header>
 
         <main className="pt-4 pb-12 relative min-h-[80vh]">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          {/* WIDE MODE: Changed max-w-6xl to max-w-[1600px] and added lg:px-10 */}
+          <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10">
             <ViewTabs 
               activeView={activeView} 
               onViewChange={setActiveView} 
-              // Removed the onOrderChange sync since we no longer need to track array order for swiping
             />
             <div className="mb-4">
               <NewTaskForm />
