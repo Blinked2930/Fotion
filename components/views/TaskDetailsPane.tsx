@@ -269,7 +269,7 @@ function PaneContent() {
     if (displayTaskId) updateTask({ id: displayTaskId, [field]: value });
   };
 
-  const handleStatusUpdate = (newStatus: string) => {
+  const handleStatusUpdate = (newStatus: "todo" | "in-progress" | "done") => {
     if (displayTaskId) {
       updateTask({ 
         id: displayTaskId, 
@@ -394,7 +394,7 @@ function PaneContent() {
                   ].map((s) => (
                     <button
                       key={s.id}
-                      onClick={() => handleStatusUpdate(s.id)}
+                      onClick={() => handleStatusUpdate(s.id as any)}
                       className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${
                         task.status === s.id 
                           ? s.activeClass 
