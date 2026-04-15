@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -21,6 +22,68 @@ const getStatusLabel = (status: string) => {
   if (status === 'done') return 'Done';
   return status;
 };
+
+// --- NEW: Inline Interactive Dropdown Component ---
+function PillDropdown({ 
+  currentValue, 
+  options, 
+  onSelect, 
+  renderPill 
+}: { 
+  currentValue: any, 
+  options: { label: string, value: any }[], 
+  onSelect: (val: any) => void, 
+  renderPill: (val: any) => React.ReactNode 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <div 
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation(); // Stops the card from opening the details pane
+          setIsOpen(!isOpen);
+        }}
+        className="cursor-pointer hover:ring-2 hover:ring-zinc-300/50 dark:hover:ring-zinc-600/50 hover:ring-offset-1 dark:hover:ring-offset-[#1c1c1c] rounded-full transition-all"
+        title="Click to edit"
+      >
+        {renderPill(currentValue)}
+      </div>
+      
+      {isOpen && (
+        <div 
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          className="absolute top-full left-0 z-[100] mt-1 min-w-[130px] bg-white dark:bg-[#252525] border border-[var(--border)] rounded-lg shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100"
+        >
+          {options.map((opt) => (
+            <button 
+              key={opt.value || 'null'} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelect(opt.value);
+                setIsOpen(false);
+              }} 
+              className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[12px] font-medium text-[var(--foreground)] transition-colors"
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TaskCard({ 
   task, 
@@ -46,6 +109,10 @@ export function TaskCard({
     updateTask({ id: task._id, status: task.status === "done" ? "todo" : "done" });
   };
 
+  const handleInlineUpdate = (field: string, value: any) => {
+    updateTask({ id: task._id, [field]: value });
+  };
+
   const isDone = task.status === "done";
   const project = projects?.find(p => p._id === task.projectId);
 
@@ -67,12 +134,10 @@ export function TaskCard({
     }
   }
 
-  // Explicit 'Today' tag makes it Due Today (unless it's already screaming Overdue)
   if (task.isToday && !isOverdue) {
     isDueToday = true;
   }
 
-  // Determine the interactive wrapper classes based on urgency
   let cardWrapperClass = "bg-white dark:bg-[#1c1c1c] border-[var(--border)] hover:border-blue-200 dark:hover:border-blue-900/50";
   if (isOverdue) {
     cardWrapperClass = "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 hover:border-red-300 dark:hover:border-red-800/80";
@@ -81,7 +146,27 @@ export function TaskCard({
   }
 
   // ==========================================
-  // COMPLETED STATE (Muted & Ignored)
+  // DROPDOWN OPTIONS CONFIG
+  // ==========================================
+  const statusOptions = [
+    { label: "To Do", value: "todo" },
+    { label: "In Progress", value: "in-progress" },
+    { label: "Done", value: "done" }
+  ];
+
+  const pipelineOptions = [
+    { label: "Current", value: "Current" },
+    { label: "Waiting For", value: "Waiting For" },
+    { label: "Someday Maybe", value: "Someday Maybe" }
+  ];
+
+  const projectOptions = projects ? [
+    { label: "None", value: null },
+    ...projects.map(p => ({ label: p.name, value: p._id }))
+  ] : [];
+
+  // ==========================================
+  // COMPLETED STATE
   // ==========================================
   if (isDone) {
     return (
@@ -103,7 +188,7 @@ export function TaskCard({
   }
 
   // ==========================================
-  // ACTIVE STATE (Color Coded)
+  // ACTIVE STATE
   // ==========================================
   return (
     <div 
@@ -119,7 +204,6 @@ export function TaskCard({
         <div className="flex flex-col min-w-0 w-full">
           <span className="text-[14px] sm:text-[15px] font-medium text-[var(--foreground)] break-words leading-tight">{task.title}</span>
           
-          {/* MATRIX TAG PILLS */}
           <div className="flex items-center gap-1.5 sm:gap-2 mt-2 flex-wrap">
             {!hideMatrixTags && task.isUrgent && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50">Urgent</span>}
             {!hideMatrixTags && task.isImportant && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">Important</span>}
@@ -129,29 +213,51 @@ export function TaskCard({
         </div>
       </div>
       
-      {/* METADATA PILLS */}
+      {/* METADATA PILLS (Now Interactive!) */}
       <div className={`flex flex-wrap items-center gap-2 shrink-0 pt-3 mt-3 border-t ${isOverdue ? 'border-red-200/50 dark:border-red-800/30' : isDueToday ? 'border-amber-200/50 dark:border-amber-800/30' : 'border-[var(--border)]'} ${compact ? 'ml-0' : 'sm:pl-4 sm:border-l sm:border-t-0 sm:pt-0 sm:mt-0 sm:ml-0 ml-8'}`}>
         
-        <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getStatusColor(task.status)}`}>
-          <PlayCircle className="w-3 h-3 shrink-0" />
-          {getStatusLabel(task.status)}
-        </span>
+        <PillDropdown 
+          currentValue={task.status}
+          options={statusOptions}
+          onSelect={(val) => handleInlineUpdate("status", val)}
+          renderPill={(val) => (
+            <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getStatusColor(val)}`}>
+              <PlayCircle className="w-3 h-3 shrink-0" />
+              {getStatusLabel(val)}
+            </span>
+          )}
+        />
 
         {!hideProjectTag && project && (
-          <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(project._id)}`}>
-            <Folder className="w-3 h-3 shrink-0" />
-            <span className="truncate max-w-[80px] sm:max-w-[120px]">{project.name}</span>
-          </span>
+          <PillDropdown 
+            currentValue={project._id}
+            options={projectOptions}
+            onSelect={(val) => handleInlineUpdate("projectId", val)}
+            renderPill={() => (
+              <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(project._id)}`}>
+                <Folder className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[80px] sm:max-w-[120px]">{project.name}</span>
+              </span>
+            )}
+          />
         )}
 
         {!hidePipelineTag && (
-          <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(task.listCategory || "Current")} ${compact ? '' : 'hidden sm:flex'}`}>
-            <List className="w-3 h-3 shrink-0" />
-            <span className="truncate max-w-[80px]">{task.listCategory || "Current"}</span>
-          </span>
+          <div className={compact ? '' : 'hidden sm:block'}>
+            <PillDropdown 
+              currentValue={task.listCategory || "Current"}
+              options={pipelineOptions}
+              onSelect={(val) => handleInlineUpdate("listCategory", val)}
+              renderPill={(val) => (
+                <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}>
+                  <List className="w-3 h-3 shrink-0" />
+                  <span className="truncate max-w-[80px]">{val}</span>
+                </span>
+              )}
+            />
+          </div>
         )}
 
-        {/* Syncing the Calendar Pill Color with the Card Urgency */}
         {task.doByDate && (
           <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
             isOverdue ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-900/50' : 
