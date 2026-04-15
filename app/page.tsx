@@ -16,6 +16,10 @@ import { Folder, Zap, Settings, LogOut, Download } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
+// NEW IMPORTS: The daily in-app briefing and the background push enabler
+import { DailyReminderToast } from "@/components/ui/DailyReminderToast";
+import { PushToggle } from "@/components/ui/PushToggle";
+
 function ExportButton() {
   const tasks = useQuery(api.tasks.getTasks);
   
@@ -106,7 +110,12 @@ function CustomUserMenu() {
         <Settings className="w-4 h-4" />
       </button>
       {isOpen && (
-        <div className="absolute top-full right-0 mt-1 w-40 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50">
+        <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 flex flex-col">
+          {/* NEW: Adds the Push Toggle directly into the user settings menu */}
+          <div className="px-1 py-1">
+            <PushToggle />
+          </div>
+          <div className="w-full h-px bg-[var(--border)] my-1"></div>
           <button 
             onClick={() => signOut()} 
             className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
@@ -128,7 +137,6 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden">
       <Show when="signed-in">
         <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
-          {/* WIDE MODE: Changed max-w-6xl to max-w-[1600px] and added lg:px-10 */}
           <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
             <div className="flex items-center text-[15px]">
               <span className="font-semibold text-[var(--foreground)] tracking-tight">Fotion</span>
@@ -149,7 +157,6 @@ export default function Home() {
         </header>
 
         <main className="pt-4 pb-12 relative min-h-[80vh]">
-          {/* WIDE MODE: Changed max-w-6xl to max-w-[1600px] and added lg:px-10 */}
           <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10">
             <ViewTabs 
               activeView={activeView} 
@@ -169,6 +176,9 @@ export default function Home() {
           <TaskDetailsPane />
           <ImportProjectModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
           <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
+          
+          {/* NEW: The silent daily morning briefing watcher */}
+          <DailyReminderToast />
         </main>
       </Show>
 

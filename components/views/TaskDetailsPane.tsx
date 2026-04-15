@@ -269,6 +269,16 @@ function PaneContent() {
     if (displayTaskId) updateTask({ id: displayTaskId, [field]: value });
   };
 
+  const handleStatusUpdate = (newStatus: string) => {
+    if (displayTaskId) {
+      updateTask({ 
+        id: displayTaskId, 
+        status: newStatus,
+        completedAt: newStatus === "done" ? Date.now() : null
+      });
+    }
+  };
+
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTitle(e.target.value);
     e.target.style.height = 'auto';
@@ -384,7 +394,7 @@ function PaneContent() {
                   ].map((s) => (
                     <button
                       key={s.id}
-                      onClick={() => handleUpdate('status', s.id)}
+                      onClick={() => handleStatusUpdate(s.id)}
                       className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${
                         task.status === s.id 
                           ? s.activeClass 
