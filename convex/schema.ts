@@ -33,6 +33,9 @@ export default defineSchema({
     doOnDate: v.optional(v.union(v.number(), v.null())), 
     doByDate: v.optional(v.union(v.number(), v.null())), 
     
+    // NEW: Tracks the exact moment you check a task off!
+    completedAt: v.optional(v.union(v.number(), v.null())),
+    
     // Relations
     projectId: v.optional(v.union(v.id("projects"), v.null())),
   })
@@ -40,7 +43,7 @@ export default defineSchema({
     .index("by_listCategory", ["listCategory"])
     .index("by_project", ["projectId"]),
 
-  // NEW: Preferences table to cloud-sync your tab order
+  // Preferences table to cloud-sync your tab order
   preferences: defineTable({
     userId: v.string(),
     tabOrder: v.array(v.string()),

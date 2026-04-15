@@ -23,7 +23,6 @@ const getStatusLabel = (status: string) => {
   return status;
 };
 
-// --- NEW: Inline Interactive Dropdown Component ---
 function PillDropdown({ 
   currentValue, 
   options, 
@@ -51,7 +50,7 @@ function PillDropdown({
       <div 
         onClick={(e) => {
           e.preventDefault();
-          e.stopPropagation(); // Stops the card from opening the details pane
+          e.stopPropagation();
           setIsOpen(!isOpen);
         }}
         className="cursor-pointer hover:ring-2 hover:ring-zinc-300/50 dark:hover:ring-zinc-600/50 hover:ring-offset-1 dark:hover:ring-offset-[#1c1c1c] rounded-full transition-all"
@@ -106,7 +105,12 @@ export function TaskCard({
 
   const toggleTaskCompletion = (e: React.MouseEvent) => {
     e.stopPropagation();
-    updateTask({ id: task._id, status: task.status === "done" ? "todo" : "done" });
+    const isMarkingDone = task.status !== "done";
+    updateTask({ 
+      id: task._id, 
+      status: isMarkingDone ? "done" : "todo",
+      completedAt: isMarkingDone ? Date.now() : null
+    });
   };
 
   const handleInlineUpdate = (field: string, value: any) => {
@@ -116,9 +120,6 @@ export function TaskCard({
   const isDone = task.status === "done";
   const project = projects?.find(p => p._id === task.projectId);
 
-  // ==========================================
-  // TRAFFIC LIGHT DATE LOGIC
-  // ==========================================
   const now = new Date();
   const todayStr = now.toDateString();
   const startOfToday = new Date(todayStr).getTime();
@@ -145,9 +146,6 @@ export function TaskCard({
     cardWrapperClass = "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800/80";
   }
 
-  // ==========================================
-  // DROPDOWN OPTIONS CONFIG
-  // ==========================================
   const statusOptions = [
     { label: "To Do", value: "todo" },
     { label: "In Progress", value: "in-progress" },
@@ -165,9 +163,6 @@ export function TaskCard({
     ...projects.map(p => ({ label: p.name, value: p._id }))
   ] : [];
 
-  // ==========================================
-  // COMPLETED STATE
-  // ==========================================
   if (isDone) {
     return (
       <div 
@@ -187,9 +182,6 @@ export function TaskCard({
     );
   }
 
-  // ==========================================
-  // ACTIVE STATE
-  // ==========================================
   return (
     <div 
       onClick={() => router.push(`/?taskId=${task._id}`)}
@@ -213,13 +205,18 @@ export function TaskCard({
         </div>
       </div>
       
-      {/* METADATA PILLS (Now Interactive!) */}
       <div className={`flex flex-wrap items-center gap-2 shrink-0 pt-3 mt-3 border-t ${isOverdue ? 'border-red-200/50 dark:border-red-800/30' : isDueToday ? 'border-amber-200/50 dark:border-amber-800/30' : 'border-[var(--border)]'} ${compact ? 'ml-0' : 'sm:pl-4 sm:border-l sm:border-t-0 sm:pt-0 sm:mt-0 sm:ml-0 ml-8'}`}>
         
         <PillDropdown 
           currentValue={task.status}
           options={statusOptions}
-          onSelect={(val) => handleInlineUpdate("status", val)}
+          onSelect={(val) => {
+            updateTask({
+              id: task._id,
+              status: val,
+              completedAt: val === "done" ? Date.now() : null
+            });
+          }}
           renderPill={(val) => (
             <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getStatusColor(val)}`}>
               <PlayCircle className="w-3 h-3 shrink-0" />
