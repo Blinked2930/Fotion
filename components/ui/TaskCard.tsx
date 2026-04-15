@@ -57,7 +57,7 @@ function PillDropdown({
                 onSelect(opt.value);
                 setIsOpen(false);
               }} 
-              className="w-full text-left px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center"
+              className="w-full text-left px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center text-[var(--foreground)]"
             >
               {renderPill(opt.value)}
             </button>
@@ -70,7 +70,7 @@ function PillDropdown({
 
 export function TaskCard({ 
   task, 
-  compact = false, // Kept in props so TypeScript doesn't break, but unused in logic now!
+  compact = false, // Kept so parent components don't throw type errors, but completely ignored in the layout!
   hideMatrixTags = false,
   hidePipelineTag = false,
   hideProjectTag = false,
@@ -126,10 +126,14 @@ export function TaskCard({
   }
 
   let cardWrapperClass = "bg-white dark:bg-[#1c1c1c] border-[var(--border)] hover:border-blue-200 dark:hover:border-blue-900/50";
+  let borderLineClass = "border-[var(--border)]";
+  
   if (isOverdue) {
     cardWrapperClass = "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 hover:border-red-300 dark:hover:border-red-800/80";
+    borderLineClass = "border-red-200/50 dark:border-red-800/30";
   } else if (isDueToday) {
     cardWrapperClass = "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800/80";
+    borderLineClass = "border-amber-200/50 dark:border-amber-800/30";
   }
 
   const pipelineOptions = [
@@ -150,17 +154,15 @@ export function TaskCard({
     return (
       <div 
         onClick={() => router.push(`/?taskId=${task._id}`)}
-        className="flex flex-col justify-between gap-3 p-3 sm:p-4 bg-zinc-50 dark:bg-[#151515] border border-[var(--border)] rounded-xl cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors w-full"
+        className="flex items-start gap-3 p-3 sm:p-4 bg-zinc-50 dark:bg-[#151515] border border-[var(--border)] rounded-xl cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors w-full"
       >
-        <div className="flex items-start gap-3 w-full">
-          <button 
-            onClick={toggleTaskCompletion}
-            className="mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border-pink-400 bg-pink-400"
-          >
-            <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
-          </button>
-          <span className="text-[14px] sm:text-[15px] text-zinc-500 line-through break-words leading-tight">{task.title}</span>
-        </div>
+        <button 
+          onClick={toggleTaskCompletion}
+          className="mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border-pink-400 bg-pink-400"
+        >
+          <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+        </button>
+        <span className="text-[14px] sm:text-[15px] text-zinc-500 line-through break-words leading-tight flex-1">{task.title}</span>
       </div>
     );
   }
@@ -171,8 +173,9 @@ export function TaskCard({
   return (
     <div 
       onClick={() => router.push(`/?taskId=${task._id}`)}
-      className={`group flex flex-col justify-between gap-3 p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass} w-full`}
+      className={`group flex flex-col p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass} w-full`}
     >
+      {/* TOP SECTION: Checkbox + Title + Tags */}
       <div className="flex items-start gap-3 w-full">
         <button 
           onClick={toggleTaskCompletion}
@@ -191,8 +194,8 @@ export function TaskCard({
         </div>
       </div>
       
-      {/* Unified full-width bottom pill tray */}
-      <div className={`flex flex-wrap items-center gap-2 w-full pt-3 mt-3 border-t ${isOverdue ? 'border-red-200/50 dark:border-red-800/30' : isDueToday ? 'border-amber-200/50 dark:border-amber-800/30' : 'border-[var(--border)]'}`}>
+      {/* BOTTOM SECTION: Full width line + Metadata Pills */}
+      <div className={`flex flex-wrap items-center gap-2 w-full pt-3 mt-3 border-t ${borderLineClass}`}>
 
         {!hideProjectTag && (
           <PillDropdown 
