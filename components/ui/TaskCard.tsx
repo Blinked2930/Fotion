@@ -23,6 +23,7 @@ const getStatusLabel = (status: string) => {
   return status;
 };
 
+// --- UPGRADED: Dropdown now renders actual Pills inside the menu ---
 function PillDropdown({ 
   currentValue, 
   options, 
@@ -62,7 +63,7 @@ function PillDropdown({
       {isOpen && (
         <div 
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          className="absolute top-full left-0 z-[100] mt-1 min-w-[130px] bg-white dark:bg-[#252525] border border-[var(--border)] rounded-lg shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute top-full left-0 z-[100] mt-1 min-w-[160px] bg-white dark:bg-[#252525] border border-[var(--border)] rounded-lg shadow-xl py-1.5 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5"
         >
           {options.map((opt) => (
             <button 
@@ -73,9 +74,9 @@ function PillDropdown({
                 onSelect(opt.value);
                 setIsOpen(false);
               }} 
-              className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[12px] font-medium text-[var(--foreground)] transition-colors"
+              className="w-full text-left px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center"
             >
-              {opt.label}
+              {renderPill(opt.value)}
             </button>
           ))}
         </div>
@@ -225,17 +226,28 @@ export function TaskCard({
           )}
         />
 
-        {!hideProjectTag && project && (
+        {!hideProjectTag && (
           <PillDropdown 
-            currentValue={project._id}
+            currentValue={task.projectId || null}
             options={projectOptions}
             onSelect={(val) => handleInlineUpdate("projectId", val)}
-            renderPill={() => (
-              <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(project._id)}`}>
-                <Folder className="w-3 h-3 shrink-0" />
-                <span className="truncate max-w-[80px] sm:max-w-[120px]">{project.name}</span>
-              </span>
-            )}
+            renderPill={(val) => {
+              if (!val) {
+                return (
+                  <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(null)}`}>
+                    <Folder className="w-3 h-3 shrink-0 opacity-50" />
+                    <span className="truncate max-w-[80px] sm:max-w-[120px]">None</span>
+                  </span>
+                );
+              }
+              const p = projects?.find(proj => proj._id === val);
+              return (
+                <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(val)}`}>
+                  <Folder className="w-3 h-3 shrink-0" />
+                  <span className="truncate max-w-[80px] sm:max-w-[120px]">{p ? p.name : "Unknown"}</span>
+                </span>
+              );
+            }}
           />
         )}
 

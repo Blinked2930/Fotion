@@ -18,10 +18,11 @@ export const createTask = mutation({
     status: v.optional(v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done"))),
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     isToday: v.optional(v.boolean()),
-    // UPDATED: Allows null
     doOnDate: v.optional(v.union(v.number(), v.null())),
     doByDate: v.optional(v.union(v.number(), v.null())),
     projectId: v.optional(v.union(v.id("projects"), v.null())),
+    // NEW: Added completedAt
+    completedAt: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("tasks", {
@@ -44,10 +45,11 @@ export const updateTask = mutation({
     status: v.optional(v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done"))),
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     isToday: v.optional(v.boolean()),
-    // UPDATED: Allows null
     doOnDate: v.optional(v.union(v.number(), v.null())),
     doByDate: v.optional(v.union(v.number(), v.null())),
     projectId: v.optional(v.union(v.id("projects"), v.null())),
+    // NEW: This is the exact line that fixes your Vercel build!
+    completedAt: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     const { id, ...fields } = args;
@@ -88,6 +90,8 @@ export const createManyTasks = mutation({
         doOnDate: v.union(v.number(), v.null()),
         doByDate: v.union(v.number(), v.null()),
         projectId: v.union(v.id("projects"), v.null()),
+        // NEW: Added completedAt here as well
+        completedAt: v.optional(v.union(v.number(), v.null())),
       })
     ),
   },
