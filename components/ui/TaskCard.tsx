@@ -70,7 +70,7 @@ function PillDropdown({
 
 export function TaskCard({ 
   task, 
-  compact = false,
+  compact = false, // Kept in props so TypeScript doesn't break, but unused in logic now!
   hideMatrixTags = false,
   hidePipelineTag = false,
   hideProjectTag = false,
@@ -143,37 +143,43 @@ export function TaskCard({
     ...projects.map(p => ({ label: p.name, value: p._id }))
   ] : [];
 
+  // ==========================================
+  // COMPLETED STATE
+  // ==========================================
   if (isDone) {
     return (
       <div 
         onClick={() => router.push(`/?taskId=${task._id}`)}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-zinc-50 dark:bg-[#151515] border border-[var(--border)] rounded-xl cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
+        className="flex flex-col justify-between gap-3 p-3 sm:p-4 bg-zinc-50 dark:bg-[#151515] border border-[var(--border)] rounded-xl cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors w-full"
       >
-        <div className="flex items-start gap-3 flex-1 min-w-0">
+        <div className="flex items-start gap-3 w-full">
           <button 
             onClick={toggleTaskCompletion}
             className="mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border-pink-400 bg-pink-400"
           >
             <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
           </button>
-          <span className="text-[14px] text-zinc-500 line-through truncate">{task.title}</span>
+          <span className="text-[14px] sm:text-[15px] text-zinc-500 line-through break-words leading-tight">{task.title}</span>
         </div>
       </div>
     );
   }
 
+  // ==========================================
+  // ACTIVE STATE
+  // ==========================================
   return (
     <div 
       onClick={() => router.push(`/?taskId=${task._id}`)}
-      className={`group flex flex-col ${compact ? '' : 'sm:flex-row sm:items-center'} justify-between gap-3 p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass}`}
+      className={`group flex flex-col justify-between gap-3 p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass} w-full`}
     >
-      <div className="flex items-start gap-3 flex-1 min-w-0">
+      <div className="flex items-start gap-3 w-full">
         <button 
           onClick={toggleTaskCompletion}
           className={`mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border bg-transparent ${isOverdue ? 'border-red-300 dark:border-red-700 hover:border-red-500' : isDueToday ? 'border-amber-300 dark:border-amber-700 hover:border-amber-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'}`}
         />
         
-        <div className="flex flex-col min-w-0 w-full">
+        <div className="flex flex-col min-w-0 flex-1">
           <span className="text-[14px] sm:text-[15px] font-medium text-[var(--foreground)] break-words leading-tight">{task.title}</span>
           
           <div className="flex items-center gap-1.5 sm:gap-2 mt-2 flex-wrap">
@@ -185,7 +191,8 @@ export function TaskCard({
         </div>
       </div>
       
-      <div className={`flex flex-wrap items-center gap-2 shrink-0 pt-3 mt-3 border-t ${isOverdue ? 'border-red-200/50 dark:border-red-800/30' : isDueToday ? 'border-amber-200/50 dark:border-amber-800/30' : 'border-[var(--border)]'} ${compact ? 'ml-0' : 'sm:pl-4 sm:border-l sm:border-t-0 sm:pt-0 sm:mt-0 sm:ml-0 ml-8'}`}>
+      {/* Unified full-width bottom pill tray */}
+      <div className={`flex flex-wrap items-center gap-2 w-full pt-3 mt-3 border-t ${isOverdue ? 'border-red-200/50 dark:border-red-800/30' : isDueToday ? 'border-amber-200/50 dark:border-amber-800/30' : 'border-[var(--border)]'}`}>
 
         {!hideProjectTag && (
           <PillDropdown 
@@ -213,19 +220,17 @@ export function TaskCard({
         )}
 
         {!hidePipelineTag && (
-          <div className={compact ? '' : 'hidden sm:block'}>
-            <PillDropdown 
-              currentValue={task.listCategory || "Current"}
-              options={pipelineOptions}
-              onSelect={(val) => handleInlineUpdate("listCategory", val)}
-              renderPill={(val) => (
-                <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}>
-                  <List className="w-3 h-3 shrink-0" />
-                  <span className="truncate max-w-[80px]">{val}</span>
-                </span>
-              )}
-            />
-          </div>
+          <PillDropdown 
+            currentValue={task.listCategory || "Current"}
+            options={pipelineOptions}
+            onSelect={(val) => handleInlineUpdate("listCategory", val)}
+            renderPill={(val) => (
+              <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}>
+                <List className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[80px]">{val}</span>
+              </span>
+            )}
+          />
         )}
 
         {!hideDoOnDate && task.doOnDate && (
