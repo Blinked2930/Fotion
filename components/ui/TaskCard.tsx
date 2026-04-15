@@ -49,7 +49,40 @@ export function TaskCard({
   const isDone = task.status === "done";
   const project = projects?.find(p => p._id === task.projectId);
 
-  // COMPLETED STATE
+  // ==========================================
+  // TRAFFIC LIGHT DATE LOGIC
+  // ==========================================
+  const now = new Date();
+  const todayStr = now.toDateString();
+  const startOfToday = new Date(todayStr).getTime();
+
+  let isOverdue = false;
+  let isDueToday = false;
+
+  if (task.doByDate) {
+    if (task.doByDate < startOfToday) {
+      isOverdue = true;
+    } else if (new Date(task.doByDate).toDateString() === todayStr) {
+      isDueToday = true;
+    }
+  }
+
+  // Explicit 'Today' tag makes it Due Today (unless it's already screaming Overdue)
+  if (task.isToday && !isOverdue) {
+    isDueToday = true;
+  }
+
+  // Determine the interactive wrapper classes based on urgency
+  let cardWrapperClass = "bg-white dark:bg-[#1c1c1c] border-[var(--border)] hover:border-blue-200 dark:hover:border-blue-900/50";
+  if (isOverdue) {
+    cardWrapperClass = "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 hover:border-red-300 dark:hover:border-red-800/80";
+  } else if (isDueToday) {
+    cardWrapperClass = "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800/80";
+  }
+
+  // ==========================================
+  // COMPLETED STATE (Muted & Ignored)
+  // ==========================================
   if (isDone) {
     return (
       <div 
@@ -69,16 +102,18 @@ export function TaskCard({
     );
   }
 
-  // ACTIVE STATE
+  // ==========================================
+  // ACTIVE STATE (Color Coded)
+  // ==========================================
   return (
     <div 
       onClick={() => router.push(`/?taskId=${task._id}`)}
-      className={`group flex flex-col ${compact ? '' : 'sm:flex-row sm:items-center'} justify-between gap-3 p-3 sm:p-4 bg-white dark:bg-[#1c1c1c] border border-[var(--border)] rounded-xl hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-900/50 transition-all cursor-pointer active:scale-[0.98]`}
+      className={`group flex flex-col ${compact ? '' : 'sm:flex-row sm:items-center'} justify-between gap-3 p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass}`}
     >
       <div className="flex items-start gap-3 flex-1 min-w-0">
         <button 
           onClick={toggleTaskCompletion}
-          className="mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border border-zinc-300 dark:border-zinc-600 bg-transparent hover:border-blue-400"
+          className={`mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border bg-transparent ${isOverdue ? 'border-red-300 dark:border-red-700 hover:border-red-500' : isDueToday ? 'border-amber-300 dark:border-amber-700 hover:border-amber-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'}`}
         />
         
         <div className="flex flex-col min-w-0 w-full">
@@ -95,7 +130,7 @@ export function TaskCard({
       </div>
       
       {/* METADATA PILLS */}
-      <div className={`flex flex-wrap items-center gap-2 shrink-0 pt-3 mt-3 border-t border-[var(--border)] ${compact ? 'ml-0' : 'sm:pl-4 sm:border-l sm:border-t-0 sm:pt-0 sm:mt-0 sm:ml-0 ml-8'}`}>
+      <div className={`flex flex-wrap items-center gap-2 shrink-0 pt-3 mt-3 border-t ${isOverdue ? 'border-red-200/50 dark:border-red-800/30' : isDueToday ? 'border-amber-200/50 dark:border-amber-800/30' : 'border-[var(--border)]'} ${compact ? 'ml-0' : 'sm:pl-4 sm:border-l sm:border-t-0 sm:pt-0 sm:mt-0 sm:ml-0 ml-8'}`}>
         
         <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getStatusColor(task.status)}`}>
           <PlayCircle className="w-3 h-3 shrink-0" />
@@ -116,15 +151,20 @@ export function TaskCard({
           </span>
         )}
 
+        {/* Syncing the Calendar Pill Color with the Card Urgency */}
         {task.doByDate && (
-          <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${task.doByDate < Date.now() ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'}`}>
+          <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+            isOverdue ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-900/50' : 
+            isDueToday ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-400 border-amber-300 dark:border-amber-900/50' : 
+            'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'
+          }`}>
             <Calendar className="w-3 h-3 shrink-0" />
             {new Date(task.doByDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           </span>
         )}
 
         {task.description && task.description !== "<p></p>" && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]" title="Contains notes">
+          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${isOverdue ? 'bg-red-100/50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-800/50' : isDueToday ? 'bg-amber-100/50 border-amber-200 text-amber-700 dark:bg-amber-900/30 dark:border-amber-800/50' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'}`} title="Contains notes">
             <AlignLeft className="w-3 h-3 shrink-0" />
           </span>
         )}
