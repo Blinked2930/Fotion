@@ -57,7 +57,8 @@ export function ProjectsView() {
   const doneTasks = filteredTasks.filter(t => t.status === "done");
 
   return (
-    <div className="w-full pb-32 animate-in fade-in duration-300">
+    // Added max-w-5xl and mx-auto to center and limit the width of the view
+    <div className="w-full max-w-5xl mx-auto pb-32 animate-in fade-in duration-300">
       
       <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pt-2 pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-[var(--border)]">
         <button
@@ -115,11 +116,12 @@ export function ProjectsView() {
         <div className="space-y-6">
           {activeTasks.length > 0 && (
             <div className="space-y-2">
+              {/* As requested: Due By, Do On, Matrix Tag, Pipeline, Project, Notes. (Only hide Today!) */}
               {activeTasks.map(task => (
                 <TaskCard 
                   key={task._id} 
                   task={task} 
-                  hideProjectTag={selectedProjectId !== "ALL" && selectedProjectId !== "UNASSIGNED"} 
+                  hideTodayTag={true} 
                 />
               ))}
             </div>
@@ -129,7 +131,13 @@ export function ProjectsView() {
             <div className="pt-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 ml-1">Completed</h3>
               <div className="space-y-2 opacity-60">
-                {doneTasks.map(task => <TaskCard key={task._id} task={task} />)}
+                {doneTasks.map(task => (
+                  <TaskCard 
+                    key={task._id} 
+                    task={task} 
+                    hideTodayTag={true}
+                  />
+                ))}
               </div>
             </div>
           )}

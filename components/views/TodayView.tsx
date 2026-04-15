@@ -33,7 +33,8 @@ export function TodayView() {
   );
 
   return (
-    <div className="w-full pb-32 animate-in fade-in duration-300">
+    // Added max-w-5xl and mx-auto to center and limit the width of the view
+    <div className="w-full max-w-5xl mx-auto pb-32 animate-in fade-in duration-300">
       <div className="mb-6 mt-2">
         <h2 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
           <Sun className="w-6 h-6 text-amber-500" /> Today's Focus
