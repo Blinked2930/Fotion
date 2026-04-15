@@ -43,8 +43,14 @@ export function PipelinesView() {
             </div>
             
             <div className="space-y-2">
-              {/* compact layout automatically stacks metadata, hidePipelineTag removes redundant label */}
-              {col.tasks.map(task => <TaskCard key={task._id} task={task} compact={true} hidePipelineTag={true} />)}
+              {col.tasks.map(task => (
+                <TaskCard 
+                  key={task._id} 
+                  task={task} 
+                  compact={true} 
+                  hidePipelineTag={true} 
+                />
+              ))}
               {col.tasks.length === 0 && (
                 <div className="text-center py-8 text-xs text-zinc-400">Empty</div>
               )}

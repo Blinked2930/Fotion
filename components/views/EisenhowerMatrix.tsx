@@ -16,14 +16,11 @@ export function EisenhowerMatrix() {
     );
   }
 
-  // FILTER 1: Only show tasks that are NOT done AND are in the "Current" pipeline
   const activeTasks = tasks.filter(t => 
     t.status !== "done" && 
     (!t.listCategory || t.listCategory === "Current")
   );
 
-  // THE OVERRIDE LOGIC: 
-  // If 'isForFunsies' is true, it is blocked from Q1-Q4 and routed directly to Q5
   const quadrants = [
     { 
       id: "q1", title: "Do First", desc: "Urgent & Important", 
@@ -52,7 +49,6 @@ export function EisenhowerMatrix() {
     }
   ];
 
-  // FILTER 2: Automatically hide any quadrants that have 0 tasks
   const populatedQuadrants = quadrants.filter(q => q.tasks.length > 0);
 
   return (
@@ -73,7 +69,6 @@ export function EisenhowerMatrix() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-start">
           {populatedQuadrants.map(q => (
             <div key={q.id} className={`flex flex-col h-full rounded-2xl p-3 border ${q.color}`}>
-              
               <div className="flex items-center justify-between mb-1 px-1">
                 <h3 className={`font-semibold text-sm ${q.headerColor}`}>{q.title}</h3>
                 <span className="text-xs font-medium text-zinc-500 bg-white dark:bg-[#252525] px-2 py-0.5 rounded-full border border-[var(--border)] shadow-sm">
@@ -83,8 +78,16 @@ export function EisenhowerMatrix() {
               <p className="text-[11px] text-zinc-500 uppercase tracking-wider font-medium px-1 mb-4">{q.desc}</p>
               
               <div className="flex-1 space-y-2">
-                {/* hideMatrixTags prevents redundant pills from showing inside the quadrant */}
-                {q.tasks.map(task => <TaskCard key={task._id} task={task} compact={true} hideMatrixTags={true} />)}
+                {q.tasks.map(task => (
+                  <TaskCard 
+                    key={task._id} 
+                    task={task} 
+                    compact={true} 
+                    hideMatrixTags={true} 
+                    hideTodayTag={true} 
+                    hidePipelineTag={true} 
+                  />
+                ))}
               </div>
               
             </div>

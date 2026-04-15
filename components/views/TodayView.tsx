@@ -16,22 +16,18 @@ export function TodayView() {
     );
   }
 
-  // Generate today's date string once for comparison
   const todayStr = new Date().toDateString();
   
-  // Explicitly tell TypeScript this parameter can be a number, undefined, OR null
   const isDateToday = (timestamp?: number | null) => {
     if (!timestamp) return false;
     return new Date(timestamp).toDateString() === todayStr;
   };
 
-  // ACTIVE TASKS: Keep any task that is not done AND explicitly marked Today, or scheduled/due today.
   const activeTasks = tasks.filter(t => 
     t.status !== "done" &&
     (t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate))
   );
 
-  // DONE TASKS: ONLY show tasks that were physically completed today.
   const doneTasks = tasks.filter(t => 
     t.status === "done" && isDateToday(t.completedAt)
   );
@@ -54,8 +50,15 @@ export function TodayView() {
         <div className="space-y-6">
           {activeTasks.length > 0 && (
             <div className="space-y-2">
-              {/* Suppress the redundant 'Today' pill via hideTodayTag */}
-              {activeTasks.map(task => <TaskCard key={task._id} task={task} hideTodayTag={true} />)}
+              {activeTasks.map(task => (
+                <TaskCard 
+                  key={task._id} 
+                  task={task} 
+                  hideTodayTag={true} 
+                  hidePipelineTag={true} 
+                  hideDoOnDate={true} 
+                />
+              ))}
             </div>
           )}
           
@@ -63,7 +66,15 @@ export function TodayView() {
             <div className="pt-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 ml-1">Completed Today</h3>
               <div className="space-y-2 opacity-60">
-                {doneTasks.map(task => <TaskCard key={task._id} task={task} hideTodayTag={true} />)}
+                {doneTasks.map(task => (
+                  <TaskCard 
+                    key={task._id} 
+                    task={task} 
+                    hideTodayTag={true} 
+                    hidePipelineTag={true} 
+                    hideDoOnDate={true} 
+                  />
+                ))}
               </div>
             </div>
           )}

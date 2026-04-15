@@ -4,26 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Check, PlayCircle, Calendar, List, AlignLeft, Folder } from "lucide-react";
+import { Check, Calendar, List, AlignLeft, Folder } from "lucide-react";
 import { getListColor, getProjectColor } from "../views/NewTaskForm";
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'todo': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50';
-    case 'in-progress': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50';
-    case 'done': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50';
-    default: return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]';
-  }
-};
-
-const getStatusLabel = (status: string) => {
-  if (status === 'in-progress') return 'In Progress';
-  if (status === 'todo') return 'To Do';
-  if (status === 'done') return 'Done';
-  return status;
-};
-
-// --- UPGRADED: Dropdown now renders actual Pills inside the menu ---
 function PillDropdown({ 
   currentValue, 
   options, 
@@ -91,14 +74,16 @@ export function TaskCard({
   hideMatrixTags = false,
   hidePipelineTag = false,
   hideProjectTag = false,
-  hideTodayTag = false
+  hideTodayTag = false,
+  hideDoOnDate = false
 }: { 
   task: any, 
   compact?: boolean,
   hideMatrixTags?: boolean,
   hidePipelineTag?: boolean,
   hideProjectTag?: boolean,
-  hideTodayTag?: boolean
+  hideTodayTag?: boolean,
+  hideDoOnDate?: boolean
 }) {
   const router = useRouter();
   const updateTask = useMutation(api.tasks.updateTask);
@@ -146,12 +131,6 @@ export function TaskCard({
   } else if (isDueToday) {
     cardWrapperClass = "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800/80";
   }
-
-  const statusOptions = [
-    { label: "To Do", value: "todo" },
-    { label: "In Progress", value: "in-progress" },
-    { label: "Done", value: "done" }
-  ];
 
   const pipelineOptions = [
     { label: "Current", value: "Current" },
@@ -207,24 +186,6 @@ export function TaskCard({
       </div>
       
       <div className={`flex flex-wrap items-center gap-2 shrink-0 pt-3 mt-3 border-t ${isOverdue ? 'border-red-200/50 dark:border-red-800/30' : isDueToday ? 'border-amber-200/50 dark:border-amber-800/30' : 'border-[var(--border)]'} ${compact ? 'ml-0' : 'sm:pl-4 sm:border-l sm:border-t-0 sm:pt-0 sm:mt-0 sm:ml-0 ml-8'}`}>
-        
-        <PillDropdown 
-          currentValue={task.status}
-          options={statusOptions}
-          onSelect={(val) => {
-            updateTask({
-              id: task._id,
-              status: val,
-              completedAt: val === "done" ? Date.now() : null
-            });
-          }}
-          renderPill={(val) => (
-            <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getStatusColor(val)}`}>
-              <PlayCircle className="w-3 h-3 shrink-0" />
-              {getStatusLabel(val)}
-            </span>
-          )}
-        />
 
         {!hideProjectTag && (
           <PillDropdown 
@@ -267,6 +228,13 @@ export function TaskCard({
           </div>
         )}
 
+        {!hideDoOnDate && task.doOnDate && (
+          <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">
+            <Calendar className="w-3 h-3 shrink-0" />
+            On: {new Date(task.doOnDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+          </span>
+        )}
+
         {task.doByDate && (
           <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
             isOverdue ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-900/50' : 
@@ -274,7 +242,7 @@ export function TaskCard({
             'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'
           }`}>
             <Calendar className="w-3 h-3 shrink-0" />
-            {new Date(task.doByDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+            Due: {new Date(task.doByDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           </span>
         )}
 
