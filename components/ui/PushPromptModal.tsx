@@ -10,18 +10,15 @@ export function PushPromptModal() {
   const saveSubscription = useMutation(api.push.saveSubscription);
 
   useEffect(() => {
-    // Make sure we are in a browser that supports push notifications
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
     const promptState = localStorage.getItem("fotion-push-prompt");
 
     if (!promptState) {
-      // 2-second delay so it feels like a native onboarding flow
       const timer = setTimeout(() => setIsOpen(true), 2000);
       return () => clearTimeout(timer);
     }
 
-    // Handle the "Maybe Later" 24-hour snooze
     if (promptState.startsWith("snooze:")) {
       const snoozeUntil = parseInt(promptState.split(":")[1]);
       if (Date.now() > snoozeUntil) {
@@ -33,6 +30,16 @@ export function PushPromptModal() {
 
   const handleSubscribe = async () => {
     try {
+      // FIX: Explicitly request native permission first (Crucial for iOS Safari)
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          localStorage.setItem("fotion-push-prompt", "declined");
+          setIsOpen(false);
+          return;
+        }
+      }
+
       const reg = await navigator.serviceWorker.ready;
       
       const padding = '='.repeat((4 - process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!.length % 4) % 4);
@@ -60,7 +67,6 @@ export function PushPromptModal() {
       setIsOpen(false);
     } catch (err) {
       console.error("Failed to subscribe to pushes", err);
-      // If they block it at the browser level, treat it as a hard decline
       localStorage.setItem("fotion-push-prompt", "declined");
       setIsOpen(false);
     }
@@ -72,7 +78,6 @@ export function PushPromptModal() {
   };
 
   const handleLater = () => {
-    // Snooze for exactly 24 hours
     localStorage.setItem("fotion-push-prompt", `snooze:${Date.now() + 24 * 60 * 60 * 1000}`);
     setIsOpen(false);
   };
