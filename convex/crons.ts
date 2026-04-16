@@ -3,10 +3,10 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Runs daily at exactly 6:00 AM UTC (which perfectly aligns with 8:00 AM local time to catch you in the morning)
+// The real daily briefing (Fires at 7:00 AM UTC / 9:00 AM Local)
 crons.daily(
   "Send morning briefing",
-  { hourUTC: 6, minuteUTC: 0 },
+  { hourUTC: 7, minuteUTC: 0 },
   internal.push.triggerMorningBriefing
 );
 
