@@ -16,7 +16,6 @@ import { Folder, Zap, Settings, LogOut, Download } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-// NEW IMPORTS: The daily in-app briefing and the background push enabler
 import { DailyReminderToast } from "@/components/ui/DailyReminderToast";
 import { PushToggle } from "@/components/ui/PushToggle";
 
@@ -111,7 +110,6 @@ function CustomUserMenu() {
       </button>
       {isOpen && (
         <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 flex flex-col">
-          {/* NEW: Adds the Push Toggle directly into the user settings menu */}
           <div className="px-1 py-1">
             <PushToggle />
           </div>
@@ -177,8 +175,7 @@ export default function Home() {
           <ImportProjectModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
           <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
           
-          {/* NEW: The silent daily morning briefing watcher */}
-          <DailyReminderToast goToToday={() => setActiveView("Today")} />
+          <DailyReminderToast />
         </main>
       </Show>
 
