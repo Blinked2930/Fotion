@@ -16,10 +16,24 @@ export function EisenhowerMatrix() {
     );
   }
 
-  const activeTasks = tasks.filter(t => 
-    t.status !== "done" && 
-    (!t.listCategory || t.listCategory === "Current")
-  );
+  const todayStr = new Date().toDateString();
+  
+  const isDateToday = (timestamp?: number | null) => {
+    if (!timestamp) return false;
+    return new Date(timestamp).toDateString() === todayStr;
+  };
+
+  const activeTasks = tasks.filter(t => {
+    if (t.status === "done") return false;
+    
+    // Check if it belongs in the "Current" pipeline
+    const isCurrent = !t.listCategory || t.listCategory === "Current";
+    
+    // Check if it is explicitly demanding attention today (overrides pipeline)
+    const demandsAttentionToday = t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate);
+
+    return isCurrent || demandsAttentionToday;
+  });
 
   const quadrants = [
     { 

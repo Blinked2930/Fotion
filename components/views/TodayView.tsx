@@ -23,6 +23,7 @@ export function TodayView() {
     return new Date(timestamp).toDateString() === todayStr;
   };
 
+  // Pipeline agnostic: Only cares if it demands attention today
   const activeTasks = tasks.filter(t => 
     t.status !== "done" &&
     (t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate))
