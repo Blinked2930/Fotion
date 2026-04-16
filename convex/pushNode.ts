@@ -15,7 +15,7 @@ export const sendPush = internalAction({
     const privateKey = process.env.VAPID_PRIVATE_KEY;
 
     if (!publicKey || !privateKey) {
-      console.warn("VAPID keys not configured in Convex dashboard.");
+      console.error("❌ CRITICAL ERROR: VAPID keys are missing from Convex Environment Variables!");
       return;
     }
 
@@ -26,8 +26,9 @@ export const sendPush = internalAction({
         args.subscription,
         JSON.stringify({ title: args.title, body: args.body })
       );
+      console.log("✅ SUCCESS: Apple/Google accepted the payload!");
     } catch (err) {
-      console.error("Failed to send push notification", err);
+      console.error("❌ WEB PUSH REJECTED:", err);
     }
   }
 });

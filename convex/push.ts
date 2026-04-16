@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { mutation, internalQuery, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 
-// 1. Saves your device when you click "Enable Push"
 export const saveSubscription = mutation({
   args: {
     endpoint: v.string(),
@@ -27,24 +26,39 @@ export const saveSubscription = mutation({
   }
 });
 
-// 2. The Engine that triggers the actual pushes
 export const triggerMorningBriefing = internalAction({
   args: {},
   handler: async (ctx) => {
     const data = await ctx.runQuery(internal.push.getBriefingData);
-    if (data.taskCount === 0 || data.subscriptions.length === 0) return;
+    
+    // NEW: Tell us exactly what the server found!
+    console.log(`🔍 DIAGNOSTIC: Found ${data.taskCount} tasks due, and ${data.subscriptions.length} registered devices.`);
 
+    if (data.taskCount === 0) {
+      console.log("🛑 ABORTING: The server thinks there are 0 tasks due today (Check Timezones).");
+      return "Aborted: No tasks";
+    }
+    
+    if (data.subscriptions.length === 0) {
+      console.log("🛑 ABORTING: The server sees 0 registered devices.");
+      return "Aborted: No devices";
+    }
+
+    let successCount = 0;
     for (const sub of data.subscriptions) {
+      console.log("🚀 Firing payload to Apple/Google servers...");
       await ctx.runAction(internal.pushNode.sendPush, {
         subscription: sub,
         title: "Daily Briefing",
         body: `You have ${data.taskCount} tasks scheduled or due today. Time to focus!`
       });
+      successCount++;
     }
+    
+    return `✅ Attempted to fire ${successCount} notifications.`;
   }
 });
 
-// 3. Grabs the math for the briefing
 export const getBriefingData = internalQuery({
   handler: async (ctx) => {
     const tasks = await ctx.db.query("tasks").collect();
