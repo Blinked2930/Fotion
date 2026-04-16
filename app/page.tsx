@@ -178,7 +178,7 @@ export default function Home() {
           <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
           
           {/* NEW: The silent daily morning briefing watcher */}
-          <DailyReminderToast />
+          <DailyReminderToast goToToday={() => setActiveView("Today")} />
         </main>
       </Show>
 

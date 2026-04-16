@@ -6,19 +6,18 @@ import { api } from "@/convex/_generated/api";
 import { Bell, X, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export function DailyReminderToast() {
+// NEW: Accept a prop to change the view
+export function DailyReminderToast({ goToToday }: { goToToday: () => void }) {
   const router = useRouter();
   const tasks = useQuery(api.tasks.getTasks);
   const [isVisible, setIsVisible] = useState(false);
   const [dueCount, setDueCount] = useState(0);
 
   useEffect(() => {
-    // Wait until tasks are loaded
     if (tasks === undefined) return;
 
     const todayStr = new Date().toDateString();
     
-    // Check if we've already notified the user today
     const lastNotified = localStorage.getItem("fotion-last-notified");
     if (lastNotified === todayStr) return;
 
@@ -27,7 +26,6 @@ export function DailyReminderToast() {
       return new Date(timestamp).toDateString() === todayStr;
     };
 
-    // Find incomplete tasks that demand attention today
     const urgentTodayTasks = tasks.filter(t => 
       t.status !== "done" &&
       (t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate))
@@ -35,7 +33,6 @@ export function DailyReminderToast() {
 
     if (urgentTodayTasks.length > 0) {
       setDueCount(urgentTodayTasks.length);
-      // Slight delay so it slides in naturally after the app loads
       const timer = setTimeout(() => setIsVisible(true), 1500);
       return () => clearTimeout(timer);
     }
@@ -43,14 +40,12 @@ export function DailyReminderToast() {
 
   const dismiss = () => {
     setIsVisible(false);
-    // Stamp today's date so it doesn't show again until tomorrow
     localStorage.setItem("fotion-last-notified", new Date().toDateString());
   };
 
-  const goToTodayView = () => {
+  const handleGoToTodayView = () => {
     dismiss();
-    // Assuming you have a way to switch tabs globally, 
-    // but for now, we'll just let them dismiss it and click the tab themselves.
+    goToToday(); // Trigger the parent function to switch tabs
   };
 
   if (!isVisible) return null;
@@ -77,7 +72,7 @@ export function DailyReminderToast() {
 
           <div className="mt-3 flex gap-2">
             <button 
-              onClick={dismiss}
+              onClick={handleGoToTodayView}
               className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
             >
               <Calendar className="w-3.5 h-3.5" /> Let's Go
