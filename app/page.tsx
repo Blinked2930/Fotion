@@ -16,8 +16,9 @@ import { Folder, Zap, Settings, LogOut, Download } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-// IMPORT: Only the Push Toggle remains for background notifications
+// IMPORT: The Push Toggle for settings and the new Onboarding Modal
 import { PushToggle } from "@/components/ui/PushToggle";
+import { PushPromptModal } from "@/components/ui/PushPromptModal";
 
 function ExportButton() {
   const tasks = useQuery(api.tasks.getTasks);
@@ -174,6 +175,9 @@ export default function Home() {
           <TaskDetailsPane />
           <ImportProjectModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
           <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
+          
+          {/* NEW: The Onboarding Prompt */}
+          <PushPromptModal />
         </main>
       </Show>
 
