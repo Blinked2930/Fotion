@@ -16,7 +16,7 @@ import { Folder, Zap, Settings, LogOut, Download } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-import { DailyReminderToast } from "@/components/ui/DailyReminderToast";
+// IMPORT: Only the Push Toggle remains for background notifications
 import { PushToggle } from "@/components/ui/PushToggle";
 
 function ExportButton() {
@@ -174,8 +174,6 @@ export default function Home() {
           <TaskDetailsPane />
           <ImportProjectModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
           <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
-          
-          <DailyReminderToast />
         </main>
       </Show>
 
