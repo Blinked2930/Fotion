@@ -21,8 +21,10 @@ export const createTask = mutation({
     doOnDate: v.optional(v.union(v.number(), v.null())),
     doByDate: v.optional(v.union(v.number(), v.null())),
     projectId: v.optional(v.union(v.id("projects"), v.null())),
-    // NEW: Added completedAt
     completedAt: v.optional(v.union(v.number(), v.null())),
+    // NEW: Shared Task fields
+    isPublic: v.optional(v.boolean()),
+    shareToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("tasks", {
@@ -48,8 +50,10 @@ export const updateTask = mutation({
     doOnDate: v.optional(v.union(v.number(), v.null())),
     doByDate: v.optional(v.union(v.number(), v.null())),
     projectId: v.optional(v.union(v.id("projects"), v.null())),
-    // NEW: This is the exact line that fixes your Vercel build!
     completedAt: v.optional(v.union(v.number(), v.null())),
+    // NEW: The missing fields that fix the Share button!
+    isPublic: v.optional(v.boolean()),
+    shareToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { id, ...fields } = args;
@@ -74,7 +78,7 @@ export const getTask = query({
   },
 });
 
-// NEW: Mutation to handle bulk-inserting JSON tasks from AI
+// Mutation to handle bulk-inserting JSON tasks from AI
 export const createManyTasks = mutation({
   args: {
     tasks: v.array(
@@ -90,8 +94,10 @@ export const createManyTasks = mutation({
         doOnDate: v.union(v.number(), v.null()),
         doByDate: v.union(v.number(), v.null()),
         projectId: v.union(v.id("projects"), v.null()),
-        // NEW: Added completedAt here as well
         completedAt: v.optional(v.union(v.number(), v.null())),
+        // NEW: Shared Task fields
+        isPublic: v.optional(v.boolean()),
+        shareToken: v.optional(v.string()),
       })
     ),
   },
