@@ -27,14 +27,34 @@ export function ViewTabs({
 
   const [tabs, setTabs] = useState(defaultTabs);
   const [draggedTab, setDraggedTab] = useState<ViewType | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
+  // FIX: Hydrate from localStorage for INSTANT rendering, bypassing the database load delay
+  useEffect(() => {
+    const cached = localStorage.getItem("fotion-tab-order");
+    if (cached) {
+      try {
+        const order = JSON.parse(cached) as ViewType[];
+        const reordered = order.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
+        const missing = defaultTabs.filter(t => !order.includes(t.id));
+        setTabs([...reordered, ...missing]);
+      } catch (e) {
+        console.error("Failed to parse cached tabs");
+      }
+    }
+    setIsMounted(true);
+  }, []);
+
+  // When Convex Cloud finally loads, ensure we are perfectly synced and update the cache
   useEffect(() => {
     if (preferences?.tabOrder) {
       const order = preferences.tabOrder as ViewType[];
       const reordered = order.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
       const missing = defaultTabs.filter(t => !order.includes(t.id));
+      const finalTabs = [...reordered, ...missing];
       
-      setTabs([...reordered, ...missing]);
+      setTabs(finalTabs);
+      localStorage.setItem("fotion-tab-order", JSON.stringify(preferences.tabOrder));
     }
   }, [preferences?.tabOrder]);
 
@@ -66,11 +86,19 @@ export function ViewTabs({
     newTabs.splice(targetIdx, 0, removed);
     
     setTabs(newTabs);
+    
+    // Update both local cache AND the cloud instantly
+    localStorage.setItem("fotion-tab-order", JSON.stringify(newTabs.map(t => t.id)));
     updateTabOrder({ tabOrder: newTabs.map(t => t.id) });
   };
 
+  // Prevent ANY shuffling by keeping the container invisible until the layout is calculated
+  if (!isMounted) {
+    return <div className="h-[37px] mb-6 border-b border-[var(--border)] opacity-0"></div>;
+  }
+
   return (
-    <div className="flex items-center gap-1 mb-6 border-b border-[var(--border)] pb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] select-none">
+    <div className="flex items-center gap-1 mb-6 border-b border-[var(--border)] pb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] select-none animate-in fade-in duration-200">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeView === tab.id;

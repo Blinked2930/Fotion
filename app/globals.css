@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* 1. Tell Tailwind v4 to look for the manual .dark class */
+@custom-variant dark (&:is(.dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #37352f; 
@@ -8,19 +11,18 @@
   --border: #e9e9e7;
 }
 
+/* 2. Map your dark variables to the manual class Next-Themes uses */
+.dark {
+  --background: #191919;
+  --foreground: rgba(255, 255, 255, 0.81);
+  --subtle-bg: #202020;
+  --border: #2f2f2f;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #191919;
-    --foreground: rgba(255, 255, 255, 0.81);
-    --subtle-bg: #202020;
-    --border: #2f2f2f;
-  }
 }
 
 body {
