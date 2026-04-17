@@ -74,7 +74,7 @@ export function TaskCard({
   hideMatrixTags = false,
   hidePipelineTag = false,
   hideProjectTag = false,
-  hideTodayTag = false,
+  hideTodayTag = false, // Kept for TS prop compatibility, but ignored in layout!
   hideDoOnDate = false,
   hideDoByDate = false
 }: { 
@@ -113,9 +113,8 @@ export function TaskCard({
   const startOfToday = new Date(todayStr).getTime();
 
   let isOverdue = false;
-  let demandsAttentionToday = false; // Unified variable for explicit Today or Scheduled Today
+  let demandsAttentionToday = false; 
 
-  // Check Due Date
   if (task.doByDate) {
     if (task.doByDate < startOfToday) {
       isOverdue = true;
@@ -124,7 +123,6 @@ export function TaskCard({
     }
   }
 
-  // Check Scheduled Date (doOnDate) OR explicit IsToday toggle
   const isScheduledForToday = task.doOnDate && new Date(task.doOnDate).toDateString() === todayStr;
   
   if ((task.isToday || isScheduledForToday) && !isOverdue) {
@@ -137,7 +135,7 @@ export function TaskCard({
   if (isOverdue) {
     cardWrapperClass = "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 hover:border-red-300 dark:hover:border-red-800/80";
     borderLineClass = "border-red-200/50 dark:border-red-800/30";
-  } else if (demandsAttentionToday) { // NOW CAPTURES BOTH EXPLICIT TODAY AND DO ON DATE TODAY!
+  } else if (demandsAttentionToday) { 
     cardWrapperClass = "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800/80";
     borderLineClass = "border-amber-200/50 dark:border-amber-800/30";
   }
@@ -181,7 +179,7 @@ export function TaskCard({
       onClick={() => router.push(`/?taskId=${task._id}`)}
       className={`group flex flex-col p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass} w-full`}
     >
-      {/* TOP SECTION: Checkbox + Title + Notes Indicator Only */}
+      {/* TOP SECTION */}
       <div className="flex items-start gap-3 w-full">
         <button 
           onClick={toggleTaskCompletion}
@@ -202,7 +200,7 @@ export function TaskCard({
         </div>
       </div>
       
-      {/* BOTTOM SECTION: Full width line + Conditional Metadata Pills */}
+      {/* BOTTOM SECTION */}
       <div className={`flex flex-wrap items-center gap-2 w-full pt-3 mt-3 border-t ${borderLineClass}`}>
 
         {!hideProjectTag && (
@@ -262,9 +260,10 @@ export function TaskCard({
           </span>
         )}
 
+        {/* Removed the pink "Today" pill check from here entirely */}
+
         {!hideMatrixTags && task.isUrgent && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50">Urgent</span>}
         {!hideMatrixTags && task.isImportant && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">Important</span>}
-        {!hideTodayTag && task.isToday && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50">Today</span>}
         {!hideMatrixTags && task.isForFunsies && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50">For Funsies</span>}
         
       </div>
