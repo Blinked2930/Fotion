@@ -130,9 +130,10 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   );
 }
 
-// Visual Toggle Buttons
+// Editor Toolbar with native JSON sorting ripped out
 export const EditorToolbar = ({ editor, isSorting, onToggleSort }: { editor: any, isSorting?: boolean, onToggleSort?: () => void }) => {
   if (!editor) return null;
+
   return (
     <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
       <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
@@ -303,10 +304,14 @@ function PaneContent() {
         @media (prefers-color-scheme: dark) { .tiptap input[type="checkbox"] { border-color: #52525b; } }
         @media (max-height: 500px) { .floating-action-pills { display: none !important; } }
         
-        /* CSS Flexbox sorting! It visually re-orders without touching the database */
-        .sort-checklists ul[data-type="taskList"] { display: flex !important; flex-direction: column !important; }
-        .sort-checklists li[data-type="taskItem"] { order: 1 !important; transition: opacity 0.2s ease; }
-        .sort-checklists li[data-type="taskItem"][data-checked="true"] { order: 2 !important; opacity: 0.6; }
+        /* IRONCLAD CSS FLEXBOX SORTING */
+        .sort-checklists .tiptap ul { display: flex !important; flex-direction: column !important; }
+        .sort-checklists .tiptap ul > li { order: 1 !important; transition: opacity 0.2s ease; }
+        .sort-checklists .tiptap ul > li[data-checked="true"],
+        .sort-checklists .tiptap ul > li:has(input[type="checkbox"]:checked) {
+            order: 999 !important;
+            opacity: 0.4 !important;
+        }
       `}</style>
 
       <div 

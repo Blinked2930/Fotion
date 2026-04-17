@@ -233,9 +233,6 @@ export function NewTaskForm() {
         @media (prefers-color-scheme: dark) {
           .tiptap input[type="checkbox"] { border-color: #52525b; }
         }
-        .sort-checklists ul[data-type="taskList"] { display: flex !important; flex-direction: column !important; }
-        .sort-checklists li[data-type="taskItem"] { order: 1 !important; transition: opacity 0.2s ease; }
-        .sort-checklists li[data-type="taskItem"][data-checked="true"] { order: 2 !important; opacity: 0.6; }
       `}</style>
       <form 
         ref={formRef}

@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
   Loader2, Lock, CheckCircle2, Circle, Bold, Italic, List, ListOrdered, CheckSquare, Globe, 
-  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check, BookmarkPlus, LayoutGrid 
+  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check, BookmarkPlus, LayoutGrid, ListFilter 
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link"; 
@@ -95,7 +95,7 @@ export default function SharedTaskPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavedToMatrix, setIsSavedToMatrix] = useState(false);
   const [title, setTitle] = useState("");
-  const [isSorting, setIsSorting] = useState(false); // NEW
+  const [isSorting, setIsSorting] = useState(false); 
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -178,11 +178,6 @@ export default function SharedTaskPage() {
         .tiptap input[type="checkbox"]:checked { background-color: #f472b6; border-color: #f472b6; }
         .tiptap input[type="checkbox"]:checked::before { transform: scale(1); }
         @media (prefers-color-scheme: dark) { .tiptap input[type="checkbox"] { border-color: #52525b; } }
-
-        /* CSS Flexbox sorting! It visually re-orders without touching the database */
-        .sort-checklists ul[data-type="taskList"] { display: flex !important; flex-direction: column !important; }
-        .sort-checklists li[data-type="taskItem"] { order: 1 !important; transition: opacity 0.2s ease; }
-        .sort-checklists li[data-type="taskItem"][data-checked="true"] { order: 2 !important; opacity: 0.6; }
       `}</style>
 
       <div className="min-h-screen bg-[var(--background)] p-4 sm:p-8 pt-12 sm:pt-20">
@@ -276,11 +271,10 @@ export default function SharedTaskPage() {
               </PropertyRow>
             </div>
 
-            <div className="bg-zinc-50/50 dark:bg-[#151515] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-4">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Task Notes</label>
-                <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} />
-              </div>
+            <hr className="border-[var(--border)] my-6" />
+
+            <div className="space-y-2 pb-4 max-w-full">
+              <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} />
               <div className={`w-full text-[var(--foreground)] text-base leading-relaxed ${isSorting ? "sort-checklists" : ""}`}>
                 <EditorContent editor={editor} className="tiptap" />
               </div>
