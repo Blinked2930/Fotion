@@ -11,15 +11,15 @@ import { ProjectsView } from "@/components/views/ProjectsView";
 import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
-import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; // NEW IMPORTS
-import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun } from "lucide-react";
-import { useQuery } from "convex/react";
+import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
+import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, LayoutGrid, CheckCircle2 } from "lucide-react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
 import { PushPromptModal } from "@/components/ui/PushPromptModal";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { useTheme } from "next-themes";
-import { useGuestSession } from "@/hooks/useGuestSession"; // NEW IMPORT
+import { useGuestSession } from "@/hooks/useGuestSession"; 
 
 function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -215,13 +215,30 @@ export default function Home() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  
+  // NEW: State to manage the Demo Landing Page
+  const [hasEnteredDemo, setHasEnteredDemo] = useState(false);
+  const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
+  const seedDemoData = useMutation(api.demo.seedDemoData);
 
   const { isLoaded, isSignedIn } = useAuth();
-  const sessionId = useGuestSession();
+  
+  // We grab the hook, but we might overwrite it locally for the demo
+  const [localSessionId, setLocalSessionId] = useState<string | null>(null);
+  const guestSessionId = useGuestSession();
+  const activeSessionId = localSessionId || guestSessionId;
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
+    
+    // Check if they are already in an active demo session
+    const currentSession = localStorage.getItem("fotion-session-id");
+    if (currentSession?.startsWith("demo_user_")) {
+      setHasEnteredDemo(true);
+      setLocalSessionId(currentSession);
+    }
+    
     setIsMounted(true);
   }, []);
 
@@ -230,8 +247,29 @@ export default function Home() {
     localStorage.setItem("fotion-active-view", view);
   };
 
-  // Wait for identity engine to boot up
-  if (!isLoaded || sessionId === null) {
+  const handleStartDemo = async () => {
+    setIsGeneratingDemo(true);
+    try {
+      // 1. Mint a fresh, strict demo session ID
+      const newDemoId = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+      
+      // 2. Save it to local storage to persist the sandbox
+      localStorage.setItem("fotion-session-id", newDemoId);
+      setLocalSessionId(newDemoId);
+
+      // 3. Fire the backend mutation to inject the curated tasks
+      await seedDemoData({ sessionId: newDemoId });
+      
+      // 4. Unlock the dashboard!
+      setHasEnteredDemo(true);
+    } catch (error) {
+      console.error("Failed to generate demo data:", error);
+    } finally {
+      setIsGeneratingDemo(false);
+    }
+  };
+
+  if (!isLoaded || (!isSignedIn && guestSessionId === null && !isMounted)) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-zinc-300 dark:text-zinc-700" />
@@ -239,16 +277,86 @@ export default function Home() {
     );
   }
 
+  // THE NEW INTERCEPT: The Portfolio Demo Landing Page
+  if (!isSignedIn && !hasEnteredDemo) {
+    return (
+      <div className="min-h-[100dvh] bg-[var(--background)] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
+        <div className="max-w-md w-full space-y-8">
+          
+          <div className="flex justify-center mb-8">
+            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center shadow-inner border border-blue-200 dark:border-blue-900/50">
+              <LayoutGrid className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h1 className="text-4xl font-bold tracking-tight text-[var(--foreground)]">Fotion</h1>
+            <p className="text-lg text-zinc-500 dark:text-zinc-400">
+              A deeply customized, serverless task engine built on Next.js, Clerk, and Convex.
+            </p>
+          </div>
+
+          <div className="bg-zinc-50 dark:bg-[#151515] border border-[var(--border)] rounded-2xl p-6 text-left space-y-4">
+            <h3 className="font-semibold text-[var(--foreground)] text-sm tracking-wide uppercase">Features to test:</h3>
+            <ul className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                <span>Rich-text TipTap editor with custom CSS checklist sorting</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                <span>The 4-quadrant Eisenhower Matrix drag-and-drop UI</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                <span>Automated "Overdue" detection tracking both dates</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="pt-4 flex flex-col gap-4">
+            <button 
+              onClick={handleStartDemo}
+              disabled={isGeneratingDemo}
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3.5 px-4 rounded-xl font-semibold shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isGeneratingDemo ? (
+                <><Loader2 className="w-5 h-5 animate-spin" /> Generating Sandbox...</>
+              ) : (
+                <>Try the Live Demo <ArrowRight className="w-5 h-5" /></>
+              )}
+            </button>
+
+            <div className="flex items-center justify-center gap-2 text-sm text-zinc-500">
+              <span>Are you the owner?</span>
+              <SignInButton mode="modal">
+                <button className="font-medium text-[var(--foreground)] hover:underline outline-none">
+                  Sign In
+                </button>
+              </SignInButton>
+            </div>
+          </div>
+
+          <p className="text-xs text-zinc-400 mt-8">
+            This demo uses an Anonymous Cloud Session. All data is isolated to your browser and will be cleared in 48 hours.
+          </p>
+
+        </div>
+      </div>
+    );
+  }
+
+  // The Main Dashboard Render (with localSessionId forced if active)
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col">
       <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3 text-[15px]">
             <span className="font-semibold text-[var(--foreground)] tracking-tight">Fotion</span>
-            {/* Visual indicator for anonymous users */}
+            {/* Dynamic visual indicator for anonymous demo users */}
             {!isSignedIn && (
               <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold tracking-wider uppercase border border-blue-200 dark:border-blue-900/50">
-                Guest
+                Demo Sandbox
               </span>
             )}
           </div>
