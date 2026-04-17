@@ -7,7 +7,8 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
-  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered
+  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered,
+  Globe, Link as LinkIcon // NEW IMPORTS FOR SHARING
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -153,6 +154,7 @@ function PaneContent() {
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
+  const [isCopied, setIsCopied] = useState(false); // NEW STATE FOR SHARING
 
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
@@ -285,6 +287,33 @@ function PaneContent() {
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
+  // NEW: Share Logic Handler
+  const handleShare = async () => {
+    if (!task) return;
+    
+    let token = task.shareToken;
+    if (!token) {
+      // Securely generate a 32-character random token for guest access
+      token = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      await handleUpdate("isPublic", true);
+      await handleUpdate("shareToken", token);
+    } else if (!task.isPublic) {
+      await handleUpdate("isPublic", true);
+    }
+
+    const url = `${window.location.origin}/shared/task/${token}`;
+    
+    try {
+      await navigator.clipboard.writeText(url);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy link", err);
+    }
+  };
+
   return (
     <>
       <style>{`
@@ -363,13 +392,45 @@ function PaneContent() {
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-24 max-w-full">
             
+            {/* NEW: Share Actions Header */}
+            <div className="flex items-center justify-between mb-[-1rem]">
+              <div>
+                {task.isPublic && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded border border-green-200 dark:border-green-900/50">
+                    <Globe className="w-3 h-3" /> Shared Publicly
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {task.isPublic && (
+                  <button 
+                    onClick={() => handleUpdate("isPublic", false)}
+                    className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors"
+                  >
+                    Revoke Access
+                  </button>
+                )}
+                <button 
+                  onClick={handleShare}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border ${
+                    isCopied 
+                      ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' 
+                      : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800 dark:text-zinc-300'
+                  }`}
+                >
+                  {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
+                  {isCopied ? "Link Copied!" : (task.isPublic ? "Copy Link" : "Share Task")}
+                </button>
+              </div>
+            </div>
+
             <textarea
               ref={titleRef}
               value={title}
               onChange={handleTitleChange}
               onBlur={() => handleUpdate("title", title)}
               rows={1}
-              className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300 resize-none overflow-hidden block py-1 leading-tight"
+              className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300 resize-none overflow-hidden block py-1 leading-tight mt-0"
               placeholder="Task title"
             />
 

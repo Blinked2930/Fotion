@@ -11,11 +11,7 @@ export default defineSchema({
     title: v.string(),
     content: v.string(),
     tags: v.array(v.string()),
-    
-    // NEW: Shared Architecture
-    isPublic: v.optional(v.boolean()),
-    shareToken: v.optional(v.string()),
-  }).index("by_shareToken", ["shareToken"]), // Indexed for fast unauthenticated lookups
+  }),
 
   tasks: defineTable({
     title: v.string(),
@@ -36,10 +32,15 @@ export default defineSchema({
     completedAt: v.optional(v.union(v.number(), v.null())),
     
     projectId: v.optional(v.union(v.id("projects"), v.null())),
+
+    // NEW: Shared Task Architecture
+    isPublic: v.optional(v.boolean()),
+    shareToken: v.optional(v.string()),
   })
     .index("by_status", ["status"])
     .index("by_listCategory", ["listCategory"])
-    .index("by_project", ["projectId"]),
+    .index("by_project", ["projectId"])
+    .index("by_shareToken", ["shareToken"]), // Indexed so guests can load the task instantly without auth
 
   preferences: defineTable({
     userId: v.string(),
