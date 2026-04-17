@@ -7,8 +7,8 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
-  ChevronLeft, Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered,
-  Globe, Link as LinkIcon // NEW IMPORTS FOR SHARING
+  Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered,
+  Globe, Link as LinkIcon 
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -154,7 +154,7 @@ function PaneContent() {
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
-  const [isCopied, setIsCopied] = useState(false); // NEW STATE FOR SHARING
+  const [isCopied, setIsCopied] = useState(false); 
 
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
@@ -179,9 +179,7 @@ function PaneContent() {
     if (taskId) {
       setDisplayTaskId(taskId);
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsOpen(true);
-        });
+        requestAnimationFrame(() => setIsOpen(true));
       });
     } else {
       setIsOpen(false);
@@ -212,9 +210,7 @@ function PaneContent() {
   });
 
   useEffect(() => {
-    if (task) {
-      setTitle(task.title);
-    }
+    if (task) setTitle(task.title);
   }, [task]);
 
   useEffect(() => {
@@ -234,9 +230,7 @@ function PaneContent() {
     const handleClickOutside = (e: PointerEvent | MouseEvent) => {
       if (showDeleteModal || !isPaneOpen) return;
       const target = e.target as HTMLElement;
-      
       if (target.closest('button') || target.closest('input') || target.closest('.fixed.inset-0')) return;
-
       if (paneRef.current && !paneRef.current.contains(target)) {
         router.replace(window.location.pathname, { scroll: false });
       }
@@ -261,10 +255,7 @@ function PaneContent() {
     const dy = Math.abs(touchStart.y - touchEndY);
     
     if (dy > 40) return;
-    
-    if (dx < -60) {
-      closePane();
-    }
+    if (dx < -60) closePane();
   };
 
   const handleUpdate = (field: string, value: any) => {
@@ -287,16 +278,12 @@ function PaneContent() {
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
-  // NEW: Share Logic Handler
   const handleShare = async () => {
     if (!task) return;
-    
     let token = task.shareToken;
     if (!token) {
-      // Securely generate a 32-character random token for guest access
       token = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
-      
       await handleUpdate("isPublic", true);
       await handleUpdate("shareToken", token);
     } else if (!task.isPublic) {
@@ -304,7 +291,6 @@ function PaneContent() {
     }
 
     const url = `${window.location.origin}/shared/task/${token}`;
-    
     try {
       await navigator.clipboard.writeText(url);
       setIsCopied(true);
@@ -352,20 +338,10 @@ function PaneContent() {
           transform-origin: center;
           clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
         }
-        .tiptap input[type="checkbox"]:checked {
-          background-color: #f472b6; 
-          border-color: #f472b6;
-        }
-        .tiptap input[type="checkbox"]:checked::before {
-          transform: scale(1);
-        }
-        @media (prefers-color-scheme: dark) {
-          .tiptap input[type="checkbox"] { border-color: #52525b; }
-        }
-
-        @media (max-height: 500px) {
-          .floating-action-pills { display: none !important; }
-        }
+        .tiptap input[type="checkbox"]:checked { background-color: #f472b6; border-color: #f472b6; }
+        .tiptap input[type="checkbox"]:checked::before { transform: scale(1); }
+        @media (prefers-color-scheme: dark) { .tiptap input[type="checkbox"] { border-color: #52525b; } }
+        @media (max-height: 500px) { .floating-action-pills { display: none !important; } }
       `}</style>
 
       <div 
@@ -392,30 +368,30 @@ function PaneContent() {
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-24 max-w-full">
             
-            {/* NEW: Share Actions Header */}
-            <div className="flex items-center justify-between mb-[-1rem]">
+            {/* CLEANER SHARE HEADER */}
+            <div className="flex items-center justify-between mb-4">
               <div>
                 {task.isPublic && (
-                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded border border-green-200 dark:border-green-900/50">
-                    <Globe className="w-3 h-3" /> Shared Publicly
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded border border-green-200 dark:border-green-900/50">
+                    <Globe className="w-3 h-3" /> Public Link Active
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {task.isPublic && (
                   <button 
                     onClick={() => handleUpdate("isPublic", false)}
-                    className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors"
+                    className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
                   >
                     Revoke Access
                   </button>
                 )}
                 <button 
                   onClick={handleShare}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${
                     isCopied 
                       ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' 
-                      : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800 dark:text-zinc-300'
+                      : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'
                   }`}
                 >
                   {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
@@ -435,13 +411,8 @@ function PaneContent() {
             />
 
             <div className="flex flex-col gap-1 sm:gap-2 text-[15px] max-w-full">
-
               <PropertyRow icon={CheckSquare} label="Today">
-                <button 
-                  type="button" 
-                  onClick={() => handleUpdate("isToday", !task.isToday)} 
-                  className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}
-                >
+                <button type="button" onClick={() => handleUpdate("isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
                   {task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
                 </button>
               </PropertyRow>
@@ -456,11 +427,7 @@ function PaneContent() {
                     <button
                       key={s.id}
                       onClick={() => handleStatusUpdate(s.id as any)}
-                      className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${
-                        task.status === s.id 
-                          ? s.activeClass 
-                          : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                      }`}
+                      className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${task.status === s.id ? s.activeClass : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}
                     >
                       {s.label}
                     </button>
@@ -478,18 +445,9 @@ function PaneContent() {
 
               <PropertyRow icon={Sigma} label="Matrix Tags">
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => handleUpdate("isUrgent", !task.isUrgent)}
-                    className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
-                  >Urgent</button>
-                  <button
-                    onClick={() => handleUpdate("isImportant", !task.isImportant)}
-                    className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
-                  >Important</button>
-                  <button
-                    onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)}
-                    className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
-                  >For Funsies</button>
+                  <button onClick={() => handleUpdate("isUrgent", !task.isUrgent)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Urgent</button>
+                  <button onClick={() => handleUpdate("isImportant", !task.isImportant)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Important</button>
+                  <button onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>For Funsies</button>
                 </div>
               </PropertyRow>
 
