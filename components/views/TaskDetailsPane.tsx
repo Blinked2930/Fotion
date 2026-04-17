@@ -20,6 +20,8 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 import { getProjectColor, getListColor } from "./NewTaskForm";
+import { useAuth } from "@clerk/nextjs"; // NEW: To check if it's you or a guest
+import { useGuestSession } from "@/hooks/useGuestSession"; // NEW: To check guest task ownership
 
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
@@ -146,6 +148,9 @@ function PaneContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const taskId = searchParams.get("taskId") as Id<"tasks"> | null;
+
+  const { isSignedIn } = useAuth(); // AUTH CHECK
+  const guestSessionId = useGuestSession(); // GUEST ID CHECK
 
   const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
   const [isOpen, setIsOpen] = useState(false);
@@ -314,29 +319,10 @@ function PaneContent() {
         .tiptap p.is-editor-empty:first-child::before { color: #a1a1aa; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
         
         .tiptap input[type="checkbox"] {
-          appearance: none;
-          background-color: transparent;
-          margin: 0;
-          font: inherit;
-          color: currentColor;
-          width: 1.15em;
-          height: 1.15em;
-          border: 1px solid #d4d4d8;
-          border-radius: 0.25em;
-          display: grid;
-          place-content: center;
-          cursor: pointer;
+          appearance: none; background-color: transparent; margin: 0; font: inherit; color: currentColor; width: 1.15em; height: 1.15em; border: 1px solid #d4d4d8; border-radius: 0.25em; display: grid; place-content: center; cursor: pointer;
         }
         .tiptap input[type="checkbox"]::before {
-          content: "";
-          width: 0.65em;
-          height: 0.65em;
-          transform: scale(0);
-          transition: 120ms transform ease-in-out;
-          box-shadow: inset 1em 1em white;
-          background-color: white;
-          transform-origin: center;
-          clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+          content: ""; width: 0.65em; height: 0.65em; transform: scale(0); transition: 120ms transform ease-in-out; box-shadow: inset 1em 1em white; background-color: white; transform-origin: center; clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
         }
         .tiptap input[type="checkbox"]:checked { background-color: #f472b6; border-color: #f472b6; }
         .tiptap input[type="checkbox"]:checked::before { transform: scale(1); }
@@ -368,36 +354,39 @@ function PaneContent() {
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-24 max-w-full">
             
-            {/* CLEANER SHARE HEADER */}
+            {/* CLEANER SHARE HEADER - LOCKED TO OWNER */}
             <div className="flex items-center justify-between mb-4">
               <div>
                 {task.isPublic && (
                   <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded border border-green-200 dark:border-green-900/50">
-                    <Globe className="w-3 h-3" /> Public Link Active
+                    <Globe className="w-3 h-3" /> {isSignedIn ? "Public Link Active" : "Shared By Owner"}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                {task.isPublic && (
+              
+              {isSignedIn && (
+                <div className="flex items-center gap-2">
+                  {task.isPublic && (
+                    <button 
+                      onClick={() => handleUpdate("isPublic", false)}
+                      className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
+                    >
+                      Revoke Access
+                    </button>
+                  )}
                   <button 
-                    onClick={() => handleUpdate("isPublic", false)}
-                    className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
+                    onClick={handleShare}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${
+                      isCopied 
+                        ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' 
+                        : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'
+                    }`}
                   >
-                    Revoke Access
+                    {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
+                    {isCopied ? "Link Copied!" : (task.isPublic ? "Copy Link" : "Share Task")}
                   </button>
-                )}
-                <button 
-                  onClick={handleShare}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${
-                    isCopied 
-                      ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' 
-                      : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'
-                  }`}
-                >
-                  {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
-                  {isCopied ? "Link Copied!" : (task.isPublic ? "Copy Link" : "Share Task")}
-                </button>
-              </div>
+                </div>
+              )}
             </div>
 
             <textarea
@@ -491,7 +480,8 @@ function PaneContent() {
             <X className="w-4 h-4 -ml-1" /> Close
           </button>
 
-          {task !== undefined && task !== null && (
+          {/* LOCKED DELETE: Only owners OR the guest who originally created it can delete it */}
+          {task !== undefined && task !== null && (isSignedIn || task.sessionId === guestSessionId) && (
             <button 
               type="button" 
               onClick={() => setShowDeleteModal(true)} 
