@@ -33,14 +33,19 @@ export default defineSchema({
     
     projectId: v.optional(v.union(v.id("projects"), v.null())),
 
-    // NEW: Shared Task Architecture
+    // Shared Task Architecture
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
+    
+    // NEW: Anonymous Cloud Session Architecture
+    sessionId: v.optional(v.string()), 
+    sharedWithSessions: v.optional(v.array(v.string())), 
   })
     .index("by_status", ["status"])
     .index("by_listCategory", ["listCategory"])
     .index("by_project", ["projectId"])
-    .index("by_shareToken", ["shareToken"]), // Indexed so guests can load the task instantly without auth
+    .index("by_shareToken", ["shareToken"])
+    .index("by_sessionId", ["sessionId"]), // High-speed index for guest load times
 
   preferences: defineTable({
     userId: v.string(),
