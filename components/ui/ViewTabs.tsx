@@ -22,19 +22,16 @@ export function ViewTabs({
   activeView: ViewType; 
   onViewChange: (view: ViewType) => void;
 }) {
-  // Hook up to our new Convex Cloud endpoints!
   const preferences = useQuery(api.preferences.get);
   const updateTabOrder = useMutation(api.preferences.updateTabOrder);
 
   const [tabs, setTabs] = useState(defaultTabs);
   const [draggedTab, setDraggedTab] = useState<ViewType | null>(null);
 
-  // When the cloud preferences load, update the local UI state
   useEffect(() => {
     if (preferences?.tabOrder) {
       const order = preferences.tabOrder as ViewType[];
       const reordered = order.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
-      // In case we added new hardcoded tabs since they last saved their order
       const missing = defaultTabs.filter(t => !order.includes(t.id));
       
       setTabs([...reordered, ...missing]);
@@ -69,8 +66,6 @@ export function ViewTabs({
     newTabs.splice(targetIdx, 0, removed);
     
     setTabs(newTabs);
-    
-    // Push the new custom order to the Convex Cloud!
     updateTabOrder({ tabOrder: newTabs.map(t => t.id) });
   };
 

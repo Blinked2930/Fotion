@@ -11,7 +11,7 @@ export function EisenhowerMatrix() {
   if (tasks === undefined) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />
+        <Loader2 className="w-6 h-6 animate-spin text-zinc-300 dark:text-zinc-700" />
       </div>
     );
   }
@@ -23,13 +23,21 @@ export function EisenhowerMatrix() {
     return new Date(timestamp).toDateString() === todayStr;
   };
 
+  // Logic to hide tasks scheduled strictly for the future
+  const startOfTomorrow = new Date();
+  startOfTomorrow.setHours(0, 0, 0, 0);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+  const tomorrowTime = startOfTomorrow.getTime();
+
   const activeTasks = tasks.filter(t => {
     if (t.status === "done") return false;
     
-    // Check if it belongs in the "Current" pipeline
-    const isCurrent = !t.listCategory || t.listCategory === "Current";
+    // FUTURE DATE FILTER: If the doOnDate is tomorrow or later, hide it completely!
+    if (t.doOnDate && t.doOnDate >= tomorrowTime) {
+      return false;
+    }
     
-    // Check if it is explicitly demanding attention today (overrides pipeline)
+    const isCurrent = !t.listCategory || t.listCategory === "Current";
     const demandsAttentionToday = t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate);
 
     return isCurrent || demandsAttentionToday;
@@ -93,14 +101,7 @@ export function EisenhowerMatrix() {
               
               <div className="flex-1 space-y-2">
                 {q.tasks.map(task => (
-                  <TaskCard 
-                    key={task._id} 
-                    task={task} 
-                    compact={true} 
-                    hideMatrixTags={true} 
-                    hideTodayTag={true} 
-                    hidePipelineTag={true} 
-                  />
+                  <TaskCard key={task._id} task={task} />
                 ))}
               </div>
               

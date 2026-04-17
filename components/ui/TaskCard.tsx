@@ -70,12 +70,12 @@ function PillDropdown({
 
 export function TaskCard({ 
   task, 
-  compact = false, // Kept so parent components don't throw type errors, but completely ignored in the layout!
-  hideMatrixTags = false,
-  hidePipelineTag = false,
-  hideProjectTag = false,
-  hideTodayTag = false,
-  hideDoOnDate = false
+  compact = false, // Retained for prop compatibility, but layout is standard
+  hideMatrixTags = false, // Ignored to force standardization across views
+  hidePipelineTag = false, // Ignored
+  hideProjectTag = false, // Ignored
+  hideTodayTag = false, // Ignored
+  hideDoOnDate = false // Ignored
 }: { 
   task: any, 
   compact?: boolean,
@@ -175,7 +175,7 @@ export function TaskCard({
       onClick={() => router.push(`/?taskId=${task._id}`)}
       className={`group flex flex-col p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass} w-full`}
     >
-      {/* TOP SECTION: Checkbox + Title + Tags */}
+      {/* TOP SECTION: Checkbox + Title + Notes Indicator Only */}
       <div className="flex items-start gap-3 w-full">
         <button 
           onClick={toggleTaskCompletion}
@@ -183,60 +183,58 @@ export function TaskCard({
         />
         
         <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-[14px] sm:text-[15px] font-medium text-[var(--foreground)] break-words leading-tight">{task.title}</span>
-          
-          <div className="flex items-center gap-1.5 sm:gap-2 mt-2 flex-wrap">
-            {!hideMatrixTags && task.isUrgent && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50">Urgent</span>}
-            {!hideMatrixTags && task.isImportant && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">Important</span>}
-            {!hideTodayTag && task.isToday && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50">Today</span>}
-            {task.isForFunsies && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50">For Funsies</span>}
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-[14px] sm:text-[15px] font-medium text-[var(--foreground)] break-words leading-tight mt-0.5">
+              {task.title}
+            </span>
+            {task.description && task.description !== "<p></p>" && (
+              <span className={`shrink-0 p-1.5 rounded-md ${isOverdue ? 'text-red-400 dark:text-red-500' : isDueToday ? 'text-amber-400 dark:text-amber-500' : 'text-zinc-400 dark:text-zinc-500'}`} title="Contains notes">
+                <AlignLeft className="w-4 h-4" />
+              </span>
+            )}
           </div>
         </div>
       </div>
       
-      {/* BOTTOM SECTION: Full width line + Metadata Pills */}
+      {/* BOTTOM SECTION: Full width line + All Metadata Pills */}
       <div className={`flex flex-wrap items-center gap-2 w-full pt-3 mt-3 border-t ${borderLineClass}`}>
 
-        {!hideProjectTag && (
-          <PillDropdown 
-            currentValue={task.projectId || null}
-            options={projectOptions}
-            onSelect={(val) => handleInlineUpdate("projectId", val)}
-            renderPill={(val) => {
-              if (!val) {
-                return (
-                  <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(null)}`}>
-                    <Folder className="w-3 h-3 shrink-0 opacity-50" />
-                    <span className="truncate max-w-[80px] sm:max-w-[120px]">None</span>
-                  </span>
-                );
-              }
-              const p = projects?.find(proj => proj._id === val);
+        <PillDropdown 
+          currentValue={task.projectId || null}
+          options={projectOptions}
+          onSelect={(val) => handleInlineUpdate("projectId", val)}
+          renderPill={(val) => {
+            if (!val) {
               return (
-                <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(val)}`}>
-                  <Folder className="w-3 h-3 shrink-0" />
-                  <span className="truncate max-w-[80px] sm:max-w-[120px]">{p ? p.name : "Unknown"}</span>
+                <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(null)}`}>
+                  <Folder className="w-3 h-3 shrink-0 opacity-50" />
+                  <span className="truncate max-w-[80px] sm:max-w-[120px]">None</span>
                 </span>
               );
-            }}
-          />
-        )}
-
-        {!hidePipelineTag && (
-          <PillDropdown 
-            currentValue={task.listCategory || "Current"}
-            options={pipelineOptions}
-            onSelect={(val) => handleInlineUpdate("listCategory", val)}
-            renderPill={(val) => (
-              <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}>
-                <List className="w-3 h-3 shrink-0" />
-                <span className="truncate max-w-[80px]">{val}</span>
+            }
+            const p = projects?.find(proj => proj._id === val);
+            return (
+              <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(val)}`}>
+                <Folder className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[80px] sm:max-w-[120px]">{p ? p.name : "Unknown"}</span>
               </span>
-            )}
-          />
-        )}
+            );
+          }}
+        />
 
-        {!hideDoOnDate && task.doOnDate && (
+        <PillDropdown 
+          currentValue={task.listCategory || "Current"}
+          options={pipelineOptions}
+          onSelect={(val) => handleInlineUpdate("listCategory", val)}
+          renderPill={(val) => (
+            <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}>
+              <List className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-[80px]">{val}</span>
+            </span>
+          )}
+        />
+
+        {task.doOnDate && (
           <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">
             <Calendar className="w-3 h-3 shrink-0" />
             On: {new Date(task.doOnDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -254,11 +252,10 @@ export function TaskCard({
           </span>
         )}
 
-        {task.description && task.description !== "<p></p>" && (
-          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${isOverdue ? 'bg-red-100/50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-800/50' : isDueToday ? 'bg-amber-100/50 border-amber-200 text-amber-700 dark:bg-amber-900/30 dark:border-amber-800/50' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'}`} title="Contains notes">
-            <AlignLeft className="w-3 h-3 shrink-0" />
-          </span>
-        )}
+        {task.isUrgent && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50">Urgent</span>}
+        {task.isImportant && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">Important</span>}
+        {task.isToday && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50">Today</span>}
+        {task.isForFunsies && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50">For Funsies</span>}
         
       </div>
     </div>

@@ -11,45 +11,41 @@ export default defineSchema({
     title: v.string(),
     content: v.string(),
     tags: v.array(v.string()),
-  }),
+    
+    // NEW: Shared Architecture
+    isPublic: v.optional(v.boolean()),
+    shareToken: v.optional(v.string()),
+  }).index("by_shareToken", ["shareToken"]), // Indexed for fast unauthenticated lookups
 
   tasks: defineTable({
     title: v.string(),
     description: v.optional(v.string()),
     
-    // Matrix Flags
     isUrgent: v.boolean(),
     isImportant: v.boolean(),
     isForFunsies: v.boolean(),
     
-    // Core Status
     status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
     
-    // List View Grouping
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     
-    // Today View Logic
     isToday: v.optional(v.boolean()),
     doOnDate: v.optional(v.union(v.number(), v.null())), 
     doByDate: v.optional(v.union(v.number(), v.null())), 
     
-    // Tracks the exact moment you check a task off!
     completedAt: v.optional(v.union(v.number(), v.null())),
     
-    // Relations
     projectId: v.optional(v.union(v.id("projects"), v.null())),
   })
     .index("by_status", ["status"])
     .index("by_listCategory", ["listCategory"])
     .index("by_project", ["projectId"]),
 
-  // Preferences table to cloud-sync your tab order
   preferences: defineTable({
     userId: v.string(),
     tabOrder: v.array(v.string()),
   }).index("by_user", ["userId"]),
 
-  // NEW: Stores your authorized devices for background push notifications
   pushSubscriptions: defineTable({
     userId: v.string(),
     endpoint: v.string(),
