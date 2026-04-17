@@ -8,8 +8,6 @@ export const getTasks = query({
     
     // IF YOU ARE LOGGED IN: Return all your official tasks
     if (identity) {
-      // For now, we return all tasks that DON'T have a guest sessionId, 
-      // OR tasks that you specifically created. 
       const allTasks = await ctx.db.query("tasks").order("desc").collect();
       // Filter out purely guest-created tasks so they don't clutter your main board
       return allTasks.filter(t => !t.sessionId || t.isPublic); 
@@ -46,7 +44,6 @@ export const createTask = mutation({
     completedAt: v.optional(v.union(v.number(), v.null())),
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
-    // NEW: Accepts the session ID from the frontend
     sessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -81,7 +78,6 @@ export const updateTask = mutation({
     completedAt: v.optional(v.union(v.number(), v.null())),
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
-    // NEW: Allow updating the sharedWithSessions array
     sharedWithSessions: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
@@ -103,5 +99,44 @@ export const getTask = query({
   args: { id: v.id("tasks") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
+  },
+});
+
+// RESTORED: Bulk creation mutation (now upgraded for VIP Guests)
+export const createManyTasks = mutation({
+  args: {
+    tasks: v.array(
+      v.object({
+        title: v.string(),
+        description: v.optional(v.string()),
+        isUrgent: v.boolean(),
+        isImportant: v.boolean(),
+        isForFunsies: v.boolean(),
+        status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
+        listCategory: v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe")),
+        isToday: v.boolean(),
+        doOnDate: v.union(v.number(), v.null()),
+        doByDate: v.union(v.number(), v.null()),
+        projectId: v.union(v.id("projects"), v.null()),
+        completedAt: v.optional(v.union(v.number(), v.null())),
+        isPublic: v.optional(v.boolean()),
+        shareToken: v.optional(v.string()),
+        sessionId: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const taskIds = [];
+    
+    for (const task of args.tasks) {
+      const taskSessionId = identity ? undefined : task.sessionId;
+      const id = await ctx.db.insert("tasks", {
+        ...task,
+        sessionId: taskSessionId
+      });
+      taskIds.push(id);
+    }
+    return taskIds;
   },
 });
