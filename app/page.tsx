@@ -20,53 +20,16 @@ import { PushPromptModal } from "@/components/ui/PushPromptModal";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { useTheme } from "next-themes";
 
-// ==========================================
-// 🚨 X-RAY DIAGNOSTIC TOOL 🚨
-// ==========================================
-function ThemeDebugger() {
-  const { theme, resolvedTheme } = useTheme();
-  const [htmlClass, setHtmlClass] = useState("");
-
-  useEffect(() => {
-    // This literally watches the <html> tag for changes in real-time
-    const observer = new MutationObserver(() => {
-      setHtmlClass(document.documentElement.className);
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    setHtmlClass(document.documentElement.className);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div className="fixed bottom-4 left-4 z-[9999] bg-black/90 backdrop-blur-md text-green-400 p-4 rounded-lg font-mono text-[11px] sm:text-xs border border-green-500/50 shadow-2xl max-w-sm pointer-events-none">
-      <h3 className="font-bold text-white mb-2 uppercase tracking-widest border-b border-green-500/30 pb-1">Theme X-Ray</h3>
-      <div className="space-y-1">
-        <p><span className="text-zinc-400">Memory State:</span> {theme}</p>
-        <p><span className="text-zinc-400">Actual State:</span> {resolvedTheme}</p>
-        <p className="break-all"><span className="text-zinc-400">HTML Classes:</span> "{htmlClass}"</p>
-      </div>
-    </div>
-  );
-}
-
 function ThemeToggle() {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
   if (!mounted) return <div className="w-8 h-8" />;
 
-  const handleToggle = () => {
-    const targetTheme = resolvedTheme === "dark" ? "light" : "dark";
-    setTheme(targetTheme);
-    
-    // The requested popup error/alert window!
-    alert(`🚨 THEME TOGGLE FIRED 🚨\n\n1. Current Memory: ${theme}\n2. Current Screen: ${resolvedTheme}\n3. Trying to switch to: ${targetTheme}\n\nCheck the green X-Ray box in the bottom left. If HTML Classes says "dark", React is working and Tailwind is broken.`);
-  };
-
   return (
     <button
-      onClick={handleToggle}
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       className="p-1.5 text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
       title="Toggle Dark Mode"
     >
@@ -261,10 +224,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col relative">
-      {/* 🚨 THE DIAGNOSTIC HUD 🚨 */}
-      {isMounted && <ThemeDebugger />}
-
+    <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col">
       <Show when="signed-in">
         <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
           <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
