@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
   Loader2, Lock, CheckCircle2, Circle, Bold, Italic, List, ListOrdered, CheckSquare, Globe, 
-  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check, BookmarkPlus 
+  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check, BookmarkPlus, LayoutGrid 
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link"; // NEW: For navigation back to their home matrix
@@ -197,9 +197,17 @@ export default function SharedTaskPage() {
         <div className="max-w-3xl mx-auto space-y-10">
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
-            <Link href="/" className="font-bold text-2xl tracking-tight text-[var(--foreground)] hover:opacity-80 transition-opacity">
-              Fotion
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/" className="font-bold text-2xl tracking-tight text-[var(--foreground)] hover:opacity-80 transition-opacity">
+                Fotion
+              </Link>
+              {/* NEW: Explicit Home Button for Guests */}
+              <Link href="/" className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-[var(--foreground)] transition-colors bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 px-3 py-1.5 rounded-full border border-[var(--border)]">
+                <LayoutGrid className="w-3.5 h-3.5" />
+                My Matrix
+              </Link>
+            </div>
+            
             <div className="flex flex-wrap items-center gap-3">
               {isSaving && <span className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium"><Loader2 className="w-3 h-3 animate-spin" /> Saving</span>}
               <span className="flex items-center gap-1.5 text-xs font-bold tracking-wider uppercase bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-900/50 shadow-sm">
