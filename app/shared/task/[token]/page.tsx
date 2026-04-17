@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
   Loader2, Lock, CheckCircle2, Circle, Bold, Italic, List, ListOrdered, CheckSquare, Globe, 
-  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check, BookmarkPlus, LayoutGrid, ListFilter 
+  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check, BookmarkPlus, LayoutGrid 
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link"; 
@@ -19,6 +19,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "@/components/views/NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
+import { EditorToolbar } from "@/components/views/TaskDetailsPane";
 
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
@@ -31,35 +32,6 @@ const DoubleSpaceFix = Extension.create({
     ];
   },
 });
-
-// NEW: Accepts isSorting state to toggle visual mode
-const EditorToolbar = ({ editor, isSorting, onToggleSort }: { editor: any, isSorting?: boolean, onToggleSort?: () => void }) => {
-  if (!editor) return null;
-  return (
-    <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
-      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
-      <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
-      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
-      
-      {onToggleSort && (
-        <>
-          <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
-          <button 
-            type="button" 
-            onClick={onToggleSort} 
-            title={isSorting ? "Turn Off Sort (Restore Manual Order)" : "Sort Checkboxes (Unchecked First)"} 
-            className={`p-1.5 rounded shrink-0 transition-colors ${isSorting ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}
-          >
-            <ListFilter className="w-4 h-4" />
-          </button>
-        </>
-      )}
-    </div>
-  );
-};
 
 const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string, children: React.ReactNode }) => (
   <div className="flex items-start sm:items-center min-h-[40px] group hover:bg-zinc-50 dark:hover:bg-zinc-900/30 -mx-2 px-2 py-0.5 sm:py-0 rounded transition-colors">
@@ -207,7 +179,7 @@ export default function SharedTaskPage() {
         .tiptap input[type="checkbox"]:checked::before { transform: scale(1); }
         @media (prefers-color-scheme: dark) { .tiptap input[type="checkbox"] { border-color: #52525b; } }
 
-        /* NEW: CSS Flexbox sorting! */
+        /* CSS Flexbox sorting! It visually re-orders without touching the database */
         .sort-checklists ul[data-type="taskList"] { display: flex !important; flex-direction: column !important; }
         .sort-checklists li[data-type="taskItem"] { order: 1 !important; transition: opacity 0.2s ease; }
         .sort-checklists li[data-type="taskItem"][data-checked="true"] { order: 2 !important; opacity: 0.6; }
@@ -266,7 +238,6 @@ export default function SharedTaskPage() {
               />
             </div>
 
-            {/* FULL METADATA GRID */}
             <div className="flex flex-col gap-1 sm:gap-2 text-[15px] bg-zinc-50/50 dark:bg-[#151515] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-sm">
               <PropertyRow icon={CheckSquare} label="Today">
                 <button type="button" onClick={() => handleUpdate("isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
@@ -305,13 +276,11 @@ export default function SharedTaskPage() {
               </PropertyRow>
             </div>
 
-            {/* FULL RICH TEXT EDITOR */}
             <div className="bg-zinc-50/50 dark:bg-[#151515] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-4">
                 <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Task Notes</label>
                 <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} />
               </div>
-              {/* NEW: CSS Class wrapper triggers the flexbox sort */}
               <div className={`w-full text-[var(--foreground)] text-base leading-relaxed ${isSorting ? "sort-checklists" : ""}`}>
                 <EditorContent editor={editor} className="tiptap" />
               </div>

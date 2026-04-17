@@ -130,7 +130,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   );
 }
 
-// NEW: Accepts isSorting state to toggle visual mode smoothly
+// Visual Toggle Buttons
 export const EditorToolbar = ({ editor, isSorting, onToggleSort }: { editor: any, isSorting?: boolean, onToggleSort?: () => void }) => {
   if (!editor) return null;
   return (
@@ -170,7 +170,7 @@ function PaneContent() {
   const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
   const [isOpen, setIsOpen] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [isSorting, setIsSorting] = useState(false); // NEW: Local visual toggle
+  const [isSorting, setIsSorting] = useState(false); 
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
@@ -199,7 +199,7 @@ function PaneContent() {
       requestAnimationFrame(() => { requestAnimationFrame(() => setIsOpen(true)); });
     } else {
       setIsOpen(false);
-      setIsSorting(false); // Reset sort when closed
+      setIsSorting(false); 
     }
   }, [taskId]);
 
@@ -303,7 +303,7 @@ function PaneContent() {
         @media (prefers-color-scheme: dark) { .tiptap input[type="checkbox"] { border-color: #52525b; } }
         @media (max-height: 500px) { .floating-action-pills { display: none !important; } }
         
-        /* NEW: CSS Flexbox sorting! It visually re-orders without touching the database */
+        /* CSS Flexbox sorting! It visually re-orders without touching the database */
         .sort-checklists ul[data-type="taskList"] { display: flex !important; flex-direction: column !important; }
         .sort-checklists li[data-type="taskItem"] { order: 1 !important; transition: opacity 0.2s ease; }
         .sort-checklists li[data-type="taskItem"][data-checked="true"] { order: 2 !important; opacity: 0.6; }
@@ -363,7 +363,6 @@ function PaneContent() {
 
             <div className="space-y-2 pb-4 max-w-full">
               <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} />
-              {/* NEW: CSS Class wrapper triggers the flexbox sort */}
               <div className={`w-full text-[var(--foreground)] text-base leading-relaxed ${isSorting ? "sort-checklists" : ""}`}>
                 <EditorContent editor={editor} className="tiptap outline-none h-full break-words" />
               </div>
