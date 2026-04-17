@@ -85,11 +85,25 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
           ) : results.length === 0 ? (
             <div className="text-center py-10 text-zinc-400 text-sm">No tasks found matching "{query}"</div>
           ) : (
-            results.map(task => (
-              <div key={task._id} onClick={onClose}>
-                <TaskCard task={task} />
-              </div>
-            ))
+            results.map(task => {
+              // NEW: Determine exactly where the match occurred
+              const inTitle = task.title.toLowerCase().includes(query.toLowerCase());
+              const inBody = !!(task.description && task.description.toLowerCase().includes(query.toLowerCase()));
+
+              return (
+                <div key={task._id} className="relative flex flex-col group">
+                  <div onClick={onClose}>
+                    <TaskCard task={task} searchQuery={query} />
+                  </div>
+                  
+                  {/* NEW: Context Badges on Hover */}
+                  <div className="absolute top-0 right-4 -translate-y-1/2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    {inTitle && <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/80 dark:text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-700 shadow-sm">IN TITLE</span>}
+                    {inBody && <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/80 dark:text-purple-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-700 shadow-sm">IN BODY NOTES</span>}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
 

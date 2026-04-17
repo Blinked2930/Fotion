@@ -68,15 +68,31 @@ function PillDropdown({
   );
 }
 
+// NEW: Sub-component to handle text highlighting
+function HighlightText({ text, query }: { text: string, query?: string }) {
+  if (!query) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${query})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, i) => 
+        part.toLowerCase() === query.toLowerCase() ? 
+          <mark key={i} className="bg-yellow-200 text-yellow-900 dark:bg-yellow-900/50 dark:text-yellow-200 px-0.5 rounded-[2px]">{part}</mark> : 
+          <span key={i}>{part}</span>
+      )}
+    </>
+  );
+}
+
 export function TaskCard({ 
   task, 
   compact = false, 
   hideMatrixTags = false,
   hidePipelineTag = false,
   hideProjectTag = false,
-  hideTodayTag = false, // Kept for TS prop compatibility, but ignored in layout!
+  hideTodayTag = false, 
   hideDoOnDate = false,
-  hideDoByDate = false
+  hideDoByDate = false,
+  searchQuery = "" // NEW: Accepts the search query to trigger highlights
 }: { 
   task: any, 
   compact?: boolean,
@@ -85,7 +101,8 @@ export function TaskCard({
   hideProjectTag?: boolean,
   hideTodayTag?: boolean,
   hideDoOnDate?: boolean,
-  hideDoByDate?: boolean
+  hideDoByDate?: boolean,
+  searchQuery?: string
 }) {
   const router = useRouter();
   const updateTask = useMutation(api.tasks.updateTask);
@@ -166,7 +183,10 @@ export function TaskCard({
         >
           <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
         </button>
-        <span className="text-[14px] sm:text-[15px] text-zinc-500 line-through break-words leading-tight flex-1">{task.title}</span>
+        <span className="text-[14px] sm:text-[15px] text-zinc-500 line-through break-words leading-tight flex-1">
+          {/* NEW: Highlights applied here */}
+          <HighlightText text={task.title} query={searchQuery} />
+        </span>
       </div>
     );
   }
@@ -189,7 +209,8 @@ export function TaskCard({
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <span className="text-[14px] sm:text-[15px] font-medium text-[var(--foreground)] break-words leading-tight mt-0.5">
-              {task.title}
+              {/* NEW: Highlights applied here */}
+              <HighlightText text={task.title} query={searchQuery} />
             </span>
             {task.description && task.description !== "<p></p>" && (
               <span className={`shrink-0 p-1.5 rounded-md ${isOverdue ? 'text-red-400 dark:text-red-500' : demandsAttentionToday ? 'text-amber-400 dark:text-amber-500' : 'text-zinc-400 dark:text-zinc-500'}`} title="Contains notes">
@@ -259,8 +280,6 @@ export function TaskCard({
             Due: {new Date(task.doByDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           </span>
         )}
-
-        {/* Removed the pink "Today" pill check from here entirely */}
 
         {!hideMatrixTags && task.isUrgent && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50">Urgent</span>}
         {!hideMatrixTags && task.isImportant && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">Important</span>}

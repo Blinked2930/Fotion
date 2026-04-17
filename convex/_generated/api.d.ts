@@ -13,6 +13,7 @@ import type * as preferences from "../preferences.js";
 import type * as projects from "../projects.js";
 import type * as push from "../push.js";
 import type * as pushNode from "../pushNode.js";
+import type * as shared from "../shared.js";
 import type * as tasks from "../tasks.js";
 
 import type {
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   projects: typeof projects;
   push: typeof push;
   pushNode: typeof pushNode;
+  shared: typeof shared;
   tasks: typeof tasks;
 }>;
 
