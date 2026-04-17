@@ -4,9 +4,11 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { Loader2, ListTodo } from "lucide-react";
+import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
 
 export function PipelinesView() {
-  const tasks = useQuery(api.tasks.getTasks);
+  const sessionId = useGuestSession(); // NEW
+  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); // NEW
 
   if (tasks === undefined) {
     return (

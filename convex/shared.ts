@@ -53,3 +53,22 @@ export const updatePublicTask = mutation({
     await ctx.db.patch(task._id, patchData);
   }
 });
+
+// NEW: Allows a guest to permanently save a shared task to their browser session
+export const saveTaskToSession = mutation({
+  args: { token: v.string(), sessionId: v.string() },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.query("tasks")
+      .withIndex("by_shareToken", q => q.eq("shareToken", args.token))
+      .first();
+      
+    if (!task || !task.isPublic) throw new Error("Task not found or not public");
+
+    const sharedWith = task.sharedWithSessions || [];
+    
+    // Only add them if they aren't already in the array
+    if (!sharedWith.includes(args.sessionId)) {
+      await ctx.db.patch(task._id, { sharedWithSessions: [...sharedWith, args.sessionId] });
+    }
+  }
+});

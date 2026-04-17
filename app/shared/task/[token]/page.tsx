@@ -5,9 +5,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
   Loader2, Lock, CheckCircle2, Circle, Bold, Italic, List, ListOrdered, CheckSquare, Globe, 
-  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check 
+  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check, BookmarkPlus 
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link"; // NEW: For navigation back to their home matrix
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, InputRule } from '@tiptap/core';
@@ -17,6 +18,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "@/components/views/NewTaskForm";
+import { useGuestSession } from "@/hooks/useGuestSession"; // NEW: Identify the guest!
 
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
@@ -56,7 +58,6 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
   </div>
 );
 
-// Read-only project list for guests
 function GuestProjectSelect({ value, onChange }: { value?: string | null, onChange: (val: string | null) => void }) {
   const projects = useQuery(api.shared.getPublicProjects);
   const [isOpen, setIsOpen] = useState(false);
@@ -98,12 +99,23 @@ export default function SharedTaskPage() {
   const params = useParams();
   const token = params.token as string;
   
+  const sessionId = useGuestSession(); // Initialize Guest engine!
+  
   const task = useQuery(api.shared.getPublicTask, { token });
   const updateTask = useMutation(api.shared.updatePublicTask);
+  const saveToSession = useMutation(api.shared.saveTaskToSession);
   
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavedToMatrix, setIsSavedToMatrix] = useState(false);
   const [title, setTitle] = useState("");
   const titleRef = useRef<HTMLTextAreaElement>(null);
+
+  // Check if they already saved this task to their matrix previously
+  useEffect(() => {
+    if (task && sessionId && task.sharedWithSessions?.includes(sessionId)) {
+      setIsSavedToMatrix(true);
+    }
+  }, [task, sessionId]);
 
   const editor = useEditor({
     extensions: [
@@ -142,6 +154,12 @@ export default function SharedTaskPage() {
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
+  const handleSaveToMatrix = async () => {
+    if (!sessionId || !task) return;
+    await saveToSession({ token, sessionId });
+    setIsSavedToMatrix(true);
+  };
+
   if (task === undefined) {
     return <div className="min-h-screen bg-[var(--background)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-zinc-300 dark:text-zinc-700" /></div>;
   }
@@ -178,13 +196,31 @@ export default function SharedTaskPage() {
       <div className="min-h-screen bg-[var(--background)] p-4 sm:p-8 pt-12 sm:pt-20">
         <div className="max-w-3xl mx-auto space-y-10">
           
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-2xl tracking-tight text-[var(--foreground)]">Fotion</span>
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
+            <Link href="/" className="font-bold text-2xl tracking-tight text-[var(--foreground)] hover:opacity-80 transition-opacity">
+              Fotion
+            </Link>
+            <div className="flex flex-wrap items-center gap-3">
               {isSaving && <span className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium"><Loader2 className="w-3 h-3 animate-spin" /> Saving</span>}
               <span className="flex items-center gap-1.5 text-xs font-bold tracking-wider uppercase bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-900/50 shadow-sm">
                 <Globe className="w-3.5 h-3.5" /> Guest Access
               </span>
+              
+              {/* NEW: ADD TO MATRIX BUTTON */}
+              {sessionId && (
+                <button 
+                  onClick={handleSaveToMatrix}
+                  disabled={isSavedToMatrix}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all shadow-sm ${
+                    isSavedToMatrix 
+                      ? 'bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 opacity-80 cursor-default'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 active:scale-95'
+                  }`}
+                >
+                  {isSavedToMatrix ? <Check className="w-3.5 h-3.5" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
+                  {isSavedToMatrix ? "Saved to Matrix" : "Add to My Matrix"}
+                </button>
+              )}
             </div>
           </div>
 

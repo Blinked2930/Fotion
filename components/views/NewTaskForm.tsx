@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
+import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, InputRule } from '@tiptap/core';
@@ -68,6 +69,7 @@ const EditorToolbar = ({ editor }: { editor: any }) => {
 };
 
 export function NewTaskForm() {
+  const sessionId = useGuestSession(); // NEW
   const createTask = useMutation(api.tasks.createTask);
   const projects = useQuery(api.projects.getProjects);
   const createProject = useMutation(api.projects.createProject);
@@ -137,6 +139,7 @@ export function NewTaskForm() {
             doOnDate: stateRef.current.doOnDate,
             doByDate: stateRef.current.doByDate,
             projectId: stateRef.current.projectId as any,
+            sessionId: sessionId ?? undefined, // NEW: Binds task to guest if logged out
           });
           setIsExpanded(false);
           setTimeout(() => resetForm(), 300);
@@ -147,7 +150,7 @@ export function NewTaskForm() {
     }
     document.addEventListener("pointerdown", handleClickOutside);
     return () => document.removeEventListener("pointerdown", handleClickOutside);
-  }, [createTask, isModalOpen, editor, isProjectDropdownOpen]);
+  }, [createTask, isModalOpen, editor, isProjectDropdownOpen, sessionId]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -159,6 +162,7 @@ export function NewTaskForm() {
       title: title.trim() || "Unknown Task",
       description: (editor && !editor.isEmpty) ? editor.getHTML() : undefined,
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
+      sessionId: sessionId ?? undefined, // NEW: Binds task to guest if logged out
     });
     setIsExpanded(false);
     setTimeout(() => resetForm(), 300);

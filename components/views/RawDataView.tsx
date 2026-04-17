@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
+import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
 
 const NotionHeader = ({ icon: Icon, label, minWidth }: { icon: any, label: string, minWidth?: string }) => (
   <th className="border border-[var(--border)] px-3 py-2 font-normal text-zinc-500 dark:text-zinc-400 text-[13px] bg-zinc-50/50 dark:bg-zinc-900/50 text-left align-middle" style={{ minWidth: minWidth || '140px' }}>
@@ -113,7 +114,8 @@ const ListPill = (list: string) => {
 
 export function RawDataView() {
   const router = useRouter();
-  const tasks = useQuery(api.tasks.getTasks);
+  const sessionId = useGuestSession(); // NEW
+  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); // NEW
   const projects = useQuery(api.projects.getProjects);
   const updateTask = useMutation(api.tasks.updateTask);
   const createProject = useMutation(api.projects.createProject);

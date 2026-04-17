@@ -6,9 +6,11 @@ import { api } from "@/convex/_generated/api";
 import { Folder, Inbox, Loader2 } from "lucide-react";
 import { getProjectColor } from "./NewTaskForm";
 import { TaskCard } from "@/components/ui/TaskCard";
+import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
 
 export function ProjectsView() {
-  const tasks = useQuery(api.tasks.getTasks);
+  const sessionId = useGuestSession(); // NEW
+  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); // NEW
   const projects = useQuery(api.projects.getProjects);
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | "ALL" | "UNASSIGNED">("ALL");
