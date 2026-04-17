@@ -16,7 +16,7 @@ export function ProjectsView() {
   if (tasks === undefined || projects === undefined) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />
+        <Loader2 className="w-6 h-6 animate-spin text-zinc-300 dark:text-zinc-700" />
       </div>
     );
   }
@@ -57,7 +57,6 @@ export function ProjectsView() {
   const doneTasks = filteredTasks.filter(t => t.status === "done");
 
   return (
-    // Clean max-width layout for list view
     <div className="w-full max-w-4xl mx-auto pb-32 animate-in fade-in duration-300">
       
       <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pt-2 pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-[var(--border)]">
@@ -120,7 +119,11 @@ export function ProjectsView() {
                 <TaskCard 
                   key={task._id} 
                   task={task} 
-                  hideTodayTag={true} 
+                  hideProjectTag={selectedProjectId !== "ALL"} // Hide project tag if filtering by a specific project!
+                  hidePipelineTag={false}
+                  hideMatrixTags={false}
+                  hideDoByDate={false}
+                  hideDoOnDate={false}
                 />
               ))}
             </div>
@@ -134,7 +137,11 @@ export function ProjectsView() {
                   <TaskCard 
                     key={task._id} 
                     task={task} 
-                    hideTodayTag={true}
+                    hideProjectTag={selectedProjectId !== "ALL"}
+                    hidePipelineTag={false}
+                    hideMatrixTags={false}
+                    hideDoByDate={false}
+                    hideDoOnDate={false}
                   />
                 ))}
               </div>

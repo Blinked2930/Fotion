@@ -11,7 +11,7 @@ export function PipelinesView() {
   if (tasks === undefined) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />
+        <Loader2 className="w-6 h-6 animate-spin text-zinc-300 dark:text-zinc-700" />
       </div>
     );
   }
@@ -47,8 +47,11 @@ export function PipelinesView() {
                 <TaskCard 
                   key={task._id} 
                   task={task} 
-                  compact={true} 
                   hidePipelineTag={true} 
+                  hideMatrixTags={false}
+                  hideDoByDate={false}
+                  hideDoOnDate={false}
+                  hideProjectTag={false}
                 />
               ))}
               {col.tasks.length === 0 && (

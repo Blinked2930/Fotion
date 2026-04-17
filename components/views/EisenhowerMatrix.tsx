@@ -23,7 +23,6 @@ export function EisenhowerMatrix() {
     return new Date(timestamp).toDateString() === todayStr;
   };
 
-  // Logic to hide tasks scheduled strictly for the future
   const startOfTomorrow = new Date();
   startOfTomorrow.setHours(0, 0, 0, 0);
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
@@ -32,7 +31,6 @@ export function EisenhowerMatrix() {
   const activeTasks = tasks.filter(t => {
     if (t.status === "done") return false;
     
-    // FUTURE DATE FILTER: If the doOnDate is tomorrow or later, hide it completely!
     if (t.doOnDate && t.doOnDate >= tomorrowTime) {
       return false;
     }
@@ -101,7 +99,15 @@ export function EisenhowerMatrix() {
               
               <div className="flex-1 space-y-2">
                 {q.tasks.map(task => (
-                  <TaskCard key={task._id} task={task} />
+                  <TaskCard 
+                    key={task._id} 
+                    task={task} 
+                    hideMatrixTags={true} 
+                    hidePipelineTag={true}
+                    hideDoOnDate={true}
+                    hideDoByDate={false}
+                    hideProjectTag={false}
+                  />
                 ))}
               </div>
               

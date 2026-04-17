@@ -70,12 +70,13 @@ function PillDropdown({
 
 export function TaskCard({ 
   task, 
-  compact = false, // Retained for prop compatibility, but layout is standard
-  hideMatrixTags = false, // Ignored to force standardization across views
-  hidePipelineTag = false, // Ignored
-  hideProjectTag = false, // Ignored
-  hideTodayTag = false, // Ignored
-  hideDoOnDate = false // Ignored
+  compact = false, 
+  hideMatrixTags = false,
+  hidePipelineTag = false,
+  hideProjectTag = false,
+  hideTodayTag = false,
+  hideDoOnDate = false,
+  hideDoByDate = false
 }: { 
   task: any, 
   compact?: boolean,
@@ -83,7 +84,8 @@ export function TaskCard({
   hidePipelineTag?: boolean,
   hideProjectTag?: boolean,
   hideTodayTag?: boolean,
-  hideDoOnDate?: boolean
+  hideDoOnDate?: boolean,
+  hideDoByDate?: boolean
 }) {
   const router = useRouter();
   const updateTask = useMutation(api.tasks.updateTask);
@@ -111,18 +113,22 @@ export function TaskCard({
   const startOfToday = new Date(todayStr).getTime();
 
   let isOverdue = false;
-  let isDueToday = false;
+  let demandsAttentionToday = false; // Unified variable for explicit Today or Scheduled Today
 
+  // Check Due Date
   if (task.doByDate) {
     if (task.doByDate < startOfToday) {
       isOverdue = true;
     } else if (new Date(task.doByDate).toDateString() === todayStr) {
-      isDueToday = true;
+      demandsAttentionToday = true;
     }
   }
 
-  if (task.isToday && !isOverdue) {
-    isDueToday = true;
+  // Check Scheduled Date (doOnDate) OR explicit IsToday toggle
+  const isScheduledForToday = task.doOnDate && new Date(task.doOnDate).toDateString() === todayStr;
+  
+  if ((task.isToday || isScheduledForToday) && !isOverdue) {
+    demandsAttentionToday = true;
   }
 
   let cardWrapperClass = "bg-white dark:bg-[#1c1c1c] border-[var(--border)] hover:border-blue-200 dark:hover:border-blue-900/50";
@@ -131,7 +137,7 @@ export function TaskCard({
   if (isOverdue) {
     cardWrapperClass = "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 hover:border-red-300 dark:hover:border-red-800/80";
     borderLineClass = "border-red-200/50 dark:border-red-800/30";
-  } else if (isDueToday) {
+  } else if (demandsAttentionToday) { // NOW CAPTURES BOTH EXPLICIT TODAY AND DO ON DATE TODAY!
     cardWrapperClass = "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800/80";
     borderLineClass = "border-amber-200/50 dark:border-amber-800/30";
   }
@@ -179,7 +185,7 @@ export function TaskCard({
       <div className="flex items-start gap-3 w-full">
         <button 
           onClick={toggleTaskCompletion}
-          className={`mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border bg-transparent ${isOverdue ? 'border-red-300 dark:border-red-700 hover:border-red-500' : isDueToday ? 'border-amber-300 dark:border-amber-700 hover:border-amber-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'}`}
+          className={`mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border bg-transparent ${isOverdue ? 'border-red-300 dark:border-red-700 hover:border-red-500' : demandsAttentionToday ? 'border-amber-300 dark:border-amber-700 hover:border-amber-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'}`}
         />
         
         <div className="flex flex-col min-w-0 flex-1">
@@ -188,7 +194,7 @@ export function TaskCard({
               {task.title}
             </span>
             {task.description && task.description !== "<p></p>" && (
-              <span className={`shrink-0 p-1.5 rounded-md ${isOverdue ? 'text-red-400 dark:text-red-500' : isDueToday ? 'text-amber-400 dark:text-amber-500' : 'text-zinc-400 dark:text-zinc-500'}`} title="Contains notes">
+              <span className={`shrink-0 p-1.5 rounded-md ${isOverdue ? 'text-red-400 dark:text-red-500' : demandsAttentionToday ? 'text-amber-400 dark:text-amber-500' : 'text-zinc-400 dark:text-zinc-500'}`} title="Contains notes">
                 <AlignLeft className="w-4 h-4" />
               </span>
             )}
@@ -196,55 +202,59 @@ export function TaskCard({
         </div>
       </div>
       
-      {/* BOTTOM SECTION: Full width line + All Metadata Pills */}
+      {/* BOTTOM SECTION: Full width line + Conditional Metadata Pills */}
       <div className={`flex flex-wrap items-center gap-2 w-full pt-3 mt-3 border-t ${borderLineClass}`}>
 
-        <PillDropdown 
-          currentValue={task.projectId || null}
-          options={projectOptions}
-          onSelect={(val) => handleInlineUpdate("projectId", val)}
-          renderPill={(val) => {
-            if (!val) {
+        {!hideProjectTag && (
+          <PillDropdown 
+            currentValue={task.projectId || null}
+            options={projectOptions}
+            onSelect={(val) => handleInlineUpdate("projectId", val)}
+            renderPill={(val) => {
+              if (!val) {
+                return (
+                  <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(null)}`}>
+                    <Folder className="w-3 h-3 shrink-0 opacity-50" />
+                    <span className="truncate max-w-[80px] sm:max-w-[120px]">None</span>
+                  </span>
+                );
+              }
+              const p = projects?.find(proj => proj._id === val);
               return (
-                <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(null)}`}>
-                  <Folder className="w-3 h-3 shrink-0 opacity-50" />
-                  <span className="truncate max-w-[80px] sm:max-w-[120px]">None</span>
+                <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(val)}`}>
+                  <Folder className="w-3 h-3 shrink-0" />
+                  <span className="truncate max-w-[80px] sm:max-w-[120px]">{p ? p.name : "Unknown"}</span>
                 </span>
               );
-            }
-            const p = projects?.find(proj => proj._id === val);
-            return (
-              <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(val)}`}>
-                <Folder className="w-3 h-3 shrink-0" />
-                <span className="truncate max-w-[80px] sm:max-w-[120px]">{p ? p.name : "Unknown"}</span>
+            }}
+          />
+        )}
+
+        {!hidePipelineTag && (
+          <PillDropdown 
+            currentValue={task.listCategory || "Current"}
+            options={pipelineOptions}
+            onSelect={(val) => handleInlineUpdate("listCategory", val)}
+            renderPill={(val) => (
+              <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}>
+                <List className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[80px]">{val}</span>
               </span>
-            );
-          }}
-        />
+            )}
+          />
+        )}
 
-        <PillDropdown 
-          currentValue={task.listCategory || "Current"}
-          options={pipelineOptions}
-          onSelect={(val) => handleInlineUpdate("listCategory", val)}
-          renderPill={(val) => (
-            <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}>
-              <List className="w-3 h-3 shrink-0" />
-              <span className="truncate max-w-[80px]">{val}</span>
-            </span>
-          )}
-        />
-
-        {task.doOnDate && (
+        {!hideDoOnDate && task.doOnDate && (
           <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">
             <Calendar className="w-3 h-3 shrink-0" />
             On: {new Date(task.doOnDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           </span>
         )}
 
-        {task.doByDate && (
+        {!hideDoByDate && task.doByDate && (
           <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
             isOverdue ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-900/50' : 
-            isDueToday ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-400 border-amber-300 dark:border-amber-900/50' : 
+            demandsAttentionToday ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-400 border-amber-300 dark:border-amber-900/50' : 
             'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'
           }`}>
             <Calendar className="w-3 h-3 shrink-0" />
@@ -252,10 +262,10 @@ export function TaskCard({
           </span>
         )}
 
-        {task.isUrgent && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50">Urgent</span>}
-        {task.isImportant && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">Important</span>}
-        {task.isToday && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50">Today</span>}
-        {task.isForFunsies && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50">For Funsies</span>}
+        {!hideMatrixTags && task.isUrgent && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50">Urgent</span>}
+        {!hideMatrixTags && task.isImportant && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">Important</span>}
+        {!hideTodayTag && task.isToday && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50">Today</span>}
+        {!hideMatrixTags && task.isForFunsies && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50">For Funsies</span>}
         
       </div>
     </div>

@@ -11,7 +11,7 @@ export function TodayView() {
   if (tasks === undefined) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />
+        <Loader2 className="w-6 h-6 animate-spin text-zinc-300 dark:text-zinc-700" />
       </div>
     );
   }
@@ -23,7 +23,6 @@ export function TodayView() {
     return new Date(timestamp).toDateString() === todayStr;
   };
 
-  // Pipeline agnostic: Only cares if it demands attention today
   const activeTasks = tasks.filter(t => 
     t.status !== "done" &&
     (t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate))
@@ -34,7 +33,6 @@ export function TodayView() {
   );
 
   return (
-    // Clean max-width layout for list view
     <div className="w-full max-w-4xl mx-auto pb-32 animate-in fade-in duration-300">
       <div className="mb-6 mt-2">
         <h2 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
@@ -59,6 +57,9 @@ export function TodayView() {
                   hideTodayTag={true} 
                   hidePipelineTag={true} 
                   hideDoOnDate={true} 
+                  hideDoByDate={false}
+                  hideProjectTag={false}
+                  hideMatrixTags={false}
                 />
               ))}
             </div>
@@ -74,7 +75,10 @@ export function TodayView() {
                     task={task} 
                     hideTodayTag={true} 
                     hidePipelineTag={true} 
-                    hideDoOnDate={true} 
+                    hideDoOnDate={true}
+                    hideDoByDate={false}
+                    hideProjectTag={false}
+                    hideMatrixTags={false}
                   />
                 ))}
               </div>
