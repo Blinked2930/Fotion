@@ -32,49 +32,9 @@ const DoubleSpaceFix = Extension.create({
   },
 });
 
-const EditorToolbar = ({ editor }: { editor: any }) => {
+// NEW: Accepts isSorting state to toggle visual mode
+const EditorToolbar = ({ editor, isSorting, onToggleSort }: { editor: any, isSorting?: boolean, onToggleSort?: () => void }) => {
   if (!editor) return null;
-
-  // NEW: Sorts checklist items natively inside the AST
-  const handleSortChecklists = () => {
-    const sortListNodes = (nodes: any[]) => {
-      if (!Array.isArray(nodes)) return nodes;
-      return nodes.map(node => {
-        const newNode = { ...node };
-
-        if (newNode.content) {
-          newNode.content = sortListNodes(newNode.content);
-        }
-
-        if (newNode.type === 'taskList' && newNode.content) {
-          const unchecked: any[] = [];
-          const checked: any[] = [];
-
-          newNode.content.forEach((child: any) => {
-            if (child.type === 'taskItem') {
-              if (child.attrs?.checked) checked.push(child);
-              else unchecked.push(child);
-            } else {
-              unchecked.push(child); 
-            }
-          });
-
-          // Re-combine: Unchecked first, Checked last
-          newNode.content = [...unchecked, ...checked];
-        }
-        return newNode;
-      });
-    };
-
-    const json = editor.getJSON();
-    if (json.content) {
-      json.content = sortListNodes(json.content);
-      const { from, to } = editor.state.selection;
-      editor.commands.setContent(json);
-      try { editor.commands.setTextSelection({ from, to }); } catch(e) {}
-    }
-  };
-
   return (
     <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
       <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
@@ -83,8 +43,20 @@ const EditorToolbar = ({ editor }: { editor: any }) => {
       <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
       <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
       <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
-      <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
-      <button type="button" onClick={handleSortChecklists} title="Sort Checkboxes (Unchecked first)" className="p-1.5 rounded shrink-0 transition-colors text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]"><ListFilter className="w-4 h-4" /></button>
+      
+      {onToggleSort && (
+        <>
+          <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
+          <button 
+            type="button" 
+            onClick={onToggleSort} 
+            title={isSorting ? "Turn Off Sort (Restore Manual Order)" : "Sort Checkboxes (Unchecked First)"} 
+            className={`p-1.5 rounded shrink-0 transition-colors ${isSorting ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}
+          >
+            <ListFilter className="w-4 h-4" />
+          </button>
+        </>
+      )}
     </div>
   );
 };
@@ -151,6 +123,7 @@ export default function SharedTaskPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavedToMatrix, setIsSavedToMatrix] = useState(false);
   const [title, setTitle] = useState("");
+  const [isSorting, setIsSorting] = useState(false); // NEW
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -233,6 +206,11 @@ export default function SharedTaskPage() {
         .tiptap input[type="checkbox"]:checked { background-color: #f472b6; border-color: #f472b6; }
         .tiptap input[type="checkbox"]:checked::before { transform: scale(1); }
         @media (prefers-color-scheme: dark) { .tiptap input[type="checkbox"] { border-color: #52525b; } }
+
+        /* NEW: CSS Flexbox sorting! */
+        .sort-checklists ul[data-type="taskList"] { display: flex !important; flex-direction: column !important; }
+        .sort-checklists li[data-type="taskItem"] { order: 1 !important; transition: opacity 0.2s ease; }
+        .sort-checklists li[data-type="taskItem"][data-checked="true"] { order: 2 !important; opacity: 0.6; }
       `}</style>
 
       <div className="min-h-screen bg-[var(--background)] p-4 sm:p-8 pt-12 sm:pt-20">
@@ -331,9 +309,10 @@ export default function SharedTaskPage() {
             <div className="bg-zinc-50/50 dark:bg-[#151515] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-4">
                 <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Task Notes</label>
-                <EditorToolbar editor={editor} />
+                <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} />
               </div>
-              <div className="w-full text-[var(--foreground)] text-base leading-relaxed">
+              {/* NEW: CSS Class wrapper triggers the flexbox sort */}
+              <div className={`w-full text-[var(--foreground)] text-base leading-relaxed ${isSorting ? "sort-checklists" : ""}`}>
                 <EditorContent editor={editor} className="tiptap" />
               </div>
             </div>

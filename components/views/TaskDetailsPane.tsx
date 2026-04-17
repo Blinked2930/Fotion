@@ -130,49 +130,9 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   );
 }
 
-const EditorToolbar = ({ editor }: { editor: any }) => {
+// NEW: Accepts isSorting state to toggle visual mode smoothly
+export const EditorToolbar = ({ editor, isSorting, onToggleSort }: { editor: any, isSorting?: boolean, onToggleSort?: () => void }) => {
   if (!editor) return null;
-
-  // NEW: Sorts checklist items natively inside the AST
-  const handleSortChecklists = () => {
-    const sortListNodes = (nodes: any[]) => {
-      if (!Array.isArray(nodes)) return nodes;
-      return nodes.map(node => {
-        const newNode = { ...node };
-
-        if (newNode.content) {
-          newNode.content = sortListNodes(newNode.content);
-        }
-
-        if (newNode.type === 'taskList' && newNode.content) {
-          const unchecked: any[] = [];
-          const checked: any[] = [];
-
-          newNode.content.forEach((child: any) => {
-            if (child.type === 'taskItem') {
-              if (child.attrs?.checked) checked.push(child);
-              else unchecked.push(child);
-            } else {
-              unchecked.push(child); 
-            }
-          });
-
-          // Re-combine: Unchecked first, Checked last
-          newNode.content = [...unchecked, ...checked];
-        }
-        return newNode;
-      });
-    };
-
-    const json = editor.getJSON();
-    if (json.content) {
-      json.content = sortListNodes(json.content);
-      const { from, to } = editor.state.selection;
-      editor.commands.setContent(json);
-      try { editor.commands.setTextSelection({ from, to }); } catch(e) {}
-    }
-  };
-
   return (
     <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
       <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
@@ -181,8 +141,20 @@ const EditorToolbar = ({ editor }: { editor: any }) => {
       <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
       <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
       <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
-      <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
-      <button type="button" onClick={handleSortChecklists} title="Sort Checkboxes (Unchecked first)" className="p-1.5 rounded shrink-0 transition-colors text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]"><ListFilter className="w-4 h-4" /></button>
+      
+      {onToggleSort && (
+        <>
+          <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
+          <button 
+            type="button" 
+            onClick={onToggleSort} 
+            title={isSorting ? "Turn Off Sort (Restore Manual Order)" : "Sort Checkboxes (Unchecked First)"} 
+            className={`p-1.5 rounded shrink-0 transition-colors ${isSorting ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}
+          >
+            <ListFilter className="w-4 h-4" />
+          </button>
+        </>
+      )}
     </div>
   );
 };
@@ -198,6 +170,7 @@ function PaneContent() {
   const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
   const [isOpen, setIsOpen] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isSorting, setIsSorting] = useState(false); // NEW: Local visual toggle
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
@@ -207,12 +180,9 @@ function PaneContent() {
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        setIsKeyboardOpen(true);
-      }
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) setIsKeyboardOpen(true);
     };
     const handleFocusOut = () => setIsKeyboardOpen(false);
-    
     document.addEventListener('focusin', handleFocusIn);
     document.addEventListener('focusout', handleFocusOut);
     return () => {
@@ -226,11 +196,10 @@ function PaneContent() {
   useEffect(() => {
     if (taskId) {
       setDisplayTaskId(taskId);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setIsOpen(true));
-      });
+      requestAnimationFrame(() => { requestAnimationFrame(() => setIsOpen(true)); });
     } else {
       setIsOpen(false);
+      setIsSorting(false); // Reset sort when closed
     }
   }, [taskId]);
 
@@ -244,22 +213,15 @@ function PaneContent() {
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Type your notes here... (Use 1. or - or [ ] for lists)" }),
-      DoubleSpaceFix
+      StarterKit, TaskList, TaskItem.configure({ nested: true }), DoubleSpaceFix,
+      Placeholder.configure({ placeholder: "Type your notes here... (Use 1. or - or [ ] for lists)" })
     ],
     content: task?.description || "",
     immediatelyRender: false, 
-    onBlur: ({ editor }) => {
-      handleUpdate("description", editor.getHTML());
-    },
+    onBlur: ({ editor }) => { handleUpdate("description", editor.getHTML()); },
   });
 
-  useEffect(() => {
-    if (task) setTitle(task.title);
-  }, [task]);
+  useEffect(() => { if (task) setTitle(task.title); }, [task]);
 
   useEffect(() => {
     if (titleRef.current) {
@@ -269,9 +231,7 @@ function PaneContent() {
   }, [title, isOpen]);
 
   useEffect(() => {
-    if (task && editor && task.description !== editor.getHTML()) {
-      editor.commands.setContent(task.description || "");
-    }
+    if (task && editor && task.description !== editor.getHTML()) editor.commands.setContent(task.description || "");
   }, [task?.description, editor]);
 
   useEffect(() => {
@@ -279,45 +239,26 @@ function PaneContent() {
       if (showDeleteModal || !isPaneOpen) return;
       const target = e.target as HTMLElement;
       if (target.closest('button') || target.closest('input') || target.closest('.fixed.inset-0')) return;
-      if (paneRef.current && !paneRef.current.contains(target)) {
-        router.replace(window.location.pathname, { scroll: false });
-      }
+      if (paneRef.current && !paneRef.current.contains(target)) router.replace(window.location.pathname, { scroll: false });
     };
-    
     document.addEventListener("pointerdown", handleClickOutside, true);
     return () => document.removeEventListener("pointerdown", handleClickOutside, true);
   }, [showDeleteModal, router, isPaneOpen]);
 
   const closePane = () => router.replace(window.location.pathname, { scroll: false });
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
-  };
-
+  const onTouchStart = (e: React.TouchEvent) => { setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }); };
   const onTouchEnd = (e: React.TouchEvent) => {
     if (!touchStart) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    
-    const dx = touchStart.x - touchEndX;
-    const dy = Math.abs(touchStart.y - touchEndY);
-    
+    const dy = Math.abs(touchStart.y - e.changedTouches[0].clientY);
     if (dy > 40) return;
-    if (dx < -60) closePane();
+    if (touchStart.x - e.changedTouches[0].clientX < -60) closePane();
   };
 
-  const handleUpdate = (field: string, value: any) => {
-    if (displayTaskId) updateTask({ id: displayTaskId, [field]: value });
-  };
+  const handleUpdate = (field: string, value: any) => { if (displayTaskId) updateTask({ id: displayTaskId, [field]: value }); };
 
   const handleStatusUpdate = (newStatus: "todo" | "in-progress" | "done") => {
-    if (displayTaskId) {
-      updateTask({ 
-        id: displayTaskId, 
-        status: newStatus,
-        completedAt: newStatus === "done" ? Date.now() : null
-      });
-    }
+    if (displayTaskId) updateTask({ id: displayTaskId, status: newStatus, completedAt: newStatus === "done" ? Date.now() : null });
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -330,22 +271,17 @@ function PaneContent() {
     if (!task) return;
     let token = task.shareToken;
     if (!token) {
-      token = Array.from(crypto.getRandomValues(new Uint8Array(16)))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
+      token = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
       await handleUpdate("isPublic", true);
       await handleUpdate("shareToken", token);
-    } else if (!task.isPublic) {
-      await handleUpdate("isPublic", true);
-    }
+    } else if (!task.isPublic) await handleUpdate("isPublic", true);
 
     const url = `${window.location.origin}/shared/task/${token}`;
     try {
       await navigator.clipboard.writeText(url);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy link", err);
-    }
+    } catch (err) {}
   };
 
   return (
@@ -360,38 +296,30 @@ function PaneContent() {
         .tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; margin-bottom: 0.25rem; }
         .tiptap ul[data-type="taskList"] li > label { margin-right: 0.5rem; user-select: none; }
         .tiptap p.is-editor-empty:first-child::before { color: #a1a1aa; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
-        
-        .tiptap input[type="checkbox"] {
-          appearance: none; background-color: transparent; margin: 0; font: inherit; color: currentColor; width: 1.15em; height: 1.15em; border: 1px solid #d4d4d8; border-radius: 0.25em; display: grid; place-content: center; cursor: pointer;
-        }
-        .tiptap input[type="checkbox"]::before {
-          content: ""; width: 0.65em; height: 0.65em; transform: scale(0); transition: 120ms transform ease-in-out; box-shadow: inset 1em 1em white; background-color: white; transform-origin: center; clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
-        }
+        .tiptap input[type="checkbox"] { appearance: none; background-color: transparent; margin: 0; font: inherit; color: currentColor; width: 1.15em; height: 1.15em; border: 1px solid #d4d4d8; border-radius: 0.25em; display: grid; place-content: center; cursor: pointer; }
+        .tiptap input[type="checkbox"]::before { content: ""; width: 0.65em; height: 0.65em; transform: scale(0); transition: 120ms transform ease-in-out; box-shadow: inset 1em 1em white; background-color: white; transform-origin: center; clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
         .tiptap input[type="checkbox"]:checked { background-color: #f472b6; border-color: #f472b6; }
         .tiptap input[type="checkbox"]:checked::before { transform: scale(1); }
         @media (prefers-color-scheme: dark) { .tiptap input[type="checkbox"] { border-color: #52525b; } }
         @media (max-height: 500px) { .floating-action-pills { display: none !important; } }
+        
+        /* NEW: CSS Flexbox sorting! It visually re-orders without touching the database */
+        .sort-checklists ul[data-type="taskList"] { display: flex !important; flex-direction: column !important; }
+        .sort-checklists li[data-type="taskItem"] { order: 1 !important; transition: opacity 0.2s ease; }
+        .sort-checklists li[data-type="taskItem"][data-checked="true"] { order: 2 !important; opacity: 0.6; }
       `}</style>
 
       <div 
-        ref={paneRef} 
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
+        ref={paneRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
         onMouseMove={(e) => {
           if (!paneRef.current || !isOpen) return;
-          const rect = paneRef.current.getBoundingClientRect();
-          setIsNearBottom(rect.bottom - e.clientY < 180);
+          setIsNearBottom(paneRef.current.getBoundingClientRect().bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
-        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-white dark:bg-[#121212] sm:border-l border-[var(--border)] z-[60] flex flex-col transition-transform duration-[350ms] ease-out transform-gpu will-change-transform max-w-full overflow-x-hidden ${
-          isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"
-        }`}
+        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-white dark:bg-[#121212] sm:border-l border-[var(--border)] z-[60] flex flex-col transition-transform duration-[350ms] ease-out transform-gpu will-change-transform max-w-full overflow-x-hidden ${isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"}`}
       >
-
         {(!displayTaskId || task === undefined) ? (
-          <div className="flex-1 flex items-center justify-center">
-            {displayTaskId && <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />}
-          </div>
+          <div className="flex-1 flex items-center justify-center">{displayTaskId && <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />}</div>
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
@@ -409,21 +337,9 @@ function PaneContent() {
               {isSignedIn && (
                 <div className="flex items-center gap-2">
                   {task.isPublic && (
-                    <button 
-                      onClick={() => handleUpdate("isPublic", false)}
-                      className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
-                    >
-                      Revoke Access
-                    </button>
+                    <button onClick={() => handleUpdate("isPublic", false)} className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none">Revoke Access</button>
                   )}
-                  <button 
-                    onClick={handleShare}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${
-                      isCopied 
-                        ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' 
-                        : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'
-                    }`}
-                  >
+                  <button onClick={handleShare} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${isCopied ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'}`}>
                     {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
                     {isCopied ? "Link Copied!" : (task.isPublic ? "Copy Link" : "Share Task")}
                   </button>
@@ -431,135 +347,48 @@ function PaneContent() {
               )}
             </div>
 
-            <textarea
-              ref={titleRef}
-              value={title}
-              onChange={handleTitleChange}
-              onBlur={() => handleUpdate("title", title)}
-              rows={1}
-              className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300 resize-none overflow-hidden block py-1 leading-tight mt-0"
-              placeholder="Task title"
-            />
+            <textarea ref={titleRef} value={title} onChange={handleTitleChange} onBlur={() => handleUpdate("title", title)} rows={1} className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300 resize-none overflow-hidden block py-1 leading-tight mt-0" placeholder="Task title" />
 
             <div className="flex flex-col gap-1 sm:gap-2 text-[15px] max-w-full">
-              <PropertyRow icon={CheckSquare} label="Today">
-                <button type="button" onClick={() => handleUpdate("isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
-                  {task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                </button>
-              </PropertyRow>
-              
-              <PropertyRow icon={PlayCircle} label="Status">
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: 'todo', label: 'To Do', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' },
-                    { id: 'in-progress', label: 'In Progress', activeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50' },
-                    { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50' }
-                  ].map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => handleStatusUpdate(s.id as any)}
-                      className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${task.status === s.id ? s.activeClass : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </PropertyRow>
-
-              <PropertyRow icon={Calendar} label="Due By Date">
-                <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" />
-              </PropertyRow>
-
-              <PropertyRow icon={Calendar} label="Do On Date">
-                <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" />
-              </PropertyRow>
-
-              <PropertyRow icon={Sigma} label="Matrix Tags">
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => handleUpdate("isUrgent", !task.isUrgent)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Urgent</button>
-                  <button onClick={() => handleUpdate("isImportant", !task.isImportant)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Important</button>
-                  <button onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>For Funsies</button>
-                </div>
-              </PropertyRow>
-
-              <PropertyRow icon={List} label="Pipelines">
-                <div className="flex flex-wrap gap-2">
-                  {['Current', 'Waiting For', 'Someday Maybe'].map(listName => (
-                     <button
-                     key={listName}
-                     onClick={() => handleUpdate("listCategory", listName)}
-                     className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
-                   >
-                     {listName}
-                   </button>
-                  ))}
-                </div>
-              </PropertyRow>
-
-              <PropertyRow icon={Folder} label="Project">
-                <ProjectSelect value={task.projectId} onChange={(val) => handleUpdate("projectId", val)} />
-              </PropertyRow>
-
+              <PropertyRow icon={CheckSquare} label="Today"><button type="button" onClick={() => handleUpdate("isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></PropertyRow>
+              <PropertyRow icon={PlayCircle} label="Status"><div className="flex flex-wrap gap-2">{[{ id: 'todo', label: 'To Do', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' }, { id: 'in-progress', label: 'In Progress', activeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50' }, { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50' }].map((s) => (<button key={s.id} onClick={() => handleStatusUpdate(s.id as any)} className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${task.status === s.id ? s.activeClass : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>{s.label}</button>))}</div></PropertyRow>
+              <PropertyRow icon={Calendar} label="Due By Date"><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>
+              <PropertyRow icon={Calendar} label="Do On Date"><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" /></PropertyRow>
+              <PropertyRow icon={Sigma} label="Matrix Tags"><div className="flex flex-wrap gap-2"><button onClick={() => handleUpdate("isUrgent", !task.isUrgent)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Urgent</button><button onClick={() => handleUpdate("isImportant", !task.isImportant)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Important</button><button onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>For Funsies</button></div></PropertyRow>
+              <PropertyRow icon={List} label="Pipelines"><div className="flex flex-wrap gap-2">{['Current', 'Waiting For', 'Someday Maybe'].map(listName => (<button key={listName} onClick={() => handleUpdate("listCategory", listName)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>{listName}</button>))}</div></PropertyRow>
+              <PropertyRow icon={Folder} label="Project"><ProjectSelect value={task.projectId} onChange={(val) => handleUpdate("projectId", val)} /></PropertyRow>
             </div>
 
             <hr className="border-[var(--border)] my-6" />
 
             <div className="space-y-2 pb-4 max-w-full">
-              <EditorToolbar editor={editor} />
-              <EditorContent editor={editor} className="tiptap outline-none w-full break-words text-[15px] text-[var(--foreground)] leading-relaxed" />
+              <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} />
+              {/* NEW: CSS Class wrapper triggers the flexbox sort */}
+              <div className={`w-full text-[var(--foreground)] text-base leading-relaxed ${isSorting ? "sort-checklists" : ""}`}>
+                <EditorContent editor={editor} className="tiptap outline-none h-full break-words" />
+              </div>
             </div>
           </div>
         )}
 
-        <div className={`floating-action-pills absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-end sm:justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out ${
-          isKeyboardOpen ? "opacity-0 translate-y-10" : (isNearBottom ? "sm:opacity-100 sm:translate-y-0" : "sm:opacity-0 sm:translate-y-2 opacity-100 translate-y-0")
-        }`}>
-          <button 
-            type="button" 
-            onClick={closePane} 
-            className="hidden sm:flex pointer-events-auto items-center gap-1.5 bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-[13px] sm:text-sm transition-transform active:scale-95"
-          >
-            <X className="w-4 h-4 -ml-1" /> Close
-          </button>
-
+        <div className={`floating-action-pills absolute bottom-6 left-0 w-full px-6 sm:px-10 flex justify-end sm:justify-between items-center z-50 pointer-events-none transition-all duration-300 ease-out ${isKeyboardOpen ? "opacity-0 translate-y-10" : (isNearBottom ? "sm:opacity-100 sm:translate-y-0" : "sm:opacity-0 sm:translate-y-2 opacity-100 translate-y-0")}`}>
+          <button type="button" onClick={closePane} className="hidden sm:flex pointer-events-auto items-center gap-1.5 bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-[13px] sm:text-sm transition-transform active:scale-95"><X className="w-4 h-4 -ml-1" /> Close</button>
           {task !== undefined && task !== null && (isSignedIn || task.sessionId === guestSessionId) && (
-            <button 
-              type="button" 
-              onClick={() => setShowDeleteModal(true)} 
-              className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-zinc-500 shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-[13px] sm:text-sm transition-all active:scale-95 active:border-red-500 active:text-red-500 hover:border-red-500 hover:text-red-500"
-            >
-              <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Delete</span>
-            </button>
+            <button type="button" onClick={() => setShowDeleteModal(true)} className="pointer-events-auto flex items-center gap-1.5 bg-white dark:bg-[#252525] text-zinc-500 shadow-xl shadow-black/10 border border-[var(--border)] rounded-full px-5 py-3 font-medium text-[13px] sm:text-sm transition-all active:scale-95 active:border-red-500 active:text-red-500 hover:border-red-500 hover:text-red-500"><Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Delete</span></button>
           )}
         </div>
-
       </div>
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm animate-in zoom-in-95 duration-200 border border-[var(--border)]">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-              </div>
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
               <h3 className="font-bold text-lg text-[var(--foreground)] mb-4">Delete Task?</h3>
             </div>
             <div className="flex justify-end gap-3">
-              <button 
-                type="button"
-                onClick={() => setShowDeleteModal(false)} 
-                className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                type="button"
-                autoFocus
-                onClick={() => { deleteTask({ id: displayTaskId as any }); closePane(); setShowDeleteModal(false); }} 
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#1c1c1c]"
-              >
-                Yes, Delete
-              </button>
+              <button type="button" onClick={() => setShowDeleteModal(false)} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
+              <button type="button" autoFocus onClick={() => { deleteTask({ id: displayTaskId as any }); closePane(); setShowDeleteModal(false); }} className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#1c1c1c]">Yes, Delete</button>
             </div>
           </div>
         </div>

@@ -54,65 +54,37 @@ export const getListColor = (list: string) => {
   }
 };
 
-const EditorToolbar = ({ editor }: { editor: any }) => {
+// NEW: Accepts isSorting state to toggle visual mode
+const EditorToolbar = ({ editor, isSorting, onToggleSort }: { editor: any, isSorting?: boolean, onToggleSort?: () => void }) => {
   if (!editor) return null;
-
-  // NEW: Sorts checklist items natively inside the AST
-  const handleSortChecklists = () => {
-    const sortListNodes = (nodes: any[]) => {
-      if (!Array.isArray(nodes)) return nodes;
-      return nodes.map(node => {
-        const newNode = { ...node };
-
-        if (newNode.content) {
-          newNode.content = sortListNodes(newNode.content);
-        }
-
-        if (newNode.type === 'taskList' && newNode.content) {
-          const unchecked: any[] = [];
-          const checked: any[] = [];
-
-          newNode.content.forEach((child: any) => {
-            if (child.type === 'taskItem') {
-              if (child.attrs?.checked) checked.push(child);
-              else unchecked.push(child);
-            } else {
-              unchecked.push(child); 
-            }
-          });
-
-          // Re-combine: Unchecked first, Checked last
-          newNode.content = [...unchecked, ...checked];
-        }
-        return newNode;
-      });
-    };
-
-    const json = editor.getJSON();
-    if (json.content) {
-      json.content = sortListNodes(json.content);
-      const { from, to } = editor.state.selection;
-      editor.commands.setContent(json);
-      try { editor.commands.setTextSelection({ from, to }); } catch(e) {}
-    }
-  };
-
   return (
     <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
-      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><Bold className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><Italic className="w-3.5 h-3.5" /></button>
-      <div className="w-px h-3 bg-[var(--border)] mx-1 shrink-0" />
-      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><List className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><ListOrdered className="w-3.5 h-3.5" /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><CheckSquare className="w-3.5 h-3.5" /></button>
-      <div className="w-px h-3 bg-[var(--border)] mx-1 shrink-0" />
-      <button type="button" onClick={handleSortChecklists} title="Sort Checkboxes (Unchecked first)" className="p-1.5 rounded shrink-0 transition-colors text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"><ListFilter className="w-3.5 h-3.5" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
+      <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
+      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
+      
+      {onToggleSort && (
+        <>
+          <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
+          <button 
+            type="button" 
+            onClick={onToggleSort} 
+            title={isSorting ? "Turn Off Sort (Restore Manual Order)" : "Sort Checkboxes (Unchecked First)"} 
+            className={`p-1.5 rounded shrink-0 transition-colors ${isSorting ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}
+          >
+            <ListFilter className="w-4 h-4" />
+          </button>
+        </>
+      )}
     </div>
   );
 };
 
 export function NewTaskForm() {
-  const sessionId = useGuestSession(); // NEW
+  const sessionId = useGuestSession(); 
   const createTask = useMutation(api.tasks.createTask);
   const projects = useQuery(api.projects.getProjects);
   const createProject = useMutation(api.projects.createProject);
@@ -131,6 +103,7 @@ export function NewTaskForm() {
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const [isSorting, setIsSorting] = useState(false); // NEW
   
   const formRef = useRef<HTMLFormElement>(null);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
@@ -155,6 +128,7 @@ export function NewTaskForm() {
   const resetForm = () => {
     setTitle(""); setIsUrgent(false); setIsImportant(false); setIsForFunsies(false);
     setIsToday(false); setListCategory("Current"); setDoOnDate(null); setDoByDate(null); setProjectId(null);
+    setIsSorting(false); // Reset sort
     editor?.commands.setContent("");
   };
 
@@ -182,7 +156,7 @@ export function NewTaskForm() {
             doOnDate: stateRef.current.doOnDate,
             doByDate: stateRef.current.doByDate,
             projectId: stateRef.current.projectId as any,
-            sessionId: sessionId ?? undefined, // NEW: Binds task to guest if logged out
+            sessionId: sessionId ?? undefined, 
           });
           setIsExpanded(false);
           setTimeout(() => resetForm(), 300);
@@ -205,7 +179,7 @@ export function NewTaskForm() {
       title: title.trim() || "Unknown Task",
       description: (editor && !editor.isEmpty) ? editor.getHTML() : undefined,
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
-      sessionId: sessionId ?? undefined, // NEW: Binds task to guest if logged out
+      sessionId: sessionId ?? undefined, 
     });
     setIsExpanded(false);
     setTimeout(() => resetForm(), 300);
@@ -286,6 +260,11 @@ export function NewTaskForm() {
         @media (prefers-color-scheme: dark) {
           .tiptap input[type="checkbox"] { border-color: #52525b; }
         }
+
+        /* NEW: CSS Flexbox sorting! */
+        .sort-checklists ul[data-type="taskList"] { display: flex !important; flex-direction: column !important; }
+        .sort-checklists li[data-type="taskItem"] { order: 1 !important; transition: opacity 0.2s ease; }
+        .sort-checklists li[data-type="taskItem"][data-checked="true"] { order: 2 !important; opacity: 0.6; }
       `}</style>
       <form 
         ref={formRef}
@@ -317,9 +296,10 @@ export function NewTaskForm() {
             <div className="space-y-3 w-full sm:ml-7 sm:pr-7 pb-1">
               
               <div className="w-full bg-zinc-50 dark:bg-[#1a1a1a] rounded-xl p-3 border border-[var(--border)] mt-2">
-                <EditorToolbar editor={editor} />
+                <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} />
+                {/* NEW: CSS Class wrapper triggers the flexbox sort */}
                 <div 
-                  className="w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[80px]"
+                  className={`w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[80px] ${isSorting ? "sort-checklists" : ""}`}
                   onClick={() => editor?.commands.focus()}
                 >
                   <EditorContent editor={editor} className="tiptap outline-none h-full break-words" />
