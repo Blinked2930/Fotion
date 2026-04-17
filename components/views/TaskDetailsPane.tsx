@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
   Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered,
-  Globe, Link as LinkIcon 
+  Globe, Link as LinkIcon, ListFilter 
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -20,8 +20,8 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 import { getProjectColor, getListColor } from "./NewTaskForm";
-import { useAuth } from "@clerk/nextjs"; // NEW: To check if it's you or a guest
-import { useGuestSession } from "@/hooks/useGuestSession"; // NEW: To check guest task ownership
+import { useAuth } from "@clerk/nextjs";
+import { useGuestSession } from "@/hooks/useGuestSession"; 
 
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
@@ -132,14 +132,57 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
 
 const EditorToolbar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
+
+  // NEW: Sorts checklist items natively inside the AST
+  const handleSortChecklists = () => {
+    const sortListNodes = (nodes: any[]) => {
+      if (!Array.isArray(nodes)) return nodes;
+      return nodes.map(node => {
+        const newNode = { ...node };
+
+        if (newNode.content) {
+          newNode.content = sortListNodes(newNode.content);
+        }
+
+        if (newNode.type === 'taskList' && newNode.content) {
+          const unchecked: any[] = [];
+          const checked: any[] = [];
+
+          newNode.content.forEach((child: any) => {
+            if (child.type === 'taskItem') {
+              if (child.attrs?.checked) checked.push(child);
+              else unchecked.push(child);
+            } else {
+              unchecked.push(child); 
+            }
+          });
+
+          // Re-combine: Unchecked first, Checked last
+          newNode.content = [...unchecked, ...checked];
+        }
+        return newNode;
+      });
+    };
+
+    const json = editor.getJSON();
+    if (json.content) {
+      json.content = sortListNodes(json.content);
+      const { from, to } = editor.state.selection;
+      editor.commands.setContent(json);
+      try { editor.commands.setTextSelection({ from, to }); } catch(e) {}
+    }
+  };
+
   return (
     <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
-      <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
       <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
-      <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
+      <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
+      <button type="button" onClick={handleSortChecklists} title="Sort Checkboxes (Unchecked first)" className="p-1.5 rounded shrink-0 transition-colors text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]"><ListFilter className="w-4 h-4" /></button>
     </div>
   );
 };
@@ -149,8 +192,8 @@ function PaneContent() {
   const searchParams = useSearchParams();
   const taskId = searchParams.get("taskId") as Id<"tasks"> | null;
 
-  const { isSignedIn } = useAuth(); // AUTH CHECK
-  const guestSessionId = useGuestSession(); // GUEST ID CHECK
+  const { isSignedIn } = useAuth(); 
+  const guestSessionId = useGuestSession(); 
 
   const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
   const [isOpen, setIsOpen] = useState(false);
@@ -354,7 +397,6 @@ function PaneContent() {
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-24 max-w-full">
             
-            {/* CLEANER SHARE HEADER - LOCKED TO OWNER */}
             <div className="flex items-center justify-between mb-4">
               <div>
                 {task.isPublic && (
@@ -480,7 +522,6 @@ function PaneContent() {
             <X className="w-4 h-4 -ml-1" /> Close
           </button>
 
-          {/* LOCKED DELETE: Only owners OR the guest who originally created it can delete it */}
           {task !== undefined && task !== null && (isSignedIn || task.sessionId === guestSessionId) && (
             <button 
               type="button" 

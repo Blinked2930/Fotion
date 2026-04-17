@@ -4,11 +4,11 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { Loader2, Sun } from "lucide-react";
-import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
+import { useGuestSession } from "@/hooks/useGuestSession"; 
 
 export function TodayView() {
-  const sessionId = useGuestSession(); // NEW
-  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); // NEW
+  const sessionId = useGuestSession(); 
+  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
 
   if (tasks === undefined) {
     return (
@@ -19,15 +19,22 @@ export function TodayView() {
   }
 
   const todayStr = new Date().toDateString();
+  const startOfToday = new Date(todayStr).getTime();
   
   const isDateToday = (timestamp?: number | null) => {
     if (!timestamp) return false;
     return new Date(timestamp).toDateString() === todayStr;
   };
 
+  const isOverdue = (timestamp?: number | null) => {
+    if (!timestamp) return false;
+    return timestamp < startOfToday;
+  };
+
+  // NEW: Forces overdue tasks into the Today board
   const activeTasks = tasks.filter(t => 
     t.status !== "done" &&
-    (t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate))
+    (t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate) || isOverdue(t.doOnDate) || isOverdue(t.doByDate))
   );
 
   const doneTasks = tasks.filter(t => 

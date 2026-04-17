@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare } from "lucide-react";
+import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare, ListFilter } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
-import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
+import { useGuestSession } from "@/hooks/useGuestSession"; 
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, InputRule } from '@tiptap/core';
@@ -56,6 +56,47 @@ export const getListColor = (list: string) => {
 
 const EditorToolbar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
+
+  // NEW: Sorts checklist items natively inside the AST
+  const handleSortChecklists = () => {
+    const sortListNodes = (nodes: any[]) => {
+      if (!Array.isArray(nodes)) return nodes;
+      return nodes.map(node => {
+        const newNode = { ...node };
+
+        if (newNode.content) {
+          newNode.content = sortListNodes(newNode.content);
+        }
+
+        if (newNode.type === 'taskList' && newNode.content) {
+          const unchecked: any[] = [];
+          const checked: any[] = [];
+
+          newNode.content.forEach((child: any) => {
+            if (child.type === 'taskItem') {
+              if (child.attrs?.checked) checked.push(child);
+              else unchecked.push(child);
+            } else {
+              unchecked.push(child); 
+            }
+          });
+
+          // Re-combine: Unchecked first, Checked last
+          newNode.content = [...unchecked, ...checked];
+        }
+        return newNode;
+      });
+    };
+
+    const json = editor.getJSON();
+    if (json.content) {
+      json.content = sortListNodes(json.content);
+      const { from, to } = editor.state.selection;
+      editor.commands.setContent(json);
+      try { editor.commands.setTextSelection({ from, to }); } catch(e) {}
+    }
+  };
+
   return (
     <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
       <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><Bold className="w-3.5 h-3.5" /></button>
@@ -64,6 +105,8 @@ const EditorToolbar = ({ editor }: { editor: any }) => {
       <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><List className="w-3.5 h-3.5" /></button>
       <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><ListOrdered className="w-3.5 h-3.5" /></button>
       <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}><CheckSquare className="w-3.5 h-3.5" /></button>
+      <div className="w-px h-3 bg-[var(--border)] mx-1 shrink-0" />
+      <button type="button" onClick={handleSortChecklists} title="Sort Checkboxes (Unchecked first)" className="p-1.5 rounded shrink-0 transition-colors text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"><ListFilter className="w-3.5 h-3.5" /></button>
     </div>
   );
 };

@@ -5,10 +5,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
   Loader2, Lock, CheckCircle2, Circle, Bold, Italic, List, ListOrdered, CheckSquare, Globe, 
-  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check, BookmarkPlus, LayoutGrid 
+  Calendar, AlignLeft, Folder, PlayCircle, Sigma, Check, BookmarkPlus, LayoutGrid, ListFilter 
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link"; // NEW: For navigation back to their home matrix
+import Link from "next/link"; 
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, InputRule } from '@tiptap/core';
@@ -18,7 +18,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "@/components/views/NewTaskForm";
-import { useGuestSession } from "@/hooks/useGuestSession"; // NEW: Identify the guest!
+import { useGuestSession } from "@/hooks/useGuestSession"; 
 
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
@@ -34,14 +34,57 @@ const DoubleSpaceFix = Extension.create({
 
 const EditorToolbar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
+
+  // NEW: Sorts checklist items natively inside the AST
+  const handleSortChecklists = () => {
+    const sortListNodes = (nodes: any[]) => {
+      if (!Array.isArray(nodes)) return nodes;
+      return nodes.map(node => {
+        const newNode = { ...node };
+
+        if (newNode.content) {
+          newNode.content = sortListNodes(newNode.content);
+        }
+
+        if (newNode.type === 'taskList' && newNode.content) {
+          const unchecked: any[] = [];
+          const checked: any[] = [];
+
+          newNode.content.forEach((child: any) => {
+            if (child.type === 'taskItem') {
+              if (child.attrs?.checked) checked.push(child);
+              else unchecked.push(child);
+            } else {
+              unchecked.push(child); 
+            }
+          });
+
+          // Re-combine: Unchecked first, Checked last
+          newNode.content = [...unchecked, ...checked];
+        }
+        return newNode;
+      });
+    };
+
+    const json = editor.getJSON();
+    if (json.content) {
+      json.content = sortListNodes(json.content);
+      const { from, to } = editor.state.selection;
+      editor.commands.setContent(json);
+      try { editor.commands.setTextSelection({ from, to }); } catch(e) {}
+    }
+  };
+
   return (
     <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
-      <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
       <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
-      <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
-      <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
+      <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
+      <button type="button" onClick={handleSortChecklists} title="Sort Checkboxes (Unchecked first)" className="p-1.5 rounded shrink-0 transition-colors text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]"><ListFilter className="w-4 h-4" /></button>
     </div>
   );
 };
@@ -99,7 +142,7 @@ export default function SharedTaskPage() {
   const params = useParams();
   const token = params.token as string;
   
-  const sessionId = useGuestSession(); // Initialize Guest engine!
+  const sessionId = useGuestSession(); 
   
   const task = useQuery(api.shared.getPublicTask, { token });
   const updateTask = useMutation(api.shared.updatePublicTask);
@@ -110,7 +153,6 @@ export default function SharedTaskPage() {
   const [title, setTitle] = useState("");
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
-  // Check if they already saved this task to their matrix previously
   useEffect(() => {
     if (task && sessionId && task.sharedWithSessions?.includes(sessionId)) {
       setIsSavedToMatrix(true);
@@ -201,7 +243,6 @@ export default function SharedTaskPage() {
               <Link href="/" className="font-bold text-2xl tracking-tight text-[var(--foreground)] hover:opacity-80 transition-opacity">
                 Fotion
               </Link>
-              {/* NEW: Explicit Home Button for Guests */}
               <Link href="/" className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-[var(--foreground)] transition-colors bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 px-3 py-1.5 rounded-full border border-[var(--border)]">
                 <LayoutGrid className="w-3.5 h-3.5" />
                 My Matrix
@@ -214,7 +255,6 @@ export default function SharedTaskPage() {
                 <Globe className="w-3.5 h-3.5" /> Guest Access
               </span>
               
-              {/* NEW: ADD TO MATRIX BUTTON */}
               {sessionId && (
                 <button 
                   onClick={handleSaveToMatrix}

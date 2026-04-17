@@ -68,7 +68,6 @@ function PillDropdown({
   );
 }
 
-// NEW: Sub-component to handle text highlighting
 function HighlightText({ text, query }: { text: string, query?: string }) {
   if (!query) return <>{text}</>;
   const parts = text.split(new RegExp(`(${query})`, 'gi'));
@@ -92,7 +91,7 @@ export function TaskCard({
   hideTodayTag = false, 
   hideDoOnDate = false,
   hideDoByDate = false,
-  searchQuery = "" // NEW: Accepts the search query to trigger highlights
+  searchQuery = "" 
 }: { 
   task: any, 
   compact?: boolean,
@@ -123,7 +122,6 @@ export function TaskCard({
   };
 
   const isDone = task.status === "done";
-  const project = projects?.find(p => p._id === task.projectId);
 
   const now = new Date();
   const todayStr = now.toDateString();
@@ -132,12 +130,13 @@ export function TaskCard({
   let isOverdue = false;
   let demandsAttentionToday = false; 
 
-  if (task.doByDate) {
-    if (task.doByDate < startOfToday) {
-      isOverdue = true;
-    } else if (new Date(task.doByDate).toDateString() === todayStr) {
-      demandsAttentionToday = true;
-    }
+  // NEW: Check both dates for overdue status!
+  if ((task.doByDate && task.doByDate < startOfToday) || (task.doOnDate && task.doOnDate < startOfToday)) {
+    isOverdue = true;
+  }
+
+  if (task.doByDate && new Date(task.doByDate).toDateString() === todayStr) {
+    demandsAttentionToday = true;
   }
 
   const isScheduledForToday = task.doOnDate && new Date(task.doOnDate).toDateString() === todayStr;
@@ -168,9 +167,6 @@ export function TaskCard({
     ...projects.map(p => ({ label: p.name, value: p._id }))
   ] : [];
 
-  // ==========================================
-  // COMPLETED STATE
-  // ==========================================
   if (isDone) {
     return (
       <div 
@@ -184,32 +180,25 @@ export function TaskCard({
           <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
         </button>
         <span className="text-[14px] sm:text-[15px] text-zinc-500 line-through break-words leading-tight flex-1">
-          {/* NEW: Highlights applied here */}
           <HighlightText text={task.title} query={searchQuery} />
         </span>
       </div>
     );
   }
 
-  // ==========================================
-  // ACTIVE STATE
-  // ==========================================
   return (
     <div 
       onClick={() => router.push(`/?taskId=${task._id}`)}
       className={`group flex flex-col p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass} w-full`}
     >
-      {/* TOP SECTION */}
       <div className="flex items-start gap-3 w-full">
         <button 
           onClick={toggleTaskCompletion}
           className={`mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border bg-transparent ${isOverdue ? 'border-red-300 dark:border-red-700 hover:border-red-500' : demandsAttentionToday ? 'border-amber-300 dark:border-amber-700 hover:border-amber-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'}`}
         />
-        
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <span className="text-[14px] sm:text-[15px] font-medium text-[var(--foreground)] break-words leading-tight mt-0.5">
-              {/* NEW: Highlights applied here */}
               <HighlightText text={task.title} query={searchQuery} />
             </span>
             {task.description && task.description !== "<p></p>" && (
@@ -221,55 +210,33 @@ export function TaskCard({
         </div>
       </div>
       
-      {/* BOTTOM SECTION */}
       <div className={`flex flex-wrap items-center gap-2 w-full pt-3 mt-3 border-t ${borderLineClass}`}>
-
         {!hideProjectTag && (
           <PillDropdown 
             currentValue={task.projectId || null}
             options={projectOptions}
             onSelect={(val) => handleInlineUpdate("projectId", val)}
             renderPill={(val) => {
-              if (!val) {
-                return (
-                  <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(null)}`}>
-                    <Folder className="w-3 h-3 shrink-0 opacity-50" />
-                    <span className="truncate max-w-[80px] sm:max-w-[120px]">None</span>
-                  </span>
-                );
-              }
+              if (!val) return <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(null)}`}><Folder className="w-3 h-3 shrink-0 opacity-50" /><span className="truncate max-w-[80px] sm:max-w-[120px]">None</span></span>;
               const p = projects?.find(proj => proj._id === val);
-              return (
-                <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(val)}`}>
-                  <Folder className="w-3 h-3 shrink-0" />
-                  <span className="truncate max-w-[80px] sm:max-w-[120px]">{p ? p.name : "Unknown"}</span>
-                </span>
-              );
+              return <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getProjectColor(val)}`}><Folder className="w-3 h-3 shrink-0" /><span className="truncate max-w-[80px] sm:max-w-[120px]">{p ? p.name : "Unknown"}</span></span>;
             }}
           />
         )}
-
         {!hidePipelineTag && (
           <PillDropdown 
             currentValue={task.listCategory || "Current"}
             options={pipelineOptions}
             onSelect={(val) => handleInlineUpdate("listCategory", val)}
-            renderPill={(val) => (
-              <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}>
-                <List className="w-3 h-3 shrink-0" />
-                <span className="truncate max-w-[80px]">{val}</span>
-              </span>
-            )}
+            renderPill={(val) => <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}><List className="w-3 h-3 shrink-0" /><span className="truncate max-w-[80px]">{val}</span></span>}
           />
         )}
-
         {!hideDoOnDate && task.doOnDate && (
           <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">
             <Calendar className="w-3 h-3 shrink-0" />
             On: {new Date(task.doOnDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           </span>
         )}
-
         {!hideDoByDate && task.doByDate && (
           <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
             isOverdue ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-900/50' : 
@@ -280,11 +247,9 @@ export function TaskCard({
             Due: {new Date(task.doByDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           </span>
         )}
-
         {!hideMatrixTags && task.isUrgent && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50">Urgent</span>}
         {!hideMatrixTags && task.isImportant && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">Important</span>}
         {!hideMatrixTags && task.isForFunsies && <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50">For Funsies</span>}
-        
       </div>
     </div>
   );
