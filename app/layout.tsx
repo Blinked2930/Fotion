@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { ClerkProvider } from "@clerk/nextjs";
+import { ThemeProvider } from "@/components/ThemeProvider"; // <-- Using our new wrapper!
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,9 +49,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-[var(--background)]">
-        <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
-          <ConvexClientProvider>{children}</ConvexClientProvider>
-        </ClerkProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+            <ConvexClientProvider>{children}</ConvexClientProvider>
+          </ClerkProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
