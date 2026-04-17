@@ -21,7 +21,7 @@ import { TaskCard } from "@/components/ui/TaskCard";
 import { useTheme } from "next-themes";
 
 function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -29,11 +29,11 @@ function ThemeToggle() {
 
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       className="p-1.5 text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
       title="Toggle Dark Mode"
     >
-      {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
     </button>
   );
 }
@@ -98,10 +98,67 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
   );
 }
 
-// ... ExportButton and CustomUserMenu components remain exactly the same ...
 function ExportButton() {
   const tasks = useQuery(api.tasks.getTasks);
-  const handleExport = () => { /* Logic remains unchanged */ };
+  
+  const handleExport = () => {
+    if (!tasks || tasks.length === 0) return;
+
+    const headers = [
+      "Task ID", "Created At", "Title", "Status", "Pipelines", 
+      "Project ID", "Is Today", "Is Urgent", "Is Important", 
+      "Is For Funsies", "Do On Date", "Due By Date", "Notes (Plain Text)"
+    ];
+
+    const stripHtml = (html: string) => {
+      if (!html) return "";
+      return html
+        .replace(/<\/(p|div|h[1-6])>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<li>/gi, '- ')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<[^>]*>?/gm, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim();
+    };
+
+    const escapeCsvCell = (cell: any) => {
+      if (cell === null || cell === undefined) return '""';
+      const stringValue = String(cell);
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    };
+
+    const csvRows = tasks.map(task => {
+      return [
+        task._id,
+        new Date(task._creationTime).toISOString(),
+        task.title,
+        task.status,
+        task.listCategory || "Current",
+        task.projectId || "None",
+        !!task.isToday,
+        !!task.isUrgent,
+        !!task.isImportant,
+        !!task.isForFunsies,
+        task.doOnDate ? new Date(task.doOnDate).toLocaleDateString() : "",
+        task.doByDate ? new Date(task.doByDate).toLocaleDateString() : "",
+        stripHtml(task.description || "")
+      ].map(escapeCsvCell).join(",");
+    });
+
+    const csvString = [headers.map(escapeCsvCell).join(","), ...csvRows].join("\n");
+
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `fotion-export-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <button onClick={handleExport} className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-[var(--foreground)] transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
       <Download className="w-4 h-4" /> Export
@@ -113,6 +170,7 @@ function CustomUserMenu() {
   const { signOut } = useClerk();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
@@ -120,16 +178,25 @@ function CustomUserMenu() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setIsOpen(!isOpen)} className="p-1.5 text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors">
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className="p-1.5 text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+      >
         <Settings className="w-4 h-4" />
       </button>
       {isOpen && (
         <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 flex flex-col">
-          <div className="px-1 py-1"><PushToggle /></div>
+          <div className="px-1 py-1">
+            <PushToggle />
+          </div>
           <div className="w-full h-px bg-[var(--border)] my-1"></div>
-          <button onClick={() => signOut()} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+          <button 
+            onClick={() => signOut()} 
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
             <LogOut className="w-4 h-4" /> Sign out
           </button>
         </div>
@@ -145,7 +212,6 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
-  // FIX: Wait for hydration and check local storage before rendering main views
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
@@ -196,7 +262,6 @@ export default function Home() {
               <NewTaskForm />
             </div>
             
-            {/* FIX: Show loader during the hydration split-second to prevent the wrong view from flashing */}
             <div className="mt-4 flex-1">
               {!isMounted ? (
                 <div className="flex items-center justify-center h-64">
