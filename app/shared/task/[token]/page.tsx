@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
-export default function SharedTaskRedirect({ params }: { params: { token: string } }) {
+// FIX: Removed the synchronous 'params' prop to satisfy Next.js strict PageProps typing
+export default function SharedTaskRedirect() {
   const router = useRouter();
 
   useEffect(() => {
