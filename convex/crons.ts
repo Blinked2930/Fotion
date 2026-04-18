@@ -3,11 +3,11 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// The real daily briefing (Fires at 7:00 AM UTC / 9:00 AM Local)
+// Run the Janitor every night at midnight UTC
 crons.daily(
-  "Send morning briefing",
-  { hourUTC: 7, minuteUTC: 0 },
-  internal.push.triggerMorningBriefing
+  "clear-old-demo-sandboxes",
+  { hourUTC: 0, minuteUTC: 0 },
+  internal.demo.cleanupOldDemos
 );
 
 export default crons;
