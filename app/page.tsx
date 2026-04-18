@@ -12,7 +12,7 @@ import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
-import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, LayoutGrid, CheckCircle2 } from "lucide-react";
+import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
@@ -178,6 +178,11 @@ function CustomUserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleExitDemo = () => {
+    localStorage.removeItem("fotion-session-id");
+    window.location.reload();
+  };
+
   return (
     <div className="relative" ref={ref}>
       <button 
@@ -197,11 +202,18 @@ function CustomUserMenu() {
               </button>
             </>
           ) : (
-            <SignInButton mode="modal">
-              <button className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                <LogOut className="w-4 h-4 rotate-180" /> Owner Sign In
+            <>
+              {/* Added the Exit Sandbox button here so you can easily reset tests */}
+              <button onClick={handleExitDemo} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <X className="w-4 h-4" /> Exit Sandbox
               </button>
-            </SignInButton>
+              <div className="w-full h-px bg-[var(--border)] my-1"></div>
+              <SignInButton mode="modal">
+                <button className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors">
+                  <LogOut className="w-4 h-4 rotate-180" /> Owner Sign In
+                </button>
+              </SignInButton>
+            </>
           )}
         </div>
       )}
@@ -216,23 +228,19 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
-  // NEW: State to manage the Demo Landing Page
   const [hasEnteredDemo, setHasEnteredDemo] = useState(false);
   const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
   const seedDemoData = useMutation(api.demo.seedDemoData);
 
   const { isLoaded, isSignedIn } = useAuth();
   
-  // We grab the hook, but we might overwrite it locally for the demo
   const [localSessionId, setLocalSessionId] = useState<string | null>(null);
   const guestSessionId = useGuestSession();
-  const activeSessionId = localSessionId || guestSessionId;
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
-    // Check if they are already in an active demo session
     const currentSession = localStorage.getItem("fotion-session-id");
     if (currentSession?.startsWith("demo_user_")) {
       setHasEnteredDemo(true);
@@ -250,23 +258,20 @@ export default function Home() {
   const handleStartDemo = async () => {
     setIsGeneratingDemo(true);
     try {
-      // 1. Mint a fresh, strict demo session ID
       const newDemoId = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
       
-      // 2. Save it to local storage to persist the sandbox
       localStorage.setItem("fotion-session-id", newDemoId);
       setLocalSessionId(newDemoId);
 
-      // 3. Fire the backend mutation to inject the curated tasks
       await seedDemoData({ sessionId: newDemoId });
       
-      // 4. Unlock the dashboard!
       setHasEnteredDemo(true);
+      
+      window.location.reload();
     } catch (error) {
       console.error("Failed to generate demo data:", error);
-    } finally {
       setIsGeneratingDemo(false);
-    }
+    } 
   };
 
   if (!isLoaded || (!isSignedIn && guestSessionId === null && !isMounted)) {
@@ -277,48 +282,48 @@ export default function Home() {
     );
   }
 
-  // THE NEW INTERCEPT: The Portfolio Demo Landing Page
+  // REDESIGNED PORTFOLIO INTERCEPT (Minimal & Focused)
   if (!isSignedIn && !hasEnteredDemo) {
     return (
-      <div className="min-h-[100dvh] bg-[var(--background)] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
+        
+        {/* Subtle Line-Art Background Texture */}
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02] pointer-events-none">
+          <svg className="absolute top-[15%] left-[10%] w-64 h-64 text-zinc-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="0.5">
+            <circle cx="12" cy="12" r="10" />
+          </svg>
+          <svg className="absolute bottom-[20%] right-[10%] w-96 h-96 text-zinc-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="0.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg className="absolute top-[40%] right-[25%] w-32 h-32 text-zinc-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="0.5">
+            <circle cx="12" cy="12" r="10" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+          </svg>
+        </div>
+
+        <div className="max-w-sm w-full space-y-10 relative z-10">
           
-          <div className="flex justify-center mb-8">
-            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center shadow-inner border border-blue-200 dark:border-blue-900/50">
-              <LayoutGrid className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          <div className="flex justify-center">
+            <div className="relative w-20 h-20">
+              <div className="absolute inset-0 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center border border-emerald-200 dark:border-emerald-900/50 shadow-sm">
+                <Sun className="w-10 h-10 text-emerald-600 dark:text-emerald-400 absolute opacity-50 rotate-45 scale-110" strokeWidth={1.5} />
+                <CheckCircle2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400 relative z-10 bg-emerald-100 dark:bg-[#1a251f] rounded-full" />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h1 className="text-4xl font-bold tracking-tight text-[var(--foreground)]">Fotion</h1>
-            <p className="text-lg text-zinc-500 dark:text-zinc-400">
-              A deeply customized, serverless task engine built on Next.js, Clerk, and Convex.
+          <div className="space-y-4">
+            <h1 className="text-5xl font-extrabold tracking-tight text-[var(--foreground)]">Fotion</h1>
+            <p className="text-[17px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+              A minimalist, serverless task matrix built for deep focus.
             </p>
           </div>
 
-          <div className="bg-zinc-50 dark:bg-[#151515] border border-[var(--border)] rounded-2xl p-6 text-left space-y-4">
-            <h3 className="font-semibold text-[var(--foreground)] text-sm tracking-wide uppercase">Features to test:</h3>
-            <ul className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                <span>Rich-text TipTap editor with custom CSS checklist sorting</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                <span>The 4-quadrant Eisenhower Matrix drag-and-drop UI</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                <span>Automated "Overdue" detection tracking both dates</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="pt-4 flex flex-col gap-4">
+          <div className="pt-2 flex flex-col gap-5">
             <button 
               onClick={handleStartDemo}
               disabled={isGeneratingDemo}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3.5 px-4 rounded-xl font-semibold shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border dark:border-emerald-800/50 py-3.5 px-4 rounded-xl font-bold transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isGeneratingDemo ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /> Generating Sandbox...</>
@@ -330,15 +335,15 @@ export default function Home() {
             <div className="flex items-center justify-center gap-2 text-sm text-zinc-500">
               <span>Are you the owner?</span>
               <SignInButton mode="modal">
-                <button className="font-medium text-[var(--foreground)] hover:underline outline-none">
+                <button className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline outline-none">
                   Sign In
                 </button>
               </SignInButton>
             </div>
           </div>
 
-          <p className="text-xs text-zinc-400 mt-8">
-            This demo uses an Anonymous Cloud Session. All data is isolated to your browser and will be cleared in 48 hours.
+          <p className="text-xs text-zinc-400 font-medium pt-2">
+            Sandbox sessions are isolated to your browser and automatically clear after 48 hours.
           </p>
 
         </div>
@@ -346,16 +351,15 @@ export default function Home() {
     );
   }
 
-  // The Main Dashboard Render (with localSessionId forced if active)
+  // The Main Dashboard Render
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col">
       <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3 text-[15px]">
             <span className="font-semibold text-[var(--foreground)] tracking-tight">Fotion</span>
-            {/* Dynamic visual indicator for anonymous demo users */}
             {!isSignedIn && (
-              <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold tracking-wider uppercase border border-blue-200 dark:border-blue-900/50">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] font-bold tracking-wider uppercase border border-emerald-200 dark:border-emerald-900/50 shadow-sm">
                 Demo Sandbox
               </span>
             )}
@@ -373,7 +377,7 @@ export default function Home() {
             </button>
             
             {isSignedIn && (
-              <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors px-2 py-1 rounded-md">
+              <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors px-2 py-1 rounded-md">
                 <Zap className="w-4 h-4" /> Import
               </button>
             )}
