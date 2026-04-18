@@ -178,6 +178,11 @@ function CustomUserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleExitDemo = () => {
+    localStorage.removeItem("fotion-session-id");
+    window.location.reload();
+  };
+
   return (
     <div className="relative" ref={ref}>
       <button 
@@ -197,11 +202,18 @@ function CustomUserMenu() {
               </button>
             </>
           ) : (
-            <SignInButton mode="modal">
-              <button className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors">
-                <LogOut className="w-4 h-4 rotate-180" /> Owner Sign In
+            <>
+              {/* Added the Exit Sandbox button here so you can easily reset tests */}
+              <button onClick={handleExitDemo} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <X className="w-4 h-4" /> Exit Sandbox
               </button>
-            </SignInButton>
+              <div className="w-full h-px bg-[var(--border)] my-1"></div>
+              <SignInButton mode="modal">
+                <button className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors">
+                  <LogOut className="w-4 h-4 rotate-180" /> Owner Sign In
+                </button>
+              </SignInButton>
+            </>
           )}
         </div>
       )}
@@ -255,7 +267,6 @@ export default function Home() {
       
       setHasEnteredDemo(true);
       
-      // CRITICAL FIX: Force a reload to sync the new session token across all child hooks
       window.location.reload();
     } catch (error) {
       console.error("Failed to generate demo data:", error);
@@ -271,7 +282,7 @@ export default function Home() {
     );
   }
 
-  // REDESIGNED PORTFOLIO INTERCEPT
+  // REDESIGNED PORTFOLIO INTERCEPT (Minimal & Focused)
   if (!isSignedIn && !hasEnteredDemo) {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
@@ -290,10 +301,9 @@ export default function Home() {
           </svg>
         </div>
 
-        <div className="max-w-md w-full space-y-8 relative z-10">
+        <div className="max-w-sm w-full space-y-10 relative z-10">
           
-          {/* Bespoke Geometric Logo */}
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center">
             <div className="relative w-20 h-20">
               <div className="absolute inset-0 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center border border-emerald-200 dark:border-emerald-900/50 shadow-sm">
                 <Sun className="w-10 h-10 text-emerald-600 dark:text-emerald-400 absolute opacity-50 rotate-45 scale-110" strokeWidth={1.5} />
@@ -302,32 +312,14 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h1 className="text-4xl font-bold tracking-tight text-[var(--foreground)]">Fotion</h1>
-            <p className="text-lg text-zinc-500 dark:text-zinc-400">
-              A deeply customized, serverless task engine built on Next.js, Clerk, and Convex.
+          <div className="space-y-4">
+            <h1 className="text-5xl font-extrabold tracking-tight text-[var(--foreground)]">Fotion</h1>
+            <p className="text-[17px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+              A minimalist, serverless task matrix built for deep focus.
             </p>
           </div>
 
-          <div className="bg-white dark:bg-[#1a1a1a] border border-zinc-200 dark:border-zinc-800 shadow-sm rounded-2xl p-6 text-left space-y-4">
-            <h3 className="font-semibold text-[var(--foreground)] text-sm tracking-wide uppercase">Features to test:</h3>
-            <ul className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400 font-medium">
-              <li className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span>Rich-text TipTap editor with custom CSS checklist sorting</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span>The 4-quadrant Eisenhower Matrix drag-and-drop UI</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span>Automated "Overdue" detection tracking both dates</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="pt-4 flex flex-col gap-4">
+          <div className="pt-2 flex flex-col gap-5">
             <button 
               onClick={handleStartDemo}
               disabled={isGeneratingDemo}
@@ -350,8 +342,8 @@ export default function Home() {
             </div>
           </div>
 
-          <p className="text-xs text-zinc-400 mt-8 font-medium">
-            This demo uses an Anonymous Cloud Session. All data is isolated to your browser and will be cleared in 48 hours.
+          <p className="text-xs text-zinc-400 font-medium pt-2">
+            Sandbox sessions are isolated to your browser and automatically clear after 48 hours.
           </p>
 
         </div>
