@@ -1,19 +1,58 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 
+function parseSessionId(raw?: string) {
+  if (!raw) return { actualSessionId: undefined, vipToken: undefined };
+  if (raw.includes("||vip_")) {
+    const parts = raw.split("||vip_");
+    return { actualSessionId: parts[0], vipToken: parts[1] };
+  }
+  return { actualSessionId: raw, vipToken: undefined };
+}
+
 export const getProjects = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { sessionId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const { actualSessionId, vipToken } = parseSessionId(args.sessionId);
+    
     const projects = await ctx.db.query("projects").collect();
-    // Only return projects that are NOT archived
-    return projects.filter(p => !p.isArchived);
+    const unarchivedProjects = projects.filter(p => !p.isArchived);
+
+    // 1. THE OWNER: Returns all their official projects
+    if (identity) {
+        return unarchivedProjects.filter(p => !p.sessionId);
+    }
+
+    // 2. THE VIP/GUEST: We need to see what tasks they are allowed to view, 
+    // so we can also show them the name of the folder that task belongs to.
+    const allTasks = await ctx.db.query("tasks").collect();
+    const visibleSharedTaskProjectIds = allTasks
+        .filter(t => vipToken && t.isPublic && t.shareToken === vipToken && t.projectId)
+        .map(t => t.projectId);
+
+    return unarchivedProjects.filter(p => {
+        // Show projects they specifically created in their sandbox
+        if (actualSessionId && p.sessionId === actualSessionId) return true;
+        // Show projects that explicitly house a shared task they have a ticket for
+        if (visibleSharedTaskProjectIds.includes(p._id)) return true;
+        return false;
+    });
   },
 });
 
 export const createProject = mutation({
-  args: { name: v.string() },
+  args: { name: v.string(), sessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("projects", { name: args.name, isArchived: false });
+    const identity = await ctx.auth.getUserIdentity();
+    const { actualSessionId } = parseSessionId(args.sessionId);
+    const projectSessionId = identity ? undefined : actualSessionId;
+
+    return await ctx.db.insert("projects", { 
+        name: args.name, 
+        isArchived: false,
+        sessionId: projectSessionId
+    });
   },
 });
 
@@ -24,7 +63,6 @@ export const updateProject = mutation({
   },
 });
 
-// NEW: Archive a project to hide it without deleting its task connections
 export const archiveProject = mutation({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
@@ -32,19 +70,17 @@ export const archiveProject = mutation({
   },
 });
 
-// Full hard delete
 export const deleteProject = mutation({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
-    // Unlink this project from all tasks before deleting safely
     const tasks = await ctx.db.query("tasks")
       .withIndex("by_project", (q) => q.eq("projectId", args.id))
       .collect();
-      
+
     for (const task of tasks) {
       await ctx.db.patch(task._id, { projectId: null });
     }
-    
+
     await ctx.db.delete(args.id);
   },
 });

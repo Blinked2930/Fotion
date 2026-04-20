@@ -37,9 +37,7 @@ const NotionCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () 
 
 function CopyLinkButton({ token }: { token?: string }) {
   const [copied, setCopied] = useState(false);
-  
-  if (!token) return <div className="w-5 h-5 flex-shrink-0" />; // Spacer if empty
-  
+  if (!token) return <div className="w-5 h-5 flex-shrink-0" />; 
   return (
     <button
       onClick={() => {
@@ -138,7 +136,7 @@ export function RawDataView() {
   const { isSignedIn } = useAuth();
   const sessionId = useGuestSession(); 
   const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
-  const projects = useQuery(api.projects.getProjects);
+  const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
   const updateTask = useMutation(api.tasks.updateTask);
   const createProject = useMutation(api.projects.createProject);
 
@@ -160,7 +158,7 @@ export function RawDataView() {
 
   const handleCreateProject = async () => {
     if (newProjectName.trim()) {
-      const newId = await createProject({ name: newProjectName.trim() });
+      const newId = await createProject({ name: newProjectName.trim(), sessionId: sessionId ?? undefined });
       if (pendingTaskId) {
         handleUpdate(pendingTaskId, "projectId", newId);
       }
@@ -200,7 +198,6 @@ export function RawDataView() {
                 <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
                 <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
                 
-                {/* ADMIN ONLY: Custom Share Token Header */}
                 {isSignedIn && <NotionHeader icon={LinkIcon} label="Share Token" minWidth="160px" />}
               </tr>
             </thead>
@@ -306,7 +303,6 @@ export function RawDataView() {
                       </button>
                     </NotionCell>
 
-                    {/* ADMIN ONLY: Share Token Generator Cell */}
                     {isSignedIn && (
                       <NotionCell>
                         <div className="flex items-center gap-2">

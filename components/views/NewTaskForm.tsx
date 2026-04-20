@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare, ListFilter } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
-import { useGuestSession } from "@/hooks/useGuestSession"; 
+import { useGuestSession } from "@/hooks/useGuestSession";
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, InputRule } from '@tiptap/core';
@@ -57,9 +57,9 @@ export const getListColor = (list: string) => {
 import { EditorToolbar } from "./TaskDetailsPane";
 
 export function NewTaskForm() {
-  const sessionId = useGuestSession(); 
+  const sessionId = useGuestSession();
   const createTask = useMutation(api.tasks.createTask);
-  const projects = useQuery(api.projects.getProjects);
+  const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
   const createProject = useMutation(api.projects.createProject);
 
   const [title, setTitle] = useState("");
@@ -71,13 +71,11 @@ export function NewTaskForm() {
   const [doOnDate, setDoOnDate] = useState<number | null>(null);
   const [doByDate, setDoByDate] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
-  
   const [isExpanded, setIsExpanded] = useState(false);
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
-  const [isSorting, setIsSorting] = useState(false); 
-  
+  const [isSorting, setIsSorting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +99,7 @@ export function NewTaskForm() {
   const resetForm = () => {
     setTitle(""); setIsUrgent(false); setIsImportant(false); setIsForFunsies(false);
     setIsToday(false); setListCategory("Current"); setDoOnDate(null); setDoByDate(null); setProjectId(null);
-    setIsSorting(false); 
+    setIsSorting(false);
     editor?.commands.setContent("");
   };
 
@@ -109,10 +107,10 @@ export function NewTaskForm() {
     function handleClickOutside(event: PointerEvent | MouseEvent) {
       if (isModalOpen) return;
       if (projectDropdownRef.current && projectDropdownRef.current.contains(event.target as Node)) return;
-      
+
       if (formRef.current && !formRef.current.contains(event.target as Node)) {
-        setIsProjectDropdownOpen(false); 
-        
+        setIsProjectDropdownOpen(false);
+
         const descriptionHTML = editor?.getHTML() || "";
         const hasNotes = editor && !editor.isEmpty;
         const hasTags = stateRef.current.isUrgent || stateRef.current.isImportant || stateRef.current.isForFunsies || stateRef.current.isToday || stateRef.current.listCategory !== "Current" || stateRef.current.doOnDate || stateRef.current.doByDate || stateRef.current.projectId;
@@ -129,7 +127,7 @@ export function NewTaskForm() {
             doOnDate: stateRef.current.doOnDate,
             doByDate: stateRef.current.doByDate,
             projectId: stateRef.current.projectId as any,
-            sessionId: sessionId ?? undefined, 
+            sessionId: sessionId ?? undefined,
           });
           setIsExpanded(false);
           setTimeout(() => resetForm(), 300);
@@ -152,7 +150,7 @@ export function NewTaskForm() {
       title: title.trim() || "Unknown Task",
       description: (editor && !editor.isEmpty) ? editor.getHTML() : undefined,
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
-      sessionId: sessionId ?? undefined, 
+      sessionId: sessionId ?? undefined,
     });
     setIsExpanded(false);
     setTimeout(() => resetForm(), 300);
@@ -175,7 +173,7 @@ export function NewTaskForm() {
 
   const handleCreateProject = async () => {
     if (newProjectName.trim()) {
-      const newId = await createProject({ name: newProjectName.trim() });
+      const newId = await createProject({ name: newProjectName.trim(), sessionId: sessionId ?? undefined });
       setProjectId(newId);
       setIsModalOpen(false);
       setNewProjectName("");
@@ -235,8 +233,8 @@ export function NewTaskForm() {
         }
       `}</style>
       <form 
-        ref={formRef}
-        onSubmit={handleSubmit}
+        ref={formRef} 
+        onSubmit={handleSubmit} 
         onKeyDownCapture={handleKeyDownCapture}
         className={`relative flex flex-col transition-all rounded-xl border mx-2 sm:mx-0 ${
           isExpanded 
@@ -247,8 +245,8 @@ export function NewTaskForm() {
         <div className="flex items-center gap-2 w-full">
           <Plus className={`w-5 h-5 flex-shrink-0 transition-colors ${isExpanded ? "text-zinc-500" : "text-zinc-300"}`} />
           <div className="flex-1 min-w-0 flex items-center">
-            <input
-              type="text"
+            <input 
+              type="text" 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onFocus={() => setIsExpanded(true)}
@@ -258,7 +256,7 @@ export function NewTaskForm() {
             />
           </div>
         </div>
-            
+
         <div className={`grid transition-all duration-[300ms] ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
           <div className={isExpanded ? "overflow-visible" : "overflow-hidden"}>
             <div className="space-y-3 w-full sm:ml-7 sm:pr-7 pb-1">
@@ -279,7 +277,7 @@ export function NewTaskForm() {
                   <label className="flex items-center gap-2 cursor-pointer hover:text-[var(--foreground)] font-medium">
                     <button 
                       type="button" 
-                      onClick={() => setIsToday(!isToday)} 
+                      onClick={() => setIsToday(!isToday)}
                       className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}
                     >
                       {isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
@@ -318,7 +316,7 @@ export function NewTaskForm() {
                       <button type="button" onClick={() => setIsForFunsies(!isForFunsies)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isForFunsies ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>For Funsies</button>
                     </div>
                   </div>
-
+                  
                   <div>
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">List</span>
                     <div className="flex gap-2">

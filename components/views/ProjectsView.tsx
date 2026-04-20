@@ -6,12 +6,12 @@ import { api } from "@/convex/_generated/api";
 import { Folder, Inbox, Loader2 } from "lucide-react";
 import { getProjectColor } from "./NewTaskForm";
 import { TaskCard } from "@/components/ui/TaskCard";
-import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
+import { useGuestSession } from "@/hooks/useGuestSession"; 
 
 export function ProjectsView() {
-  const sessionId = useGuestSession(); // NEW
-  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); // NEW
-  const projects = useQuery(api.projects.getProjects);
+  const sessionId = useGuestSession(); 
+  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
+  const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | "ALL" | "UNASSIGNED">("ALL");
 
@@ -38,18 +38,18 @@ export function ProjectsView() {
     .sort((a, b) => {
       if (a.isToday && !b.isToday) return -1;
       if (!a.isToday && b.isToday) return 1;
-
+      
       const getScore = (t: any) => {
-        if (t.isUrgent && t.isImportant) return 4; 
-        if (t.isImportant) return 3;               
-        if (t.isUrgent) return 2;                  
-        return 1;                                  
+        if (t.isUrgent && t.isImportant) return 4;
+        if (t.isImportant) return 3;
+        if (t.isUrgent) return 2;
+        return 1;
       };
       
       const scoreA = getScore(a);
       const scoreB = getScore(b);
-      if (scoreA !== scoreB) return scoreB - scoreA; 
-
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      
       if (a.doByDate && !b.doByDate) return -1;
       if (!a.doByDate && b.doByDate) return 1;
       if (a.doByDate && b.doByDate) return a.doByDate - b.doByDate;
@@ -62,18 +62,18 @@ export function ProjectsView() {
     <div className="w-full max-w-4xl mx-auto pb-32 animate-in fade-in duration-300">
       
       <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pt-2 pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-[var(--border)]">
-        <button
+        <button 
           onClick={() => setSelectedProjectId("ALL")}
           className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-all border ${selectedProjectId === "ALL" ? "bg-zinc-800 border-zinc-800 text-white dark:bg-zinc-200 dark:border-zinc-200 dark:text-zinc-900 shadow-sm" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}
         >
           All Tasks
         </button>
-        
+
         {projects.map(p => {
           const isSelected = selectedProjectId === p._id;
           const colorClass = getProjectColor(p._id);
           return (
-            <button
+            <button 
               key={p._id}
               onClick={() => setSelectedProjectId(p._id)}
               className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-all border flex items-center gap-1.5 ${isSelected ? colorClass + ' shadow-sm ring-2 ring-offset-2 ring-offset-[var(--background)] ring-opacity-50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
@@ -84,7 +84,7 @@ export function ProjectsView() {
           );
         })}
 
-        <button
+        <button 
           onClick={() => setSelectedProjectId("UNASSIGNED")}
           className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-all border flex items-center gap-1.5 ${selectedProjectId === "UNASSIGNED" ? "bg-zinc-100 border-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200 shadow-sm" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}
         >
@@ -121,7 +121,7 @@ export function ProjectsView() {
                 <TaskCard 
                   key={task._id} 
                   task={task} 
-                  hideProjectTag={selectedProjectId !== "ALL"} // Hide project tag if filtering by a specific project!
+                  hideProjectTag={selectedProjectId !== "ALL"} 
                   hidePipelineTag={false}
                   hideMatrixTags={false}
                   hideDoByDate={false}

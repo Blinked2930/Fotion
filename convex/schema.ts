@@ -5,7 +5,9 @@ export default defineSchema({
   projects: defineTable({
     name: v.string(),
     isArchived: v.boolean(),
-  }),
+    // NEW: Anonymous Cloud Session Architecture for Projects
+    sessionId: v.optional(v.string()),
+  }).index("by_sessionId", ["sessionId"]),
 
   notes: defineTable({
     title: v.string(),
@@ -45,7 +47,7 @@ export default defineSchema({
     .index("by_listCategory", ["listCategory"])
     .index("by_project", ["projectId"])
     .index("by_shareToken", ["shareToken"])
-    .index("by_sessionId", ["sessionId"]), // High-speed index for guest load times
+    .index("by_sessionId", ["sessionId"]), 
 
   preferences: defineTable({
     userId: v.string(),

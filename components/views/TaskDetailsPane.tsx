@@ -50,7 +50,8 @@ const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string
 );
 
 function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (val: string | null) => void }) {
-  const projects = useQuery(api.projects.getProjects);
+  const sessionId = useGuestSession();
+  const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
   const createProject = useMutation(api.projects.createProject);
   
   const [isOpen, setIsOpen] = useState(false);
@@ -68,7 +69,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
 
   const handleCreate = async () => {
     if (newProjectName.trim()) {
-      const newId = await createProject({ name: newProjectName.trim() });
+      const newId = await createProject({ name: newProjectName.trim(), sessionId: sessionId ?? undefined });
       onChange(newId);
       setIsModalOpen(false);
       setNewProjectName("");
@@ -203,9 +204,7 @@ function PaneContent() {
     }
   }, [taskId]);
 
-  // FIXED: Now we correctly pass the guestSessionId to the individual task fetcher to securely unlock it
   const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId, sessionId: guestSessionId ?? undefined } : "skip");
-  
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTask = useMutation(api.tasks.deleteTask);
 
