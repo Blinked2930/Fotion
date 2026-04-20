@@ -31,7 +31,7 @@ export function TaskCard({
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTask = useMutation(api.tasks.deleteTask);
   
-  // THE FIX: Import the guest session and pass it to the projects query
+  // THE FIX: Import the guest session and pass it to the projects query safely
   const sessionId = useGuestSession();
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
   
