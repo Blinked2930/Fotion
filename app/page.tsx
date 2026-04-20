@@ -164,7 +164,7 @@ function ExportButton() {
   );
 }
 
-function CustomUserMenu() {
+function CustomUserMenu({ sessionType }: { sessionType: "none" | "demo" | "vip" }) {
   const { signOut } = useClerk();
   const { isSignedIn } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -178,9 +178,9 @@ function CustomUserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleExitDemo = () => {
+  const handleExitGuest = () => {
     localStorage.removeItem("fotion-session-id");
-    window.location.reload();
+    window.location.href = "/"; // Force full reload without URL parameters
   };
 
   return (
@@ -203,10 +203,11 @@ function CustomUserMenu() {
             </>
           ) : (
             <>
-              {/* Added the Exit Sandbox button here so you can easily reset tests */}
-              <button onClick={handleExitDemo} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                <X className="w-4 h-4" /> Exit Sandbox
-              </button>
+              {sessionType !== "none" && (
+                <button onClick={handleExitGuest} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                  <X className="w-4 h-4" /> Exit {sessionType === "vip" ? "VIP Access" : "Sandbox"}
+                </button>
+              )}
               <div className="w-full h-px bg-[var(--border)] my-1"></div>
               <SignInButton mode="modal">
                 <button className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors">
@@ -228,23 +229,32 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
-  const [hasEnteredDemo, setHasEnteredDemo] = useState(false);
+  // NEW: Robust Session Type Tracking
+  const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");
   const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
   const seedDemoData = useMutation(api.demo.seedDemoData);
 
   const { isLoaded, isSignedIn } = useAuth();
-  
-  const [localSessionId, setLocalSessionId] = useState<string | null>(null);
   const guestSessionId = useGuestSession();
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
-    const currentSession = localStorage.getItem("fotion-session-id");
-    if (currentSession?.startsWith("demo_user_")) {
-      setHasEnteredDemo(true);
-      setLocalSessionId(currentSession);
+    // THE BOUNCER LOGIC
+    const urlParams = new URLSearchParams(window.location.search);
+    const isVipLink = urlParams.has("vip") || urlParams.has("task");
+
+    if (isVipLink) {
+      localStorage.setItem("fotion-session-id", "vip_access");
+      setSessionType("vip");
+    } else {
+      const currentSession = localStorage.getItem("fotion-session-id");
+      if (currentSession?.startsWith("demo_user_")) {
+        setSessionType("demo");
+      } else if (currentSession === "vip_access") {
+        setSessionType("vip");
+      }
     }
     
     setIsMounted(true);
@@ -259,14 +269,9 @@ export default function Home() {
     setIsGeneratingDemo(true);
     try {
       const newDemoId = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
-      
       localStorage.setItem("fotion-session-id", newDemoId);
-      setLocalSessionId(newDemoId);
 
       await seedDemoData({ sessionId: newDemoId });
-      
-      setHasEnteredDemo(true);
-      
       window.location.reload();
     } catch (error) {
       console.error("Failed to generate demo data:", error);
@@ -282,12 +287,11 @@ export default function Home() {
     );
   }
 
-  // REDESIGNED PORTFOLIO INTERCEPT (Minimal & Focused)
-  if (!isSignedIn && !hasEnteredDemo) {
+  // REDESIGNED PORTFOLIO INTERCEPT (Only shows if NOT signed in AND NO active session)
+  if (!isSignedIn && sessionType === "none") {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
         
-        {/* Subtle Line-Art Background Texture */}
         <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02] pointer-events-none">
           <svg className="absolute top-[15%] left-[10%] w-64 h-64 text-zinc-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="0.5">
             <circle cx="12" cy="12" r="10" />
@@ -302,7 +306,6 @@ export default function Home() {
         </div>
 
         <div className="max-w-sm w-full space-y-10 relative z-10">
-          
           <div className="flex justify-center">
             <div className="relative w-20 h-20">
               <div className="absolute inset-0 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center border border-emerald-200 dark:border-emerald-900/50 shadow-sm">
@@ -358,9 +361,14 @@ export default function Home() {
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3 text-[15px]">
             <span className="font-semibold text-[var(--foreground)] tracking-tight">Fotion</span>
-            {!isSignedIn && (
+            {!isSignedIn && sessionType === "demo" && (
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] font-bold tracking-wider uppercase border border-emerald-200 dark:border-emerald-900/50 shadow-sm">
                 Demo Sandbox
+              </span>
+            )}
+            {!isSignedIn && sessionType === "vip" && (
+              <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] font-bold tracking-wider uppercase border border-purple-200 dark:border-purple-900/50 shadow-sm">
+                VIP Access
               </span>
             )}
           </div>
@@ -385,7 +393,7 @@ export default function Home() {
             <div className="w-px h-5 bg-[var(--border)] mx-1"></div>
             
             <ThemeToggle />
-            <CustomUserMenu />
+            <CustomUserMenu sessionType={sessionType} />
           </div>
         </div>
       </header>

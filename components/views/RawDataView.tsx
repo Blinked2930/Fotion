@@ -7,11 +7,11 @@ import { calculateQuadrant } from "@/lib/eisenhower";
 import { useRouter } from "next/navigation";
 import { 
   Loader2, Type, PlayCircle, Calendar, CheckSquare, 
-  List as ListIcon, Folder, Sigma, Check, Maximize2
+  List as ListIcon, Folder, Sigma, Check, Maximize2, Globe 
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
-import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
+import { useGuestSession } from "@/hooks/useGuestSession"; 
 
 const NotionHeader = ({ icon: Icon, label, minWidth }: { icon: any, label: string, minWidth?: string }) => (
   <th className="border border-[var(--border)] px-3 py-2 font-normal text-zinc-500 dark:text-zinc-400 text-[13px] bg-zinc-50/50 dark:bg-zinc-900/50 text-left align-middle" style={{ minWidth: minWidth || '140px' }}>
@@ -29,7 +29,7 @@ const NotionCell = ({ children }: { children: React.ReactNode }) => (
 );
 
 const NotionCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (
-  <button onClick={onChange} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${checked ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
+  <button onClick={onChange} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${checked ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
     {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
   </button>
 );
@@ -114,8 +114,8 @@ const ListPill = (list: string) => {
 
 export function RawDataView() {
   const router = useRouter();
-  const sessionId = useGuestSession(); // NEW
-  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); // NEW
+  const sessionId = useGuestSession(); 
+  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
   const projects = useQuery(api.projects.getProjects);
   const updateTask = useMutation(api.tasks.updateTask);
   const createProject = useMutation(api.projects.createProject);
@@ -177,6 +177,7 @@ export function RawDataView() {
                 <NotionHeader icon={ListIcon} label="Pipelines" minWidth="160px" />
                 <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
                 <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
+                <NotionHeader icon={Globe} label="Shared?" minWidth="100px" />
               </tr>
             </thead>
             <tbody>
@@ -230,15 +231,22 @@ export function RawDataView() {
                     </NotionCell>
 
                     <NotionCell>
-                      <NotionCheckbox checked={task.isImportant} onChange={() => handleUpdate(task._id, "isImportant", !task.isImportant)} />
+                      {/* Using the pink standard checkbox for core logic */}
+                      <button onClick={() => handleUpdate(task._id, "isImportant", !task.isImportant)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isImportant ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
+                        {task.isImportant && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                      </button>
                     </NotionCell>
 
                     <NotionCell>
-                      <NotionCheckbox checked={task.isUrgent} onChange={() => handleUpdate(task._id, "isUrgent", !task.isUrgent)} />
+                      <button onClick={() => handleUpdate(task._id, "isUrgent", !task.isUrgent)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isUrgent ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
+                        {task.isUrgent && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                      </button>
                     </NotionCell>
 
                     <NotionCell>
-                      <NotionCheckbox checked={task.isForFunsies} onChange={() => handleUpdate(task._id, "isForFunsies", !task.isForFunsies)} />
+                      <button onClick={() => handleUpdate(task._id, "isForFunsies", !task.isForFunsies)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isForFunsies ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
+                        {task.isForFunsies && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                      </button>
                     </NotionCell>
 
                     <NotionCell>
@@ -270,7 +278,13 @@ export function RawDataView() {
                     </NotionCell>
 
                     <NotionCell>
-                      <NotionCheckbox checked={!!task.isToday} onChange={() => handleUpdate(task._id, "isToday", !task.isToday)} />
+                      <button onClick={() => handleUpdate(task._id, "isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
+                        {task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                      </button>
+                    </NotionCell>
+
+                    <NotionCell>
+                      <NotionCheckbox checked={!!task.isPublic} onChange={() => handleUpdate(task._id, "isPublic", !task.isPublic)} />
                     </NotionCell>
                   </tr>
                 );
