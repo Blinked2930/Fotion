@@ -275,9 +275,12 @@ function PaneContent() {
       token = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
       await handleUpdate("isPublic", true);
       await handleUpdate("shareToken", token);
-    } else if (!task.isPublic) await handleUpdate("isPublic", true);
+    } else if (!task.isPublic) {
+      await handleUpdate("isPublic", true);
+    }
 
-    const url = `${window.location.origin}/shared/task/${token}`;
+    // UPDATED: Now generates the correct `/?vip=[token]` routing link instead of `/shared/task/`
+    const url = `${window.location.origin}/?vip=${token}`;
     try {
       await navigator.clipboard.writeText(url);
       setIsCopied(true);
