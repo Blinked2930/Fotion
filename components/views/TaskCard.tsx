@@ -1,27 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { Check, Circle, Clock, Trash2, AlertTriangle } from "lucide-react";
+import { Check, Circle, Clock, Trash2, AlertTriangle, Folder, List } from "lucide-react";
+import { useGuestSession } from "@/hooks/useGuestSession";
 
 interface TaskCardProps {
   task: Doc<"tasks">;
+  searchQuery?: string;
+  hideProjectTag?: boolean;
+  hidePipelineTag?: boolean;
+  hideMatrixTags?: boolean;
+  hideDoByDate?: boolean;
+  hideDoOnDate?: boolean;
 }
 
-export function TaskCard({ task }: TaskCardProps) {
+export function TaskCard({ 
+  task, 
+  searchQuery,
+  hideProjectTag,
+  hidePipelineTag,
+  hideMatrixTags,
+  hideDoByDate,
+  hideDoOnDate 
+}: TaskCardProps) {
+  const router = useRouter();
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTask = useMutation(api.tasks.deleteTask);
-  const router = useRouter();
+  
+  // THE FIX: Import the guest session and pass it to the projects query
+  const sessionId = useGuestSession();
+  const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const toggleStatus = (e: React.MouseEvent) => {
     e.stopPropagation();
     const newStatus = task.status === "done" ? "todo" : "done";
-    updateTask({ id: task._id, status: newStatus });
+    updateTask({ id: task._id, status: newStatus, completedAt: newStatus === "done" ? Date.now() : null });
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -43,18 +62,30 @@ export function TaskCard({ task }: TaskCardProps) {
   const displayDate = task.doByDate || task.doOnDate;
   const plainTextDescription = task.description?.replace(/<[^>]*>?/gm, '');
 
+  const project = projects?.find((p: any) => p._id === task.projectId);
+
+  const highlightText = (text: string, highlight?: string) => {
+    if (!highlight) return text;
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === highlight.toLowerCase() 
+        ? <span key={i} className="bg-yellow-200 dark:bg-yellow-900/50 text-black dark:text-white rounded px-0.5">{part}</span> 
+        : part
+    );
+  };
+
   return (
     <>
       <div 
         onClick={openDetails}
-        className="group flex items-start gap-2 py-1.5 px-2 -mx-2 rounded hover:bg-[#f7f6f3] dark:hover:bg-[#202020] transition-colors cursor-pointer"
+        className="group flex items-start gap-3 py-2.5 px-3 -mx-3 rounded-lg hover:bg-white dark:hover:bg-[#1a1a1a] hover:shadow-sm border border-transparent hover:border-[var(--border)] transition-all cursor-pointer"
       >
         <button
           onClick={toggleStatus}
           className="mt-0.5 flex-shrink-0 text-zinc-300 hover:text-zinc-500 transition-colors"
         >
           {isDone ? (
-            <div className="w-4 h-4 rounded bg-blue-500 flex items-center justify-center">
+            <div className="w-4 h-4 rounded bg-emerald-500 flex items-center justify-center shadow-sm">
               <Check className="w-3 h-3 text-white" strokeWidth={3} />
             </div>
           ) : (
@@ -64,31 +95,59 @@ export function TaskCard({ task }: TaskCardProps) {
 
         <div className="flex-1 min-w-0">
           <h3
-            className={`text-[15px] leading-tight ${
+            className={`text-[15px] font-medium leading-tight ${
               isDone ? "line-through text-zinc-400 dark:text-zinc-500" : "text-[var(--foreground)]"
             }`}
           >
-            {task.title}
+            {highlightText(task.title, searchQuery)}
           </h3>
+          
           {plainTextDescription && !isDone && (
-            <p className="text-sm mt-0.5 text-zinc-500 truncate">
-              {plainTextDescription}
+            <p className="text-sm mt-1 text-zinc-500 line-clamp-2 leading-relaxed">
+              {highlightText(plainTextDescription, searchQuery)}
             </p>
           )}
-          {displayDate && !isDone && (
-            <span className={`flex items-center gap-1 mt-1 text-xs ${task.doByDate && task.doByDate < Date.now() ? 'text-red-400' : 'text-zinc-400'}`}>
-              <Clock className="w-3 h-3" />
-              {new Date(displayDate).toLocaleDateString()}
-            </span>
+
+          {/* Tags Row */}
+          {(!isDone) && (
+            <div className="flex flex-wrap items-center gap-2 mt-2.5">
+              {displayDate && !hideDoByDate && (
+                <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${task.doByDate && task.doByDate < Date.now() ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-900/50 dark:text-red-400' : 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400'}`}>
+                  <Clock className="w-3 h-3" />
+                  {new Date(displayDate).toLocaleDateString()}
+                </span>
+              )}
+              
+              {!hideProjectTag && project && (
+                <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400">
+                  <Folder className="w-3 h-3" />
+                  {project.name}
+                </span>
+              )}
+
+              {!hidePipelineTag && task.listCategory && task.listCategory !== "Current" && (
+                <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400">
+                  <List className="w-3 h-3" />
+                  {task.listCategory}
+                </span>
+              )}
+
+              {!hideMatrixTags && task.isUrgent && (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Urgent</span>
+              )}
+              {!hideMatrixTags && task.isImportant && (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Important</span>
+              )}
+            </div>
           )}
         </div>
 
         <button
           onClick={handleDeleteClick}
-          className="opacity-0 group-hover:opacity-100 text-zinc-300 hover:text-red-500 transition-all p-1"
+          className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition-all p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
           aria-label="Delete task"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
 
@@ -111,7 +170,6 @@ export function TaskCard({ task }: TaskCardProps) {
               >
                 Cancel
               </button>
-              {/* Added autoFocus for Enter key confirmation */}
               <button 
                 autoFocus
                 onClick={confirmDelete} 
