@@ -5,9 +5,11 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { X, Folder, Edit2, Trash2, Check, Archive, AlertTriangle, Plus } from "lucide-react";
 import { getProjectColor } from "./NewTaskForm";
+import { useGuestSession } from "@/hooks/useGuestSession";
 
 export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const projects = useQuery(api.projects.getProjects);
+  const sessionId = useGuestSession();
+  const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
   const createProject = useMutation(api.projects.createProject);
   const updateProject = useMutation(api.projects.updateProject);
   const archiveProject = useMutation(api.projects.archiveProject);
@@ -30,7 +32,7 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
 
   const handleCreate = async () => {
     if (newProjectName.trim()) {
-      await createProject({ name: newProjectName.trim() });
+      await createProject({ name: newProjectName.trim(), sessionId: sessionId ?? undefined });
       setNewProjectName("");
     }
   }
