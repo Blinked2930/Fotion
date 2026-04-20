@@ -19,18 +19,10 @@ export const getTasks = query({
     const { actualSessionId, vipToken } = parseSessionId(args.sessionId);
 
     return allTasks.filter(task => {
-      // 1. THE OWNER
       if (identity && !task.sessionId) return true;
-      
-      // 2. SPECIFIC VIP PASS (FIX: Now strictly requires the task to be marked Public)
       if (vipToken && task.isPublic && task.shareToken === vipToken) return true;
-      
-      // 3. THE SANDBOX
       if (actualSessionId && task.sessionId === actualSessionId) return true;
-      
-      // 4. LEGACY SANDBOX
       if (actualSessionId && task.sharedWithSessions && task.sharedWithSessions.includes(actualSessionId)) return true;
-
       return false;
     });
   },
@@ -57,7 +49,6 @@ export const createTask = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     const { actualSessionId } = parseSessionId(args.sessionId);
-    
     const taskSessionId = identity ? undefined : actualSessionId;
 
     return await ctx.db.insert("tasks", {
@@ -104,10 +95,22 @@ export const deleteTask = mutation({
   },
 });
 
+// FIXED: Secured the individual task query
 export const getTask = query({
-  args: { id: v.id("tasks") },
+  args: { id: v.id("tasks"), sessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const identity = await ctx.auth.getUserIdentity();
+    const task = await ctx.db.get(args.id);
+    if (!task) return null;
+
+    const { actualSessionId, vipToken } = parseSessionId(args.sessionId);
+
+    if (identity && !task.sessionId) return task;
+    if (vipToken && task.isPublic && task.shareToken === vipToken) return task;
+    if (actualSessionId && task.sessionId === actualSessionId) return task;
+    if (actualSessionId && task.sharedWithSessions && task.sharedWithSessions.includes(actualSessionId)) return task;
+    
+    return null;
   },
 });
 

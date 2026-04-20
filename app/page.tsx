@@ -12,6 +12,7 @@ import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
+import { useRouter } from "next/navigation";
 import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -223,6 +224,7 @@ function CustomUserMenu({ sessionType }: { sessionType: "none" | "demo" | "vip" 
 }
 
 export default function Home() {
+  const router = useRouter();
   const [activeView, setActiveView] = useState<ViewType>("Matrix");
   const [isMounted, setIsMounted] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -236,17 +238,28 @@ export default function Home() {
   const { isLoaded, isSignedIn } = useAuth();
   const guestSessionId = useGuestSession();
 
+  // MAGIC AUTO-OPEN: Fetch tasks for the VIP to see if we should pop the pane
+  const tasksForVip = useQuery(api.tasks.getTasks, sessionType === "vip" ? { sessionId: guestSessionId ?? undefined } : "skip");
+
+  useEffect(() => {
+    // If a VIP lands on the page and only has access to exactly 1 task, auto-open the task details!
+    if (sessionType === "vip" && tasksForVip && tasksForVip.length === 1) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (!urlParams.has("taskId")) {
+        router.replace(`/?taskId=${tasksForVip[0]._id}`);
+      }
+    }
+  }, [tasksForVip, sessionType, router]);
+
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
-    // THE NEW BOUNCER LOGIC
     const urlParams = new URLSearchParams(window.location.search);
     const vipParam = urlParams.get("vip");
     let currentSession = localStorage.getItem("fotion-session-id");
 
     if (vipParam) {
-      // 1. Lock in the new VIP code
       let baseSession = currentSession;
       if (!baseSession || !baseSession.startsWith("demo_user_")) {
         baseSession = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
@@ -256,16 +269,14 @@ export default function Home() {
       
       const compositeSession = `${baseSession}||vip_${vipParam}`;
       
-      // 2. The Clean Redirect: If this is a new link, save it and FORCE A REFRESH
       if (currentSession !== compositeSession) {
         localStorage.setItem("fotion-session-id", compositeSession);
-        window.location.href = "/"; // Instantly strip ?vip= out of the URL bar and reload hooks
+        window.location.href = "/"; 
         return;
       }
       
       setSessionType("vip");
     } else {
-      // 3. Normal check (happens right after the Clean Redirect)
       if (currentSession?.includes("||vip_")) {
         setSessionType("vip");
       } else if (currentSession?.startsWith("demo_user_")) {

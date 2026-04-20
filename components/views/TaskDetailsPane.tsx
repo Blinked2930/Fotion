@@ -203,7 +203,9 @@ function PaneContent() {
     }
   }, [taskId]);
 
-  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId } : "skip");
+  // FIXED: Now we correctly pass the guestSessionId to the individual task fetcher to securely unlock it
+  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId, sessionId: guestSessionId ?? undefined } : "skip");
+  
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTask = useMutation(api.tasks.deleteTask);
 
@@ -273,7 +275,6 @@ function PaneContent() {
     
     if (!token) {
       token = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-      // THE FIX: Bundling the update into one atomic operation ensures Convex saves BOTH fields perfectly.
       await updateTask({ id: displayTaskId, isPublic: true, shareToken: token });
     } else if (!task.isPublic) {
       await updateTask({ id: displayTaskId, isPublic: true });
