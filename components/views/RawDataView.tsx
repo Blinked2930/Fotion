@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { 
   Loader2, Type, PlayCircle, Calendar, CheckSquare, 
-  List as ListIcon, Folder, Sigma, Check, Maximize2, Globe 
+  List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon 
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
@@ -34,6 +34,26 @@ const NotionCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () 
     {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
   </button>
 );
+
+function CopyLinkButton({ token }: { token?: string }) {
+  const [copied, setCopied] = useState(false);
+  
+  if (!token) return <div className="w-5 h-5 flex-shrink-0" />; // Spacer if empty
+  
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(`${window.location.origin}/?vip=${token}`);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="p-1 rounded text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors flex-shrink-0"
+      title={`Copy VIP Link for ${token}`}
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <LinkIcon className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
 
 function BeautifulDropdown({ 
   value, 
@@ -180,8 +200,8 @@ export function RawDataView() {
                 <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
                 <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
                 
-                {/* ADMIN ONLY: Shared Column Header */}
-                {isSignedIn && <NotionHeader icon={Globe} label="Shared?" minWidth="100px" />}
+                {/* ADMIN ONLY: Custom Share Token Header */}
+                {isSignedIn && <NotionHeader icon={LinkIcon} label="Share Token" minWidth="160px" />}
               </tr>
             </thead>
             <tbody>
@@ -286,10 +306,23 @@ export function RawDataView() {
                       </button>
                     </NotionCell>
 
-                    {/* ADMIN ONLY: Shared Checkbox Cell */}
+                    {/* ADMIN ONLY: Share Token Generator Cell */}
                     {isSignedIn && (
                       <NotionCell>
-                        <NotionCheckbox checked={!!task.isPublic} onChange={() => handleUpdate(task._id, "isPublic", !task.isPublic)} />
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="e.g. matias" 
+                            defaultValue={task.shareToken || ""} 
+                            onBlur={(e) => { 
+                              if (e.target.value.trim() !== task.shareToken) {
+                                handleUpdate(task._id, "shareToken", e.target.value.trim());
+                              }
+                            }}
+                            className="w-24 bg-transparent border-b border-dashed border-zinc-300 dark:border-zinc-700 outline-none text-[12px] focus:border-emerald-500 font-mono"
+                          />
+                          <CopyLinkButton token={task.shareToken} />
+                        </div>
                       </NotionCell>
                     )}
                   </tr>

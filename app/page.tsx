@@ -229,7 +229,6 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
-  // NEW: Robust Session Type Tracking
   const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");
   const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
   const seedDemoData = useMutation(api.demo.seedDemoData);
@@ -241,19 +240,30 @@ export default function Home() {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
-    // THE BOUNCER LOGIC
     const urlParams = new URLSearchParams(window.location.search);
-    const isVipLink = urlParams.has("vip") || urlParams.has("task");
+    const vipParam = urlParams.get("vip");
+    let currentSession = localStorage.getItem("fotion-session-id");
 
-    if (isVipLink) {
-      localStorage.setItem("fotion-session-id", "vip_access");
+    if (vipParam) {
+      // 1. If they have a VIP link, ensure they also have a sandbox base to work in
+      let baseSession = currentSession;
+      if (!baseSession || !baseSession.startsWith("demo_user_")) {
+        baseSession = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+      } else if (baseSession.includes("||vip_")) {
+        // Strip out old VIP tokens if they click a new link
+        baseSession = baseSession.split("||vip_")[0]; 
+      }
+      
+      const compositeSession = `${baseSession}||vip_${vipParam}`;
+      localStorage.setItem("fotion-session-id", compositeSession);
       setSessionType("vip");
+
     } else {
-      const currentSession = localStorage.getItem("fotion-session-id");
-      if (currentSession?.startsWith("demo_user_")) {
-        setSessionType("demo");
-      } else if (currentSession === "vip_access") {
+      // 2. Check existing session if no link provided
+      if (currentSession?.includes("||vip_")) {
         setSessionType("vip");
+      } else if (currentSession?.startsWith("demo_user_")) {
+        setSessionType("demo");
       }
     }
     
@@ -287,7 +297,7 @@ export default function Home() {
     );
   }
 
-  // REDESIGNED PORTFOLIO INTERCEPT (Only shows if NOT signed in AND NO active session)
+  // PORTFOLIO INTERCEPT 
   if (!isSignedIn && sessionType === "none") {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
@@ -354,7 +364,7 @@ export default function Home() {
     );
   }
 
-  // The Main Dashboard Render
+  // DASHBOARD
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col">
       <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
