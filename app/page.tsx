@@ -180,7 +180,7 @@ function CustomUserMenu({ sessionType }: { sessionType: "none" | "demo" | "vip" 
 
   const handleExitGuest = () => {
     localStorage.removeItem("fotion-session-id");
-    window.location.href = "/"; // Force full reload without URL parameters
+    window.location.href = "/"; 
   };
 
   return (
@@ -240,26 +240,32 @@ export default function Home() {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
+    // THE NEW BOUNCER LOGIC
     const urlParams = new URLSearchParams(window.location.search);
     const vipParam = urlParams.get("vip");
     let currentSession = localStorage.getItem("fotion-session-id");
 
     if (vipParam) {
-      // 1. If they have a VIP link, ensure they also have a sandbox base to work in
+      // 1. Lock in the new VIP code
       let baseSession = currentSession;
       if (!baseSession || !baseSession.startsWith("demo_user_")) {
         baseSession = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
       } else if (baseSession.includes("||vip_")) {
-        // Strip out old VIP tokens if they click a new link
         baseSession = baseSession.split("||vip_")[0]; 
       }
       
       const compositeSession = `${baseSession}||vip_${vipParam}`;
-      localStorage.setItem("fotion-session-id", compositeSession);
+      
+      // 2. The Clean Redirect: If this is a new link, save it and FORCE A REFRESH
+      if (currentSession !== compositeSession) {
+        localStorage.setItem("fotion-session-id", compositeSession);
+        window.location.href = "/"; // Instantly strip ?vip= out of the URL bar and reload hooks
+        return;
+      }
+      
       setSessionType("vip");
-
     } else {
-      // 2. Check existing session if no link provided
+      // 3. Normal check (happens right after the Clean Redirect)
       if (currentSession?.includes("||vip_")) {
         setSessionType("vip");
       } else if (currentSession?.startsWith("demo_user_")) {
@@ -282,7 +288,7 @@ export default function Home() {
       localStorage.setItem("fotion-session-id", newDemoId);
 
       await seedDemoData({ sessionId: newDemoId });
-      window.location.reload();
+      window.location.href = "/";
     } catch (error) {
       console.error("Failed to generate demo data:", error);
       setIsGeneratingDemo(false);
