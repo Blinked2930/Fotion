@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { calculateQuadrant } from "@/lib/eisenhower";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { 
   Loader2, Type, PlayCircle, Calendar, CheckSquare, 
   List as ListIcon, Folder, Sigma, Check, Maximize2, Globe 
@@ -114,6 +115,7 @@ const ListPill = (list: string) => {
 
 export function RawDataView() {
   const router = useRouter();
+  const { isSignedIn } = useAuth();
   const sessionId = useGuestSession(); 
   const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
   const projects = useQuery(api.projects.getProjects);
@@ -177,7 +179,9 @@ export function RawDataView() {
                 <NotionHeader icon={ListIcon} label="Pipelines" minWidth="160px" />
                 <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
                 <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
-                <NotionHeader icon={Globe} label="Shared?" minWidth="100px" />
+                
+                {/* ADMIN ONLY: Shared Column Header */}
+                {isSignedIn && <NotionHeader icon={Globe} label="Shared?" minWidth="100px" />}
               </tr>
             </thead>
             <tbody>
@@ -231,7 +235,6 @@ export function RawDataView() {
                     </NotionCell>
 
                     <NotionCell>
-                      {/* Using the pink standard checkbox for core logic */}
                       <button onClick={() => handleUpdate(task._id, "isImportant", !task.isImportant)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isImportant ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
                         {task.isImportant && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
                       </button>
@@ -283,9 +286,12 @@ export function RawDataView() {
                       </button>
                     </NotionCell>
 
-                    <NotionCell>
-                      <NotionCheckbox checked={!!task.isPublic} onChange={() => handleUpdate(task._id, "isPublic", !task.isPublic)} />
-                    </NotionCell>
+                    {/* ADMIN ONLY: Shared Checkbox Cell */}
+                    {isSignedIn && (
+                      <NotionCell>
+                        <NotionCheckbox checked={!!task.isPublic} onChange={() => handleUpdate(task._id, "isPublic", !task.isPublic)} />
+                      </NotionCell>
+                    )}
                   </tr>
                 );
               })}

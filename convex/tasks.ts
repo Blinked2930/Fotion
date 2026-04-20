@@ -5,26 +5,24 @@ export const getTasks = query({
   args: { sessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    
-    // IF YOU ARE LOGGED IN: Return all your official tasks
-    if (identity) {
-      const allTasks = await ctx.db.query("tasks").order("desc").collect();
-      // Filter out purely guest-created tasks so they don't clutter your main board
-      return allTasks.filter(t => !t.sessionId || t.isPublic); 
-    }
-    
-    // IF YOU ARE A GUEST: Return only tasks matching your Session ID
-    // AND tasks that were explicitly shared with your Session ID
-    if (args.sessionId) {
-      const allTasks = await ctx.db.query("tasks").order("desc").collect();
-      return allTasks.filter(t => 
-        t.sessionId === args.sessionId || 
-        (t.sharedWithSessions && t.sharedWithSessions.includes(args.sessionId!))
-      );
-    }
+    const allTasks = await ctx.db.query("tasks").order("desc").collect();
 
-    // If no auth and no session, return empty array to prevent leaks
-    return [];
+    return allTasks.filter(task => {
+      // 1. THE OWNER: If you are logged in, you see all your official tasks
+      if (identity && !task.sessionId) return true;
+      
+      // 2. THE VIP PASS: If a task is explicitly marked Public, ANYONE can see it
+      if (task.isPublic === true) return true;
+      
+      // 3. THE SANDBOX: Guests can see tasks they created in their temporary session
+      if (args.sessionId && task.sessionId === args.sessionId) return true;
+      
+      // 4. LEGACY SANDBOX: If explicitly shared with a specific session array
+      if (args.sessionId && task.sharedWithSessions && task.sharedWithSessions.includes(args.sessionId)) return true;
+
+      // Otherwise, keep it locked down
+      return false;
+    });
   },
 });
 
@@ -102,7 +100,6 @@ export const getTask = query({
   },
 });
 
-// RESTORED: Bulk creation mutation (now upgraded for VIP Guests)
 export const createManyTasks = mutation({
   args: {
     tasks: v.array(
