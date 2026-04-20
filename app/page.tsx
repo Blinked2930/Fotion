@@ -13,7 +13,7 @@ import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
 import { useRouter } from "next/navigation";
-import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Activity } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
@@ -21,6 +21,57 @@ import { PushPromptModal } from "@/components/ui/PushPromptModal";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { useTheme } from "next-themes";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
+
+// --- DIAGNOSTIC HUD ---
+function DebugPanel({ sessionType, guestSessionId, tasksForVip }: any) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const tokenMatch = guestSessionId?.match(/\|\|vip_(.+)$/);
+  const activeVipToken = tokenMatch ? tokenMatch[1] : "None";
+
+  if (!isOpen) return (
+    <button onClick={() => setIsOpen(true)} className="fixed bottom-4 left-4 z-[999] bg-black/90 backdrop-blur text-xs text-green-400 font-mono p-2.5 rounded-lg shadow-lg border border-green-900/50 flex items-center gap-2 hover:bg-black transition-colors">
+      <Activity className="w-4 h-4" /> System Diagnostics
+    </button>
+  );
+
+  return (
+    <div className="fixed bottom-4 left-4 z-[999] bg-black/95 backdrop-blur-md text-xs text-green-400 font-mono p-4 rounded-xl shadow-2xl border border-green-900/50 w-[350px] overflow-auto max-h-[60vh]">
+      <div className="flex justify-between items-center mb-3 border-b border-green-900/50 pb-2">
+        <span className="font-bold text-sm flex items-center gap-2"><Activity className="w-4 h-4" /> Fotion Diagnostics</span>
+        <button onClick={() => setIsOpen(false)} className="text-red-400 hover:text-red-300 px-2 py-1 rounded bg-red-900/20">Close</button>
+      </div>
+      
+      <div className="space-y-1.5 mb-4 bg-green-900/10 p-2 rounded">
+        <div><span className="text-zinc-500">Mode:</span> <span className="text-white">{sessionType.toUpperCase()}</span></div>
+        <div className="truncate"><span className="text-zinc-500">Session ID:</span> <span className="text-white">{guestSessionId || "null"}</span></div>
+        <div><span className="text-zinc-500">Extracted Token:</span> <span className="text-white">{activeVipToken}</span></div>
+      </div>
+
+      <div className="border-t border-green-900/50 pt-3 mb-2">
+        <span className="text-zinc-500">Convex DB Result Count:</span> <span className="text-white font-bold">{tasksForVip === undefined ? "Loading..." : tasksForVip?.length}</span>
+      </div>
+
+      <div className="space-y-2 mt-2">
+        {tasksForVip?.map((t: any) => (
+           <div key={t._id} className="pl-2 border-l-2 border-green-700 bg-green-900/20 p-2 rounded-r">
+             <div className="truncate"><span className="text-zinc-500">Title:</span> <span className="text-white">{t.title}</span></div>
+             <div><span className="text-zinc-500">isPublic:</span> <span className={t.isPublic ? "text-green-400" : "text-red-400"}>{String(t.isPublic)}</span></div>
+             <div className="truncate"><span className="text-zinc-500">shareToken:</span> <span className="text-white">{t.shareToken || "none"}</span></div>
+           </div>
+        ))}
+        {tasksForVip?.length === 0 && (
+          <div className="text-red-400 mt-3 p-2 bg-red-900/20 border border-red-900/50 rounded leading-relaxed">
+            <strong>ERROR: Zero tasks returned.</strong><br/>
+            The frontend successfully asked for the task, but Convex refused to hand it over. <br/><br/>
+            <strong>Fix:</strong> Ensure the task you are sharing has the `isPublic` box checked AND the `shareToken` exactly matches the URL token.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+// ----------------------
 
 function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -242,14 +293,23 @@ export default function Home() {
   const tasksForVip = useQuery(api.tasks.getTasks, sessionType === "vip" ? { sessionId: guestSessionId ?? undefined } : "skip");
 
   useEffect(() => {
-    // If a VIP lands on the page and only has access to exactly 1 task, auto-open the task details!
-    if (sessionType === "vip" && tasksForVip && tasksForVip.length === 1) {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (!urlParams.has("taskId")) {
-        router.replace(`/?taskId=${tasksForVip[0]._id}`);
+    // Safely extract the VIP token from the local storage session
+    const tokenMatch = guestSessionId?.match(/\|\|vip_(.+)$/);
+    const activeVipToken = tokenMatch ? tokenMatch[1] : null;
+
+    if (sessionType === "vip" && tasksForVip && activeVipToken) {
+      // Find the SPECIFIC task that matches this VIP token, regardless of other sandbox tasks
+      const targetTask = tasksForVip.find(t => t.shareToken === activeVipToken);
+      
+      if (targetTask) {
+        const urlParams = new URLSearchParams(window.location.search);
+        // Only trigger the open if the URL isn't already looking at it
+        if (urlParams.get("taskId") !== targetTask._id) {
+          router.replace(`/?taskId=${targetTask._id}`);
+        }
       }
     }
-  }, [tasksForVip, sessionType, router]);
+  }, [tasksForVip, sessionType, guestSessionId, router]);
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
@@ -383,7 +443,17 @@ export default function Home() {
 
   // DASHBOARD
   return (
-    <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col">
+    <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col relative">
+      
+      {/* INJECTED DIAGNOSTICS HUD */}
+      {!isSignedIn && sessionType === "vip" && (
+        <DebugPanel 
+          sessionType={sessionType} 
+          guestSessionId={guestSessionId} 
+          tasksForVip={tasksForVip} 
+        />
+      )}
+
       <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3 text-[15px]">
