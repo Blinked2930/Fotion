@@ -3,23 +3,36 @@
 import { useState, useEffect } from "react";
 
 export function useGuestSession() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionString, setSessionString] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Check if they already have an ID in their browser
-    let storedId = localStorage.getItem("fotion_guest_id");
+    const updateSession = () => {
+      // 1. Get or create the base guest ID
+      let baseId = localStorage.getItem("fotion-session-id");
+      
+      // Clean up any corrupted IDs from our previous buggy tunneling logic
+      if (!baseId || baseId.includes("||vip_")) {
+        baseId = `guest_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+        localStorage.setItem("fotion-session-id", baseId);
+      }
+
+      // 2. Check for an active VIP token
+      const vipToken = localStorage.getItem("fotion-vip-token");
+      
+      // 3. Safely combine them for the Convex backend
+      if (vipToken) {
+        setSessionString(`${baseId}||vip_${vipToken}`);
+      } else {
+        setSessionString(baseId);
+      }
+    };
+
+    updateSession();
     
-    if (!storedId) {
-      // 2. If not, generate a secure, random 24-character ID
-      const newId = "guest_" + Array.from(crypto.getRandomValues(new Uint8Array(12)))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-        
-      localStorage.setItem("fotion_guest_id", newId);
-      storedId = newId;
-    }
-    
-    setSessionId(storedId);
+    // Listen for storage changes in case the page updates the token dynamically
+    window.addEventListener("storage", updateSession);
+    return () => window.removeEventListener("storage", updateSession);
   }, []);
 
-  return sessionId;
+  return sessionString;
 }
