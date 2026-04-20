@@ -329,17 +329,29 @@ export function NewTaskForm() {
                   </div>
                 </div>
 
-                <div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Dates</span>
-                  <div className="flex flex-wrap items-center gap-6 relative z-10">
-                    <div className="flex items-center gap-2 text-sm text-zinc-500">
-                      <span className="font-medium text-zinc-400">Do On:</span>
-                      <CustomDatePicker value={doOnDate} onChange={setDoOnDate} placeholder="Select date..." alignPopover="right" />
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Dates</span>
+                    <div className="flex flex-wrap items-center gap-6 relative z-10">
+                      <div className="flex items-center gap-2 text-sm text-zinc-500">
+                        <span className="font-medium text-zinc-400">Do On:</span>
+                        <CustomDatePicker value={doOnDate} onChange={setDoOnDate} placeholder="Select date..." alignPopover="right" />
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-zinc-500">
+                        <span className="font-medium text-zinc-400">Due By:</span>
+                        <CustomDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." alignPopover="right" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-zinc-500">
-                      <span className="font-medium text-zinc-400">Due By:</span>
-                      <CustomDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." alignPopover="right" />
-                    </div>
+                  </div>
+
+                  <div className="flex justify-end mt-2 sm:mt-0">
+                    <button 
+                      type="button" 
+                      onClick={handleSubmit} 
+                      className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white text-[13px] font-medium rounded-xl transition-all shadow-sm"
+                    >
+                      Save Task
+                    </button>
                   </div>
                 </div>
 

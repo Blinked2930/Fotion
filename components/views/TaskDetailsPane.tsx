@@ -272,11 +272,12 @@ function PaneContent() {
     if (!task || !displayTaskId) return;
     let token = task.shareToken;
     
+    // FIX: Using an atomic update just like RawDataView to stay in sync
     if (!token) {
       token = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
       await updateTask({ id: displayTaskId, isPublic: true, shareToken: token });
     } else if (!task.isPublic) {
-      await updateTask({ id: displayTaskId, isPublic: true });
+      await updateTask({ id: displayTaskId, isPublic: true, shareToken: token });
     }
 
     const url = `${window.location.origin}/?vip=${token}`;
@@ -335,7 +336,7 @@ function PaneContent() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 {task.isPublic && (
-                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded border border-green-200 dark:border-green-900/50">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-200 dark:border-blue-900/50">
                     <Globe className="w-3 h-3" /> {isSignedIn ? "Public Link Active" : "Shared By Owner"}
                   </span>
                 )}
@@ -344,9 +345,14 @@ function PaneContent() {
               {isSignedIn && (
                 <div className="flex items-center gap-2">
                   {task.isPublic && (
-                    <button onClick={() => handleUpdate("isPublic", false)} className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none">Revoke Access</button>
+                    <button 
+                      onClick={() => updateTask({ id: displayTaskId, isPublic: false, shareToken: "" })} 
+                      className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
+                    >
+                      Revoke Access
+                    </button>
                   )}
-                  <button onClick={handleShare} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${isCopied ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'}`}>
+                  <button onClick={handleShare} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${isCopied ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'}`}>
                     {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
                     {isCopied ? "Link Copied!" : (task.isPublic ? "Copy Link" : "Share Task")}
                   </button>

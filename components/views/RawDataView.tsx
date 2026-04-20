@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { 
   Loader2, Type, PlayCircle, Calendar, CheckSquare, 
-  List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon 
+  List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon, AlertTriangle 
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
@@ -61,9 +61,9 @@ const NotionCell = ({ children }: { children: React.ReactNode }) => (
   </td>
 );
 
-function CopyLinkButton({ token }: { token?: string }) {
+function CopyLinkButton({ token, isPublic }: { token?: string, isPublic?: boolean }) {
   const [copied, setCopied] = useState(false);
-  if (!token) return null; 
+  if (!token || !isPublic) return null; 
   return (
     <button
       onClick={() => {
@@ -71,10 +71,10 @@ function CopyLinkButton({ token }: { token?: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
-      className="p-1.5 rounded text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors flex-shrink-0 ml-2"
+      className="p-1.5 rounded text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex-shrink-0 ml-2"
       title={`Copy VIP Link`}
     >
-      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <LinkIcon className="w-4 h-4" />}
+      {copied ? <Check className="w-4 h-4 text-blue-500" /> : <LinkIcon className="w-4 h-4" />}
     </button>
   );
 }
@@ -164,13 +164,32 @@ export function RawDataView() {
   const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
   
-  // Use our new offline sync hook instead of standard useMutation
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
   const createProject = useOfflineSyncMutation(api.projects.createProject, "createProject");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
+  
+  // Sync Status Indicator State
+  const [syncState, setSyncState] = useState<"synced" | "offline" | "syncing">("synced");
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setSyncState("syncing");
+      setTimeout(() => setSyncState("synced"), 2000);
+    };
+    const handleOffline = () => setSyncState("offline");
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    if (typeof window !== "undefined" && !navigator.onLine) setSyncState("offline");
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   if (tasks === undefined || projects === undefined) {
     return (
@@ -209,7 +228,7 @@ export function RawDataView() {
 
   return (
     <>
-      <div className="w-full overflow-x-auto pb-64 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-swipe-zone">
+      <div className="w-full overflow-x-auto pb-64 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-swipe-zone relative">
         <div className="inline-block min-w-full align-middle">
           <table className="w-full text-left border-collapse border border-[var(--border)]">
             <thead>
@@ -336,21 +355,20 @@ export function RawDataView() {
                         <div className="flex items-center">
                           <button 
                             onClick={() => {
-                              if (task.shareToken) {
-                                handleUpdate(task._id, "shareToken", undefined);
-                                handleUpdate(task._id, "isPublic", false);
+                              // FIX: Use a single atomic update object to prevent race conditions
+                              if (task.shareToken && task.isPublic) {
+                                updateTask({ id: task._id, shareToken: "", isPublic: false });
                               } else {
-                                const newToken = Math.random().toString(36).substring(2, 10);
-                                handleUpdate(task._id, "shareToken", newToken);
-                                handleUpdate(task._id, "isPublic", true);
+                                const newToken = task.shareToken || Math.random().toString(36).substring(2, 10);
+                                updateTask({ id: task._id, shareToken: newToken, isPublic: true });
                               }
                             }}
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors focus:outline-none ${task.shareToken ? 'bg-emerald-500' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors focus:outline-none ${task.isPublic ? 'bg-blue-500' : 'bg-zinc-200 dark:bg-zinc-700'}`}
                           >
-                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${task.shareToken ? 'translate-x-2' : '-translate-x-2'}`} />
+                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${task.isPublic ? 'translate-x-2' : '-translate-x-2'}`} />
                           </button>
                           
-                          <CopyLinkButton token={task.shareToken} />
+                          <CopyLinkButton token={task.shareToken} isPublic={task.isPublic} />
                         </div>
                       </NotionCell>
                     )}
@@ -365,6 +383,20 @@ export function RawDataView() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Floating Sync Indicator */}
+      <div className="fixed bottom-6 right-6 z-[90] flex flex-col gap-2 pointer-events-none">
+        {syncState === "offline" && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shadow-lg text-xs font-medium animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <AlertTriangle className="w-4 h-4" /> Offline: Saved Locally
+          </div>
+        )}
+        {syncState === "syncing" && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-lg text-xs font-medium animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <Loader2 className="w-4 h-4 animate-spin" /> Syncing...
+          </div>
+        )}
       </div>
 
       {isModalOpen && (
