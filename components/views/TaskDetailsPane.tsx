@@ -130,7 +130,6 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   );
 }
 
-// Editor Toolbar with native JSON sorting ripped out
 export const EditorToolbar = ({ editor, isSorting, onToggleSort }: { editor: any, isSorting?: boolean, onToggleSort?: () => void }) => {
   if (!editor) return null;
 
@@ -269,17 +268,17 @@ function PaneContent() {
   };
 
   const handleShare = async () => {
-    if (!task) return;
+    if (!task || !displayTaskId) return;
     let token = task.shareToken;
+    
     if (!token) {
       token = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-      await handleUpdate("isPublic", true);
-      await handleUpdate("shareToken", token);
+      // THE FIX: Bundling the update into one atomic operation ensures Convex saves BOTH fields perfectly.
+      await updateTask({ id: displayTaskId, isPublic: true, shareToken: token });
     } else if (!task.isPublic) {
-      await handleUpdate("isPublic", true);
+      await updateTask({ id: displayTaskId, isPublic: true });
     }
 
-    // UPDATED: Now generates the correct `/?vip=[token]` routing link instead of `/shared/task/`
     const url = `${window.location.origin}/?vip=${token}`;
     try {
       await navigator.clipboard.writeText(url);

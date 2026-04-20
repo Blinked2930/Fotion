@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 
-// HELPER: Safely extract the Sandbox ID and the VIP Token from our tunneled string
 function parseSessionId(raw?: string) {
   if (!raw) return { actualSessionId: undefined, vipToken: undefined };
   if (raw.includes("||vip_")) {
@@ -20,19 +19,18 @@ export const getTasks = query({
     const { actualSessionId, vipToken } = parseSessionId(args.sessionId);
 
     return allTasks.filter(task => {
-      // 1. THE OWNER: Logged in users see their official tasks
+      // 1. THE OWNER
       if (identity && !task.sessionId) return true;
       
-      // 2. SPECIFIC VIP PASS: Only show if the task's shareToken perfectly matches the URL token
-      if (vipToken && task.shareToken === vipToken) return true;
+      // 2. SPECIFIC VIP PASS (FIX: Now strictly requires the task to be marked Public)
+      if (vipToken && task.isPublic && task.shareToken === vipToken) return true;
       
-      // 3. THE SANDBOX: Guests see tasks they created in their temporary session
+      // 3. THE SANDBOX
       if (actualSessionId && task.sessionId === actualSessionId) return true;
       
-      // 4. LEGACY SANDBOX: If explicitly shared with a specific session array
+      // 4. LEGACY SANDBOX
       if (actualSessionId && task.sharedWithSessions && task.sharedWithSessions.includes(actualSessionId)) return true;
 
-      // Otherwise, keep it locked down
       return false;
     });
   },
@@ -60,7 +58,6 @@ export const createTask = mutation({
     const identity = await ctx.auth.getUserIdentity();
     const { actualSessionId } = parseSessionId(args.sessionId);
     
-    // Drop the sessionId entirely if logged in, otherwise use ONLY the clean sandbox ID
     const taskSessionId = identity ? undefined : actualSessionId;
 
     return await ctx.db.insert("tasks", {
