@@ -4,10 +4,12 @@ import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Bell } from "lucide-react";
+import { useGuestSession } from "@/hooks/useGuestSession";
 
 export function PushPromptModal() {
   const [isOpen, setIsOpen] = useState(false);
   const saveSubscription = useMutation(api.push.saveSubscription);
+  const sessionId = useGuestSession();
 
   useEffect(() => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -81,6 +83,9 @@ export function PushPromptModal() {
     localStorage.setItem("fotion-push-prompt", `snooze:${Date.now() + 24 * 60 * 60 * 1000}`);
     setIsOpen(false);
   };
+
+  // NEW: Suppress the modal entirely for pure demo users (not VIPs)
+  if (sessionId && !sessionId.includes("vip_")) return null;
 
   if (!isOpen) return null;
 

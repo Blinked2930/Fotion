@@ -10,9 +10,18 @@ export const seedDemoData = mutation({
     }
 
     // 2. Build the Foundation (Projects)
-    // FIX: Added isArchived: false to satisfy the strict Convex schema
-    const project1 = await ctx.db.insert("projects", { name: "🚀 Portfolio Build", isArchived: false });
-    const project2 = await ctx.db.insert("projects", { name: "💡 Q4 Roadmap", isArchived: false });
+    // FIX: Attached the sessionId so the demo user can actually see these projects!
+    const project1 = await ctx.db.insert("projects", { 
+      name: "🚀 Portfolio Build", 
+      isArchived: false,
+      sessionId: args.sessionId 
+    });
+    
+    const project2 = await ctx.db.insert("projects", { 
+      name: "💡 Q4 Roadmap", 
+      isArchived: false,
+      sessionId: args.sessionId 
+    });
 
     // Time math for realistic due dates
     const now = Date.now();
@@ -104,18 +113,26 @@ export const cleanupOldDemos = internalMutation({
     const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
     const cutoffTime = Date.now() - FORTY_EIGHT_HOURS;
 
-    // Grab all tasks currently in the database
+    // --- Clean up old Demo Tasks ---
     const allTasks = await ctx.db.query("tasks").collect();
-
-    // Filter down to ONLY the tasks that are both old AND belong to a demo user
     const deadTasks = allTasks.filter(task => 
       task._creationTime < cutoffTime && 
       task.sessionId?.startsWith("demo_user_")
     );
 
-    // Sweep them out of the matrix forever
     for (const task of deadTasks) {
       await ctx.db.delete(task._id);
+    }
+
+    // --- Clean up old Demo Projects ---
+    const allProjects = await ctx.db.query("projects").collect();
+    const deadProjects = allProjects.filter(project => 
+      project._creationTime < cutoffTime && 
+      project.sessionId?.startsWith("demo_user_")
+    );
+
+    for (const project of deadProjects) {
+      await ctx.db.delete(project._id);
     }
   },
 });
