@@ -19,9 +19,9 @@ export const getProjects = query({
     const projects = await ctx.db.query("projects").collect();
     const unarchivedProjects = projects.filter(p => !p.isArchived);
 
-    // 1. THE OWNER: Returns all their official projects
+    // 1. THE OWNER: Returns their official projects AND any sandbox projects they are currently viewing
     if (identity) {
-        return unarchivedProjects.filter(p => !p.sessionId);
+        return unarchivedProjects.filter(p => !p.sessionId || (actualSessionId && p.sessionId === actualSessionId));
     }
 
     // 2. THE VIP/GUEST: We need to see what tasks they are allowed to view, 

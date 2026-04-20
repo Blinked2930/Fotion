@@ -14,6 +14,38 @@ import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
 
+// Custom Hook for Offline Mutation Sync
+function useOfflineSyncMutation(mutationFunc: any, mutationName: string) {
+  const mutate = useMutation(mutationFunc);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      const key = `offline_queue_${mutationName}`;
+      const queueRaw = localStorage.getItem(key);
+      if (queueRaw) {
+        try {
+          const queue = JSON.parse(queueRaw);
+          queue.forEach((args: any) => mutate(args));
+          localStorage.removeItem(key);
+        } catch (e) {}
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [mutate, mutationName]);
+
+  return (args: any) => {
+    if (typeof window !== "undefined" && !navigator.onLine) {
+      const key = `offline_queue_${mutationName}`;
+      const queue = JSON.parse(localStorage.getItem(key) || "[]");
+      queue.push(args);
+      localStorage.setItem(key, JSON.stringify(queue));
+    } else {
+      return mutate(args);
+    }
+  };
+}
+
 const NotionHeader = ({ icon: Icon, label, minWidth }: { icon: any, label: string, minWidth?: string }) => (
   <th className="border border-[var(--border)] px-3 py-2 font-normal text-zinc-500 dark:text-zinc-400 text-[13px] bg-zinc-50/50 dark:bg-zinc-900/50 text-left align-middle" style={{ minWidth: minWidth || '140px' }}>
     <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -29,15 +61,9 @@ const NotionCell = ({ children }: { children: React.ReactNode }) => (
   </td>
 );
 
-const NotionCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (
-  <button onClick={onChange} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${checked ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
-    {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-  </button>
-);
-
 function CopyLinkButton({ token }: { token?: string }) {
   const [copied, setCopied] = useState(false);
-  if (!token) return <div className="w-5 h-5 flex-shrink-0" />; 
+  if (!token) return null; 
   return (
     <button
       onClick={() => {
@@ -45,10 +71,10 @@ function CopyLinkButton({ token }: { token?: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
-      className="p-1 rounded text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors flex-shrink-0"
-      title={`Copy VIP Link for ${token}`}
+      className="p-1.5 rounded text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors flex-shrink-0 ml-2"
+      title={`Copy VIP Link`}
     >
-      {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <LinkIcon className="w-3.5 h-3.5" />}
+      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <LinkIcon className="w-4 h-4" />}
     </button>
   );
 }
@@ -137,8 +163,10 @@ export function RawDataView() {
   const sessionId = useGuestSession(); 
   const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
-  const updateTask = useMutation(api.tasks.updateTask);
-  const createProject = useMutation(api.projects.createProject);
+  
+  // Use our new offline sync hook instead of standard useMutation
+  const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
+  const createProject = useOfflineSyncMutation(api.projects.createProject, "createProject");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -159,7 +187,7 @@ export function RawDataView() {
   const handleCreateProject = async () => {
     if (newProjectName.trim()) {
       const newId = await createProject({ name: newProjectName.trim(), sessionId: sessionId ?? undefined });
-      if (pendingTaskId) {
+      if (pendingTaskId && newId) {
         handleUpdate(pendingTaskId, "projectId", newId);
       }
       setIsModalOpen(false);
@@ -198,7 +226,7 @@ export function RawDataView() {
                 <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
                 <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
                 
-                {isSignedIn && <NotionHeader icon={LinkIcon} label="Share Token" minWidth="160px" />}
+                {isSignedIn && <NotionHeader icon={LinkIcon} label="Share Access" minWidth="160px" />}
               </tr>
             </thead>
             <tbody>
@@ -305,18 +333,23 @@ export function RawDataView() {
 
                     {isSignedIn && (
                       <NotionCell>
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="text" 
-                            placeholder="e.g. matias" 
-                            defaultValue={task.shareToken || ""} 
-                            onBlur={(e) => { 
-                              if (e.target.value.trim() !== task.shareToken) {
-                                handleUpdate(task._id, "shareToken", e.target.value.trim());
+                        <div className="flex items-center">
+                          <button 
+                            onClick={() => {
+                              if (task.shareToken) {
+                                handleUpdate(task._id, "shareToken", undefined);
+                                handleUpdate(task._id, "isPublic", false);
+                              } else {
+                                const newToken = Math.random().toString(36).substring(2, 10);
+                                handleUpdate(task._id, "shareToken", newToken);
+                                handleUpdate(task._id, "isPublic", true);
                               }
                             }}
-                            className="w-24 bg-transparent border-b border-dashed border-zinc-300 dark:border-zinc-700 outline-none text-[12px] focus:border-emerald-500 font-mono"
-                          />
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors focus:outline-none ${task.shareToken ? 'bg-emerald-500' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                          >
+                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${task.shareToken ? 'translate-x-2' : '-translate-x-2'}`} />
+                          </button>
+                          
                           <CopyLinkButton token={task.shareToken} />
                         </div>
                       </NotionCell>
