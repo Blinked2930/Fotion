@@ -133,6 +133,7 @@ export function TaskCard({
   let isOverdue = false;
   let demandsAttentionToday = false; 
 
+  // NEW: Check both dates for overdue status!
   if ((task.doByDate && task.doByDate < startOfToday) || (task.doOnDate && task.doOnDate < startOfToday)) {
     isOverdue = true;
   }
