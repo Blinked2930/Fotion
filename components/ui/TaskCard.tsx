@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Check, Calendar, List, AlignLeft, Folder } from "lucide-react";
 import { getListColor, getProjectColor } from "../views/NewTaskForm";
+import { useGuestSession } from "@/hooks/useGuestSession";
 
 function PillDropdown({ 
   currentValue, 
@@ -105,7 +106,9 @@ export function TaskCard({
 }) {
   const router = useRouter();
   const updateTask = useMutation(api.tasks.updateTask);
-  const projects = useQuery(api.projects.getProjects);
+  
+  const sessionId = useGuestSession();
+  const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
 
   const toggleTaskCompletion = (e: React.MouseEvent) => {
     e.stopPropagation();
