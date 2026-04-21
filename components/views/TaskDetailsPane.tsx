@@ -308,8 +308,6 @@ function PaneContent() {
     if (!actualSessionId || !displayTaskId) return;
     const currentSessions = task?.sharedWithSessions || [];
     
-    // FIX: Only add if missing, and force listCategory to "Current" so it doesn't accidentally
-    // bypass the VIP's Matrix filters if the Admin had it saved as "Waiting For".
     if (!currentSessions.includes(actualSessionId)) {
       updateTask({ 
         id: displayTaskId, 
@@ -372,7 +370,7 @@ function PaneContent() {
                 )}
                 {hasAccepted && (
                   <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded border border-purple-200 dark:border-purple-900/50">
-                    <CheckSquare className="w-3 h-3" /> Added to Matrix
+                    <CheckSquare className="w-3 h-3" /> Saved to My Fotion
                   </span>
                 )}
               </div>
@@ -399,13 +397,13 @@ function PaneContent() {
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in slide-in-from-top-2">
                 <div>
                   <h4 className="text-blue-800 dark:text-blue-300 font-bold text-sm mb-1">Shared Task Inbox</h4>
-                  <p className="text-blue-600/80 dark:text-blue-400/80 text-xs">You are viewing a VIP task. Add it to your Matrix to track its progress and edit details.</p>
+                  <p className="text-blue-600/80 dark:text-blue-400/80 text-xs">You are viewing a VIP task. Save it to your Fotion to track its progress and edit details.</p>
                 </div>
                 <button 
                   onClick={handleAcceptTask}
                   className="shrink-0 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm"
                 >
-                  <UserPlus className="w-4 h-4" /> Add to My Matrix
+                  <UserPlus className="w-4 h-4" /> Save to My Fotion
                 </button>
               </div>
             )}
