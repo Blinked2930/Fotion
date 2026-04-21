@@ -7,19 +7,27 @@ export function useGuestSession() {
 
   useEffect(() => {
     const updateSession = () => {
-      // 1. Get or create the base guest ID
+      // 1. Immediately intercept VIP tokens from the URL before anything else runs
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlVip = urlParams.get("vip");
+      if (urlVip) {
+        localStorage.setItem("fotion-vip-token", urlVip);
+      }
+
+      // 2. Get or create the base session ID
       let baseId = localStorage.getItem("fotion-session-id");
       
-      // Clean up any corrupted IDs from our previous buggy tunneling logic
-      if (!baseId || baseId.includes("||vip_")) {
-        baseId = `guest_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+      // FIX: Enforce "demo_user_" prefix so convex/demo.ts passes the security check 
+      // and properly attaches project IDs. Clean up any old "guest_" IDs.
+      if (!baseId || baseId.includes("||vip_") || baseId.startsWith("guest_")) {
+        baseId = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
         localStorage.setItem("fotion-session-id", baseId);
       }
 
-      // 2. Check for an active VIP token
+      // 3. Check for an active VIP token
       const vipToken = localStorage.getItem("fotion-vip-token");
       
-      // 3. Safely combine them for the Convex backend
+      // 4. Safely combine them for the Convex backend
       if (vipToken) {
         setSessionString(`${baseId}||vip_${vipToken}`);
       } else {

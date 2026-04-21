@@ -79,9 +79,10 @@ export const updateTask = mutation({
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
     sharedWithSessions: v.optional(v.array(v.string())),
+    sessionId: v.optional(v.string()), // Kept for safety fallback
   },
   handler: async (ctx, args) => {
-    const { id, ...fields } = args;
+    const { id, sessionId, ...fields } = args;
     await ctx.db.patch(id, fields);
     return id;
   },
@@ -95,7 +96,6 @@ export const deleteTask = mutation({
   },
 });
 
-// FIXED: Secured the individual task query
 export const getTask = query({
   args: { id: v.id("tasks"), sessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {

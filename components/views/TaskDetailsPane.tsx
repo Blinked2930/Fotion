@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
   Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered,
-  Globe, Link as LinkIcon, ListFilter 
+  Globe, Link as LinkIcon, ListFilter, UserPlus 
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -37,8 +37,8 @@ const DoubleSpaceFix = Extension.create({
   },
 });
 
-const PropertyRow = ({ icon: Icon, label, children }: { icon: any, label: string, children: React.ReactNode }) => (
-  <div className="flex items-start sm:items-center min-h-[40px] group hover:bg-zinc-50 dark:hover:bg-zinc-900/30 -mx-2 px-2 py-0.5 sm:py-0 rounded transition-colors">
+const PropertyRow = ({ icon: Icon, label, children, disabled }: { icon: any, label: string, children: React.ReactNode, disabled?: boolean }) => (
+  <div className={`flex items-start sm:items-center min-h-[40px] group -mx-2 px-2 py-0.5 sm:py-0 rounded transition-colors ${disabled ? 'opacity-70 pointer-events-none' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/30'}`}>
     <div className="w-[140px] flex items-center gap-2 text-zinc-500 text-[14px] shrink-0 pt-1 sm:pt-0">
       <Icon className="w-4 h-4 text-zinc-400" />
       <span>{label}</span>
@@ -131,8 +131,8 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   );
 }
 
-export const EditorToolbar = ({ editor, isSorting, onToggleSort }: { editor: any, isSorting?: boolean, onToggleSort?: () => void }) => {
-  if (!editor) return null;
+export const EditorToolbar = ({ editor, isSorting, onToggleSort, disabled }: { editor: any, isSorting?: boolean, onToggleSort?: () => void, disabled?: boolean }) => {
+  if (!editor || disabled) return null;
 
   return (
     <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
@@ -212,6 +212,13 @@ function PaneContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
 
+  // VIP Inbox Stage Logic
+  const actualSessionId = guestSessionId?.split("||vip_")[0];
+  const isOwner = isSignedIn || task?.sessionId === actualSessionId;
+  const isSharedViewer = !isOwner && task?.shareToken && guestSessionId?.includes(`vip_${task.shareToken}`);
+  const hasAccepted = isSharedViewer && actualSessionId && task?.sharedWithSessions?.includes(actualSessionId);
+  const needsToAccept = isSharedViewer && !hasAccepted;
+
   const editor = useEditor({
     extensions: [
       StarterKit, TaskList, TaskItem.configure({ nested: true }), DoubleSpaceFix,
@@ -235,6 +242,13 @@ function PaneContent() {
     if (task && editor && task.description !== editor.getHTML()) editor.commands.setContent(task.description || "");
   }, [task?.description, editor]);
 
+  // Lock the editor visually if they haven't accepted the task yet
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!needsToAccept);
+    }
+  }, [editor, needsToAccept]);
+
   useEffect(() => {
     const handleClickOutside = (e: PointerEvent | MouseEvent) => {
       if (showDeleteModal || !isPaneOpen) return;
@@ -256,13 +270,18 @@ function PaneContent() {
     if (touchStart.x - e.changedTouches[0].clientX < -60) closePane();
   };
 
-  const handleUpdate = (field: string, value: any) => { if (displayTaskId) updateTask({ id: displayTaskId, [field]: value }); };
+  const handleUpdate = (field: string, value: any) => { 
+    if (needsToAccept) return; // Block edits until accepted into Matrix
+    if (displayTaskId) updateTask({ id: displayTaskId, [field]: value }); 
+  };
 
   const handleStatusUpdate = (newStatus: "todo" | "in-progress" | "done") => {
+    if (needsToAccept) return;
     if (displayTaskId) updateTask({ id: displayTaskId, status: newStatus, completedAt: newStatus === "done" ? Date.now() : null });
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (needsToAccept) return;
     setTitle(e.target.value);
     e.target.style.height = 'auto';
     e.target.style.height = `${e.target.scrollHeight}px`;
@@ -272,7 +291,6 @@ function PaneContent() {
     if (!task || !displayTaskId) return;
     let token = task.shareToken;
     
-    // FIX: Using an atomic update just like RawDataView to stay in sync
     if (!token) {
       token = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
       await updateTask({ id: displayTaskId, isPublic: true, shareToken: token });
@@ -286,6 +304,14 @@ function PaneContent() {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {}
+  };
+
+  const handleAcceptTask = () => {
+    if (!actualSessionId || !displayTaskId) return;
+    updateTask({ 
+      id: displayTaskId, 
+      sharedWithSessions: [...(task?.sharedWithSessions || []), actualSessionId] 
+    });
   };
 
   return (
@@ -333,11 +359,16 @@ function PaneContent() {
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-24 max-w-full">
             
-            <div className="flex items-center justify-between mb-4">
-              <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
                 {task.isPublic && (
                   <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-200 dark:border-blue-900/50">
                     <Globe className="w-3 h-3" /> {isSignedIn ? "Public Link Active" : "Shared By Owner"}
+                  </span>
+                )}
+                {hasAccepted && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded border border-purple-200 dark:border-purple-900/50">
+                    <CheckSquare className="w-3 h-3" /> Added to Matrix
                   </span>
                 )}
               </div>
@@ -360,22 +391,37 @@ function PaneContent() {
               )}
             </div>
 
-            <textarea ref={titleRef} value={title} onChange={handleTitleChange} onBlur={() => handleUpdate("title", title)} rows={1} className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300 resize-none overflow-hidden block py-1 leading-tight mt-0" placeholder="Task title" />
+            {needsToAccept && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in slide-in-from-top-2">
+                <div>
+                  <h4 className="text-blue-800 dark:text-blue-300 font-bold text-sm mb-1">Shared Task Inbox</h4>
+                  <p className="text-blue-600/80 dark:text-blue-400/80 text-xs">You are viewing a VIP task. Add it to your Matrix to track its progress and edit details.</p>
+                </div>
+                <button 
+                  onClick={handleAcceptTask}
+                  className="shrink-0 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm"
+                >
+                  <UserPlus className="w-4 h-4" /> Add to My Matrix
+                </button>
+              </div>
+            )}
+
+            <textarea ref={titleRef} value={title} onChange={handleTitleChange} onBlur={() => handleUpdate("title", title)} readOnly={needsToAccept} rows={1} className={`w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300 resize-none overflow-hidden block py-1 leading-tight mt-0 ${needsToAccept ? 'opacity-80' : ''}`} placeholder="Task title" />
 
             <div className="flex flex-col gap-1 sm:gap-2 text-[15px] max-w-full">
-              <PropertyRow icon={CheckSquare} label="Today"><button type="button" onClick={() => handleUpdate("isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></PropertyRow>
-              <PropertyRow icon={PlayCircle} label="Status"><div className="flex flex-wrap gap-2">{[{ id: 'todo', label: 'To Do', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' }, { id: 'in-progress', label: 'In Progress', activeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50' }, { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50' }].map((s) => (<button key={s.id} onClick={() => handleStatusUpdate(s.id as any)} className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${task.status === s.id ? s.activeClass : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>{s.label}</button>))}</div></PropertyRow>
-              <PropertyRow icon={Calendar} label="Due By Date"><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>
-              <PropertyRow icon={Calendar} label="Do On Date"><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" /></PropertyRow>
-              <PropertyRow icon={Sigma} label="Matrix Tags"><div className="flex flex-wrap gap-2"><button onClick={() => handleUpdate("isUrgent", !task.isUrgent)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Urgent</button><button onClick={() => handleUpdate("isImportant", !task.isImportant)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Important</button><button onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>For Funsies</button></div></PropertyRow>
-              <PropertyRow icon={List} label="Pipelines"><div className="flex flex-wrap gap-2">{['Current', 'Waiting For', 'Someday Maybe'].map(listName => (<button key={listName} onClick={() => handleUpdate("listCategory", listName)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>{listName}</button>))}</div></PropertyRow>
-              <PropertyRow icon={Folder} label="Project"><ProjectSelect value={task.projectId} onChange={(val) => handleUpdate("projectId", val)} /></PropertyRow>
+              <PropertyRow icon={CheckSquare} label="Today" disabled={needsToAccept}><button type="button" onClick={() => handleUpdate("isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></PropertyRow>
+              <PropertyRow icon={PlayCircle} label="Status" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{[{ id: 'todo', label: 'To Do', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' }, { id: 'in-progress', label: 'In Progress', activeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50' }, { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50' }].map((s) => (<button key={s.id} onClick={() => handleStatusUpdate(s.id as any)} className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${task.status === s.id ? s.activeClass : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>{s.label}</button>))}</div></PropertyRow>
+              <PropertyRow icon={Calendar} label="Due By Date" disabled={needsToAccept}><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>
+              <PropertyRow icon={Calendar} label="Do On Date" disabled={needsToAccept}><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" /></PropertyRow>
+              <PropertyRow icon={Sigma} label="Matrix Tags" disabled={needsToAccept}><div className="flex flex-wrap gap-2"><button onClick={() => handleUpdate("isUrgent", !task.isUrgent)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Urgent</button><button onClick={() => handleUpdate("isImportant", !task.isImportant)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Important</button><button onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>For Funsies</button></div></PropertyRow>
+              <PropertyRow icon={List} label="Pipelines" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{['Current', 'Waiting For', 'Someday Maybe'].map(listName => (<button key={listName} onClick={() => handleUpdate("listCategory", listName)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>{listName}</button>))}</div></PropertyRow>
+              <PropertyRow icon={Folder} label="Project" disabled={needsToAccept}><ProjectSelect value={task.projectId} onChange={(val) => handleUpdate("projectId", val)} /></PropertyRow>
             </div>
 
             <hr className="border-[var(--border)] my-6" />
 
-            <div className="space-y-2 pb-4 max-w-full">
-              <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} />
+            <div className={`space-y-2 pb-4 max-w-full ${needsToAccept ? 'opacity-80 pointer-events-none' : ''}`}>
+              <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} disabled={needsToAccept} />
               <div className={`w-full text-[var(--foreground)] text-base leading-relaxed ${isSorting ? "sort-checklists" : ""}`}>
                 <EditorContent editor={editor} className="tiptap outline-none h-full break-words" />
               </div>
