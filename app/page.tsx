@@ -287,7 +287,8 @@ export default function Home() {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
-    const urlParams = newSearchParams(window.location.search);
+    // FIX: Replaced typo newSearchParams with new URLSearchParams
+    const urlParams = new URLSearchParams(window.location.search);
     const vipParam = urlParams.get("vip");
 
     if (vipParam) {
