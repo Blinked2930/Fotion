@@ -4,32 +4,33 @@ import { v } from "convex/values";
 export const seedDemoData = mutation({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
-    // 1. SECURITY CHECK: Strictly enforce the demo prefix
-    if (!args.sessionId.startsWith("demo_user_")) {
-      throw new Error("Invalid demo session ID. Must use the demo_user_ prefix.");
+    // FIX: Strictly parse out ONLY the base ID. Ignore VIP tokens.
+    const actualSessionId = args.sessionId.split("||vip_")[0];
+
+    // 1. SECURITY CHECK: Silently exit if this is a VIP or Admin 
+    // instead of throwing an error, so we don't break page loads.
+    if (!actualSessionId.startsWith("demo_user_")) {
+      return false; 
     }
 
     // 2. Build the Foundation (Projects)
-    // FIX: Attached the sessionId so the demo user can actually see these projects!
+    // FIX: Using the parsed base ID so the projects actually appear for the demo user
     const project1 = await ctx.db.insert("projects", { 
       name: "🚀 Portfolio Build", 
       isArchived: false,
-      sessionId: args.sessionId 
+      sessionId: actualSessionId 
     });
     
     const project2 = await ctx.db.insert("projects", { 
       name: "💡 Q4 Roadmap", 
       isArchived: false,
-      sessionId: args.sessionId 
+      sessionId: actualSessionId 
     });
 
-    // Time math for realistic due dates
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
 
     // 3. Inject the Curated Tasks
-    
-    // Task A: The "Overdue" Task (Forces the red UI and pushes to Today view)
     await ctx.db.insert("tasks", {
       title: "Fix responsive layout bugs on mobile",
       description: "<p>The navigation menu is clipping on screens smaller than 375px. Needs to be resolved before the final launch.</p>",
@@ -38,13 +39,12 @@ export const seedDemoData = mutation({
       isForFunsies: false,
       isToday: false,
       listCategory: "Current",
-      doByDate: now - (oneDay * 2), // Overdue by 2 days
+      doByDate: now - (oneDay * 2),
       projectId: project1,
-      sessionId: args.sessionId,
+      sessionId: actualSessionId,
       status: "todo",
     });
 
-    // Task B: The "Interactive" Task (Showcases the TipTap checklist sorter)
     await ctx.db.insert("tasks", {
       title: "Prepare portfolio launch materials",
       description: `<ul data-type="taskList">
@@ -56,14 +56,13 @@ export const seedDemoData = mutation({
       isUrgent: false,
       isImportant: true,
       isForFunsies: false,
-      isToday: true, // Pushes it to the Today view
+      isToday: true,
       listCategory: "Current",
       projectId: project1,
-      sessionId: args.sessionId,
+      sessionId: actualSessionId,
       status: "in-progress",
     });
 
-    // Task C: The "Waiting For" Task (Showcases pipeline filtering)
     await ctx.db.insert("tasks", {
       title: "Review branding assets from design team",
       isUrgent: false,
@@ -71,12 +70,11 @@ export const seedDemoData = mutation({
       isForFunsies: false,
       isToday: false,
       listCategory: "Waiting For",
-      doOnDate: now + (oneDay * 3), // Scheduled for the future
-      sessionId: args.sessionId,
+      doOnDate: now + (oneDay * 3),
+      sessionId: actualSessionId,
       status: "todo",
     });
 
-    // Task D: The "Someday/Maybe" Task (Showcases funsies tag)
     await ctx.db.insert("tasks", {
       title: "Learn Three.js for 3D interactions",
       description: "<p>It would be awesome to add an interactive 3D element to the hero section eventually.</p>",
@@ -86,11 +84,10 @@ export const seedDemoData = mutation({
       isToday: false,
       listCategory: "Someday Maybe",
       projectId: project2,
-      sessionId: args.sessionId,
+      sessionId: actualSessionId,
       status: "todo",
     });
 
-    // Task E: A standard "Done" task (Showcases completed UI)
     await ctx.db.insert("tasks", {
       title: "Deploy database schema to production",
       isUrgent: true,
@@ -98,22 +95,20 @@ export const seedDemoData = mutation({
       isForFunsies: false,
       isToday: false,
       listCategory: "Current",
-      sessionId: args.sessionId,
+      sessionId: actualSessionId,
       status: "done",
-      completedAt: now - (oneDay * 1), // Completed yesterday
+      completedAt: now - (oneDay * 1),
     });
 
-    return true; // Success!
+    return true;
   },
 });
 
-// The Janitor Function
 export const cleanupOldDemos = internalMutation({
   handler: async (ctx) => {
     const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
     const cutoffTime = Date.now() - FORTY_EIGHT_HOURS;
 
-    // --- Clean up old Demo Tasks ---
     const allTasks = await ctx.db.query("tasks").collect();
     const deadTasks = allTasks.filter(task => 
       task._creationTime < cutoffTime && 
@@ -124,7 +119,6 @@ export const cleanupOldDemos = internalMutation({
       await ctx.db.delete(task._id);
     }
 
-    // --- Clean up old Demo Projects ---
     const allProjects = await ctx.db.query("projects").collect();
     const deadProjects = allProjects.filter(project => 
       project._creationTime < cutoffTime && 

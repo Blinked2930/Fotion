@@ -171,7 +171,6 @@ export function RawDataView() {
   const [newProjectName, setNewProjectName] = useState("");
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
   
-  // Sync Status Indicator State
   const [syncState, setSyncState] = useState<"synced" | "offline" | "syncing">("synced");
 
   useEffect(() => {
@@ -244,7 +243,6 @@ export function RawDataView() {
                 <NotionHeader icon={ListIcon} label="Pipelines" minWidth="160px" />
                 <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
                 <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
-                
                 {isSignedIn && <NotionHeader icon={LinkIcon} label="Share Access" minWidth="160px" />}
               </tr>
             </thead>
@@ -253,7 +251,6 @@ export function RawDataView() {
                 const quadrant = calculateQuadrant(task.isForFunsies, task.isUrgent, task.isImportant);
                 return (
                   <tr key={task._id} className="hover:bg-zinc-50 dark:bg-zinc-900/40 transition-colors group">
-                    
                     <NotionCell>
                       <div className="group/title relative flex items-center w-full gap-2">
                         <input 
@@ -277,87 +274,25 @@ export function RawDataView() {
                       </div>
                     </NotionCell>
                     
-                    <NotionCell>
-                      <BeautifulDropdown 
-                        value={task.status} 
-                        options={[{value: 'todo'}, {value: 'in-progress'}, {value: 'done'}]} 
-                        onChange={(val) => handleUpdate(task._id, "status", val)} 
-                        renderPill={StatusPill} 
-                      />
-                    </NotionCell>
-                    
-                    <NotionCell>
-                      <div className="whitespace-nowrap min-w-[130px]">
-                        <CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate(task._id, "doByDate", val)} alignPopover="right" />
-                      </div>
-                    </NotionCell>
-                    
-                    <NotionCell>
-                      <div className="whitespace-nowrap min-w-[130px]">
-                        <CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate(task._id, "doOnDate", val)} alignPopover="right" />
-                      </div>
-                    </NotionCell>
-
-                    <NotionCell>
-                      <button onClick={() => handleUpdate(task._id, "isImportant", !task.isImportant)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isImportant ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
-                        {task.isImportant && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                      </button>
-                    </NotionCell>
-
-                    <NotionCell>
-                      <button onClick={() => handleUpdate(task._id, "isUrgent", !task.isUrgent)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isUrgent ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
-                        {task.isUrgent && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                      </button>
-                    </NotionCell>
-
-                    <NotionCell>
-                      <button onClick={() => handleUpdate(task._id, "isForFunsies", !task.isForFunsies)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isForFunsies ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
-                        {task.isForFunsies && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                      </button>
-                    </NotionCell>
-
-                    <NotionCell>
-                      <BeautifulDropdown 
-                        value={task.projectId} 
-                        options={projectOptions} 
-                        onChange={(val) => handleUpdate(task._id, "projectId", val)} 
-                        renderPill={ProjectPill} 
-                        placeholder="None"
-                        actionLabel="+ Create Project"
-                        onActionClick={() => {
-                          setPendingTaskId(task._id);
-                          setIsModalOpen(true);
-                        }}
-                      />
-                    </NotionCell>
-
-                    <NotionCell>
-                      <BeautifulDropdown 
-                        value={task.listCategory || "Current"} 
-                        options={[{value: 'Current'}, {value: 'Waiting For'}, {value: 'Someday Maybe'}]} 
-                        onChange={(val) => handleUpdate(task._id, "listCategory", val)} 
-                        renderPill={ListPill} 
-                      />
-                    </NotionCell>
-
-                    <NotionCell>
-                      <span className="text-zinc-600 dark:text-zinc-300 text-[12px]">{quadrant}</span>
-                    </NotionCell>
-
-                    <NotionCell>
-                      <button onClick={() => handleUpdate(task._id, "isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>
-                        {task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                      </button>
-                    </NotionCell>
+                    <NotionCell><BeautifulDropdown value={task.status} options={[{value: 'todo'}, {value: 'in-progress'}, {value: 'done'}]} onChange={(val) => handleUpdate(task._id, "status", val)} renderPill={StatusPill} /></NotionCell>
+                    <NotionCell><div className="whitespace-nowrap min-w-[130px]"><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate(task._id, "doByDate", val)} alignPopover="right" /></div></NotionCell>
+                    <NotionCell><div className="whitespace-nowrap min-w-[130px]"><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate(task._id, "doOnDate", val)} alignPopover="right" /></div></NotionCell>
+                    <NotionCell><button onClick={() => handleUpdate(task._id, "isImportant", !task.isImportant)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isImportant ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isImportant && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
+                    <NotionCell><button onClick={() => handleUpdate(task._id, "isUrgent", !task.isUrgent)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isUrgent ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isUrgent && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
+                    <NotionCell><button onClick={() => handleUpdate(task._id, "isForFunsies", !task.isForFunsies)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isForFunsies ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isForFunsies && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
+                    <NotionCell><BeautifulDropdown value={task.projectId} options={projectOptions} onChange={(val) => handleUpdate(task._id, "projectId", val)} renderPill={ProjectPill} placeholder="None" actionLabel="+ Create Project" onActionClick={() => { setPendingTaskId(task._id); setIsModalOpen(true); }} /></NotionCell>
+                    <NotionCell><BeautifulDropdown value={task.listCategory || "Current"} options={[{value: 'Current'}, {value: 'Waiting For'}, {value: 'Someday Maybe'}]} onChange={(val) => handleUpdate(task._id, "listCategory", val)} renderPill={ListPill} /></NotionCell>
+                    <NotionCell><span className="text-zinc-600 dark:text-zinc-300 text-[12px]">{quadrant}</span></NotionCell>
+                    <NotionCell><button onClick={() => handleUpdate(task._id, "isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
 
                     {isSignedIn && (
                       <NotionCell>
                         <div className="flex items-center">
                           <button 
                             onClick={() => {
-                              // FIX: Use a single atomic update object to prevent race conditions
+                              // FIX: Clear sharedWithSessions array when revoking access
                               if (task.shareToken && task.isPublic) {
-                                updateTask({ id: task._id, shareToken: "", isPublic: false });
+                                updateTask({ id: task._id, shareToken: "", isPublic: false, sharedWithSessions: [] });
                               } else {
                                 const newToken = task.shareToken || Math.random().toString(36).substring(2, 10);
                                 updateTask({ id: task._id, shareToken: newToken, isPublic: true });
@@ -367,7 +302,6 @@ export function RawDataView() {
                           >
                             <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${task.isPublic ? 'translate-x-2' : '-translate-x-2'}`} />
                           </button>
-                          
                           <CopyLinkButton token={task.shareToken} isPublic={task.isPublic} />
                         </div>
                       </NotionCell>
@@ -385,7 +319,6 @@ export function RawDataView() {
         </div>
       </div>
 
-      {/* Floating Sync Indicator */}
       <div className="fixed bottom-6 right-6 z-[90] flex flex-col gap-2 pointer-events-none">
         {syncState === "offline" && (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shadow-lg text-xs font-medium animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -413,12 +346,8 @@ export function RawDataView() {
               className="w-full bg-transparent border border-[var(--border)] rounded-lg p-2 text-[var(--foreground)] mb-6 outline-none focus:border-blue-500 text-[14px]"
             />
             <div className="flex justify-end gap-3">
-              <button onClick={() => { setIsModalOpen(false); setPendingTaskId(null); }} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                Cancel
-              </button>
-              <button onClick={handleCreateProject} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">
-                Create
-              </button>
+              <button onClick={() => { setIsModalOpen(false); setPendingTaskId(null); }} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
+              <button onClick={handleCreateProject} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">Create</button>
             </div>
           </div>
         </div>

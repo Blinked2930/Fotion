@@ -212,7 +212,6 @@ function PaneContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
 
-  // VIP Inbox Stage Logic (FIXED: Coerced to strict booleans)
   const actualSessionId = guestSessionId?.split("||vip_")[0];
   const isOwner = !!(isSignedIn || task?.sessionId === actualSessionId);
   const isSharedViewer = !!(!isOwner && task?.shareToken && guestSessionId?.includes(`vip_${task.shareToken}`));
@@ -242,7 +241,6 @@ function PaneContent() {
     if (task && editor && task.description !== editor.getHTML()) editor.commands.setContent(task.description || "");
   }, [task?.description, editor]);
 
-  // Lock the editor visually if they haven't accepted the task yet
   useEffect(() => {
     if (editor) {
       editor.setEditable(!needsToAccept);
@@ -271,7 +269,7 @@ function PaneContent() {
   };
 
   const handleUpdate = (field: string, value: any) => { 
-    if (needsToAccept) return; // Block edits until accepted into Matrix
+    if (needsToAccept) return; 
     if (displayTaskId) updateTask({ id: displayTaskId, [field]: value }); 
   };
 
@@ -291,7 +289,6 @@ function PaneContent() {
     if (!task || !displayTaskId) return;
     let token = task.shareToken;
     
-    // FIX: Using an atomic update just like RawDataView to stay in sync
     if (!token) {
       token = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
       await updateTask({ id: displayTaskId, isPublic: true, shareToken: token });
@@ -378,7 +375,7 @@ function PaneContent() {
                 <div className="flex items-center gap-2">
                   {task.isPublic && (
                     <button 
-                      onClick={() => updateTask({ id: displayTaskId, isPublic: false, shareToken: "" })} 
+                      onClick={() => updateTask({ id: displayTaskId, isPublic: false, shareToken: "", sharedWithSessions: [] })} 
                       className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
                     >
                       Revoke Access
