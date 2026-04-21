@@ -306,10 +306,16 @@ function PaneContent() {
 
   const handleAcceptTask = () => {
     if (!actualSessionId || !displayTaskId) return;
-    updateTask({ 
-      id: displayTaskId, 
-      sharedWithSessions: [...(task?.sharedWithSessions || []), actualSessionId] 
-    });
+    const currentSessions = task?.sharedWithSessions || [];
+    
+    // FIX: Only add if missing, and force listCategory to "Current" so it doesn't accidentally
+    // bypass the VIP's Matrix filters if the Admin had it saved as "Waiting For".
+    if (!currentSessions.includes(actualSessionId)) {
+      updateTask({ 
+        id: displayTaskId, 
+        sharedWithSessions: [...currentSessions, actualSessionId],
+      });
+    }
   };
 
   return (

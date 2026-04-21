@@ -290,13 +290,16 @@ function HomeContent() {
   const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
   const vipTask = useQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip");
 
+  // FIX: Introduce a ref so the auto-routing only fires once, breaking the trap loop.
+  const hasAutoOpenedVip = useRef(false);
+
   useEffect(() => {
-    // FIX: Using searchParams avoids the Next.js unreactive window.location infinite loop
-    if (sessionType === "vip" && vipTask && vipTask._id) {
+    if (sessionType === "vip" && vipTask && vipTask._id && !hasAutoOpenedVip.current) {
       const currentTaskId = searchParams.get("taskId");
       if (currentTaskId !== vipTask._id) {
         router.replace(`/?taskId=${vipTask._id}`);
       }
+      hasAutoOpenedVip.current = true;
     }
   }, [vipTask, sessionType, router, searchParams]);
 
@@ -308,6 +311,14 @@ function HomeContent() {
 
     if (vipParam && !isSignedIn) {
       localStorage.setItem("fotion-vip-token", vipParam);
+      
+      // FIX: Ensure VIPs are generated a base session ID so they have a local matrix to add tasks to!
+      let baseId = localStorage.getItem("fotion-session-id");
+      if (!baseId) {
+        baseId = `vip_guest_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+        localStorage.setItem("fotion-session-id", baseId);
+      }
+
       window.location.href = "/"; 
       return;
     } 
