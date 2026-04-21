@@ -28,7 +28,7 @@ export const getTasks = query({
       // 3. Shared tasks ONLY show up in the Matrix AFTER they click "Add to My Matrix"
       if (actualSessionId && task.sharedWithSessions && task.sharedWithSessions.includes(actualSessionId)) return true;
       
-      // FIX: The VIP dragnet is gone! Unaccepted shared tasks will NEVER enter the matrix.
+      // DRAGNET REMOVED. VIP tasks will NO LONGER auto-add to the matrix.
       return false;
     });
   },
@@ -102,8 +102,7 @@ export const deleteTask = mutation({
   },
 });
 
-// The singular query used by TaskDetailsPane.tsx
-// This still allows the VIP to fetch the task to view it in the inbox stage.
+// The singular query used by TaskDetailsPane to preview the shared task
 export const getTask = query({
   args: { id: v.id("tasks"), sessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -115,7 +114,7 @@ export const getTask = query({
 
     if (identity && !task.sessionId) return task;
     
-    // This line is crucial: it lets the VIP load the task into the Details Pane to decide if they want it.
+    // Allows the VIP to load the task into the Details Pane to PREVIEW IT.
     if (vipToken && task.isPublic && task.shareToken === vipToken) return task;
     
     if (actualSessionId && task.sessionId === actualSessionId) return task;
@@ -123,6 +122,17 @@ export const getTask = query({
     
     return null;
   },
+});
+
+export const getTaskByShareToken = query({
+  args: { shareToken: v.string() },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.query("tasks")
+      .withIndex("by_shareToken", q => q.eq("shareToken", args.shareToken))
+      .first();
+    if (task && task.isPublic) return task;
+    return null;
+  }
 });
 
 export const createManyTasks = mutation({

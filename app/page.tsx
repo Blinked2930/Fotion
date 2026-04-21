@@ -224,7 +224,7 @@ function CustomUserMenu({ sessionType }: { sessionType: "none" | "demo" | "vip" 
   );
 }
 
-function DebugOverlay({ onForceSeed }: { onForceSeed: () => void }) {
+function DebugOverlay({ onForceSeed, sessionType, guestId }: { onForceSeed: () => void, sessionType: string, guestId: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   
@@ -234,7 +234,7 @@ function DebugOverlay({ onForceSeed }: { onForceSeed: () => void }) {
   if (!isOpen) {
     return (
       <button onClick={() => setIsOpen(true)} className="fixed bottom-4 left-4 z-[999] bg-black/80 text-xs text-white px-3 py-1.5 rounded-full border border-zinc-700 shadow-xl opacity-50 hover:opacity-100 transition-opacity flex items-center gap-2">
-        🐛 <span className="font-medium">Debug</span>
+        🐛 <span className="font-medium">Debug System</span>
       </button>
     );
   }
@@ -245,11 +245,14 @@ function DebugOverlay({ onForceSeed }: { onForceSeed: () => void }) {
         <span className="font-bold text-white uppercase tracking-wider">System Debugger</span>
         <button onClick={() => setIsOpen(false)} className="text-zinc-400 hover:text-white p-1 bg-zinc-800 rounded"><X className="w-3 h-3" /></button>
       </div>
-      <div className="space-y-2 mb-4 break-all">
-        <p><strong className="text-white">Base ID:</strong> {localStorage.getItem("fotion-session-id") || "null"}</p>
+      
+      <div className="space-y-2 mb-4">
+        <p><strong className="text-white">React Thinks You Are:</strong> {sessionType}</p>
+        <p className="break-all"><strong className="text-white">Base ID:</strong> {localStorage.getItem("fotion-session-id") || "null"}</p>
         <p><strong className="text-white">VIP Token:</strong> {localStorage.getItem("fotion-vip-token") || "null"}</p>
-        <p><strong className="text-white">Landing Seen:</strong> {localStorage.getItem("fotion-seen-landing") || "null"}</p>
+        <p><strong className="text-white">Landing Seen:</strong> {localStorage.getItem("fotion-seen-landing-id") ? "Yes" : "No"}</p>
       </div>
+
       <div className="space-y-2">
         <button 
           onClick={onForceSeed} 
@@ -283,11 +286,22 @@ export default function Home() {
   const { isLoaded, isSignedIn } = useAuth();
   const guestSessionId = useGuestSession();
 
+  const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
+  const vipTask = useQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip");
+
+  useEffect(() => {
+    if (sessionType === "vip" && vipTask) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("taskId") !== vipTask._id) {
+        router.replace(`/?taskId=${vipTask._id}`);
+      }
+    }
+  }, [vipTask, sessionType, router]);
+
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
-    // FIX: Replaced typo newSearchParams with new URLSearchParams
     const urlParams = new URLSearchParams(window.location.search);
     const vipParam = urlParams.get("vip");
 
@@ -296,21 +310,30 @@ export default function Home() {
       window.location.href = "/"; 
       return;
     } 
+
+    // FIX: If signed in, actively nuke any leftover guest state to ensure Admin purity
+    if (isSignedIn) {
+       localStorage.removeItem("fotion-session-id");
+       localStorage.removeItem("fotion-vip-token");
+       setSessionType("none");
+       setIsMounted(true);
+       return;
+    }
     
     const hasVipToken = !!localStorage.getItem("fotion-vip-token");
     const rawBaseId = localStorage.getItem("fotion-session-id");
-    const hasSeenLandingPage = !!localStorage.getItem("fotion-seen-landing");
+    const seenLandingId = localStorage.getItem("fotion-seen-landing-id");
     
     if (hasVipToken) {
       setSessionType("vip");
-    } else if (rawBaseId?.startsWith("demo_user_") && hasSeenLandingPage) {
+    } else if (rawBaseId?.startsWith("demo_user_") && seenLandingId === rawBaseId) {
       setSessionType("demo");
     } else {
       setSessionType("none");
     }
     
     setIsMounted(true);
-  }, []);
+  }, [isSignedIn]);
 
   const handleViewChange = (view: ViewType) => {
     setActiveView(view);
@@ -327,7 +350,8 @@ export default function Home() {
       }
       
       await seedDemoData({ sessionId: demoId });
-      localStorage.setItem("fotion-seen-landing", "true");
+      localStorage.setItem("fotion-seen-landing-id", demoId);
+      
       setSessionType("demo");
       setIsGeneratingDemo(false);
     } catch (error: any) {
@@ -498,7 +522,7 @@ export default function Home() {
         <PushPromptModal />
       </main>
 
-      <DebugOverlay onForceSeed={handleForceSeed} />
+      <DebugOverlay onForceSeed={handleForceSeed} sessionType={sessionType} guestId={guestSessionId} />
     </div>
   );
 }

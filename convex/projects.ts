@@ -19,22 +19,18 @@ export const getProjects = query({
     const projects = await ctx.db.query("projects").collect();
     const unarchivedProjects = projects.filter(p => !p.isArchived);
 
-    // 1. THE OWNER: Returns their official projects AND any sandbox projects they are currently viewing
     if (identity) {
         return unarchivedProjects.filter(p => !p.sessionId || (actualSessionId && p.sessionId === actualSessionId));
     }
 
-    // 2. THE VIP/GUEST: We need to see what tasks they are allowed to view, 
-    // so we can also show them the name of the folder that task belongs to.
     const allTasks = await ctx.db.query("tasks").collect();
     const visibleSharedTaskProjectIds = allTasks
         .filter(t => vipToken && t.isPublic && t.shareToken === vipToken && t.projectId)
         .map(t => t.projectId);
 
     return unarchivedProjects.filter(p => {
-        // Show projects they specifically created in their sandbox
+        // FIX: Ensure sandbox projects correctly return to the frontend to prevent "Unknown" labels
         if (actualSessionId && p.sessionId === actualSessionId) return true;
-        // Show projects that explicitly house a shared task they have a ticket for
         if (visibleSharedTaskProjectIds.includes(p._id)) return true;
         return false;
     });
