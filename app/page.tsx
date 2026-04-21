@@ -224,53 +224,6 @@ function CustomUserMenu({ sessionType }: { sessionType: "none" | "demo" | "vip" 
   );
 }
 
-function DebugOverlay({ onForceSeed, sessionType, guestId }: { onForceSeed: () => void, sessionType: string, guestId: string | null }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-
-  if (!isOpen) {
-    return (
-      <button onClick={() => setIsOpen(true)} className="fixed bottom-4 left-4 z-[999] bg-black/80 text-xs text-white px-3 py-1.5 rounded-full border border-zinc-700 shadow-xl opacity-50 hover:opacity-100 transition-opacity flex items-center gap-2">
-        🐛 <span className="font-medium">Debug System</span>
-      </button>
-    );
-  }
-
-  return (
-    <div className="fixed bottom-4 left-4 z-[999] bg-black/95 text-emerald-400 text-[11px] p-5 rounded-xl border border-emerald-500/30 w-[300px] font-mono shadow-2xl backdrop-blur-sm">
-      <div className="flex justify-between items-center mb-4 border-b border-emerald-500/30 pb-2">
-        <span className="font-bold text-white uppercase tracking-wider">System Debugger</span>
-        <button onClick={() => setIsOpen(false)} className="text-zinc-400 hover:text-white p-1 bg-zinc-800 rounded"><X className="w-3 h-3" /></button>
-      </div>
-      
-      <div className="space-y-2 mb-4 break-all">
-        <p><strong className="text-white">React Thinks You Are:</strong> {sessionType}</p>
-        <p><strong className="text-white">Base ID:</strong> {localStorage.getItem("fotion-session-id") || "null"}</p>
-        <p><strong className="text-white">VIP Token:</strong> {localStorage.getItem("fotion-vip-token") || "null"}</p>
-        <p><strong className="text-white">Landing Seen:</strong> {localStorage.getItem("fotion-seen-landing-id") ? "Yes" : "No"}</p>
-      </div>
-
-      <div className="space-y-2">
-        <button 
-          onClick={onForceSeed} 
-          className="w-full bg-blue-500/20 text-blue-400 border border-blue-500/50 py-2 rounded-lg hover:bg-blue-500/30 font-bold tracking-wide transition-colors"
-        >
-          FORCE SEED TASKS
-        </button>
-        <button 
-          onClick={() => { localStorage.clear(); window.location.href="/"; }} 
-          className="w-full bg-red-500/10 text-red-400 border border-red-500/50 py-2 rounded-lg hover:bg-red-500/20 font-bold tracking-wide transition-colors"
-        >
-          NUKE BROWSER MEMORY
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -290,7 +243,6 @@ function HomeContent() {
   const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
   const vipTask = useQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip");
 
-  // FIX: Introduce a ref so the auto-routing only fires once, breaking the trap loop.
   const hasAutoOpenedVip = useRef(false);
 
   useEffect(() => {
@@ -312,7 +264,6 @@ function HomeContent() {
     if (vipParam && !isSignedIn) {
       localStorage.setItem("fotion-vip-token", vipParam);
       
-      // FIX: Ensure VIPs are generated a base session ID so they have a local matrix to add tasks to!
       let baseId = localStorage.getItem("fotion-session-id");
       if (!baseId) {
         baseId = `vip_guest_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
@@ -367,18 +318,6 @@ function HomeContent() {
       alert("Failed to seed demo data: " + error.message);
       setIsGeneratingDemo(false);
     } 
-  };
-
-  const handleForceSeed = async () => {
-    try {
-      const demoId = localStorage.getItem("fotion-session-id");
-      if (!demoId) return alert("No session ID found!");
-      await seedDemoData({ sessionId: demoId });
-      alert("Seeded tasks successfully!");
-      window.location.reload();
-    } catch (error: any) {
-      alert("Seeding failed: " + error.message);
-    }
   };
 
   if (!isLoaded || (!isSignedIn && guestSessionId === null && !isMounted)) {
@@ -528,8 +467,6 @@ function HomeContent() {
         <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
         <PushPromptModal />
       </main>
-
-      <DebugOverlay onForceSeed={handleForceSeed} sessionType={sessionType} guestId={guestSessionId} />
     </div>
   );
 }
