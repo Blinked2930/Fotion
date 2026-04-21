@@ -29,7 +29,7 @@ export const getProjects = query({
         .map(t => t.projectId);
 
     return unarchivedProjects.filter(p => {
-        // FIX: Ensure sandbox projects correctly return to the frontend to prevent "Unknown" labels
+        // FIX: Project fetching explicitly matches the parsed demo_user_ ID
         if (actualSessionId && p.sessionId === actualSessionId) return true;
         if (visibleSharedTaskProjectIds.includes(p._id)) return true;
         return false;

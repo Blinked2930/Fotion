@@ -246,9 +246,9 @@ function DebugOverlay({ onForceSeed, sessionType, guestId }: { onForceSeed: () =
         <button onClick={() => setIsOpen(false)} className="text-zinc-400 hover:text-white p-1 bg-zinc-800 rounded"><X className="w-3 h-3" /></button>
       </div>
       
-      <div className="space-y-2 mb-4">
+      <div className="space-y-2 mb-4 break-all">
         <p><strong className="text-white">React Thinks You Are:</strong> {sessionType}</p>
-        <p className="break-all"><strong className="text-white">Base ID:</strong> {localStorage.getItem("fotion-session-id") || "null"}</p>
+        <p><strong className="text-white">Base ID:</strong> {localStorage.getItem("fotion-session-id") || "null"}</p>
         <p><strong className="text-white">VIP Token:</strong> {localStorage.getItem("fotion-vip-token") || "null"}</p>
         <p><strong className="text-white">Landing Seen:</strong> {localStorage.getItem("fotion-seen-landing-id") ? "Yes" : "No"}</p>
       </div>
@@ -290,9 +290,10 @@ export default function Home() {
   const vipTask = useQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip");
 
   useEffect(() => {
+    // FIX: Prevent fatal crash by strictly checking if vipTask exists before accessing _id
     if (sessionType === "vip" && vipTask) {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("taskId") !== vipTask._id) {
+      if (urlParams.get("taskId") !== vipTask?._id) {
         router.replace(`/?taskId=${vipTask._id}`);
       }
     }
@@ -305,16 +306,13 @@ export default function Home() {
     const urlParams = new URLSearchParams(window.location.search);
     const vipParam = urlParams.get("vip");
 
-    if (vipParam) {
+    if (vipParam && !isSignedIn) {
       localStorage.setItem("fotion-vip-token", vipParam);
       window.location.href = "/"; 
       return;
     } 
 
-    // FIX: If signed in, actively nuke any leftover guest state to ensure Admin purity
     if (isSignedIn) {
-       localStorage.removeItem("fotion-session-id");
-       localStorage.removeItem("fotion-vip-token");
        setSessionType("none");
        setIsMounted(true);
        return;
@@ -322,11 +320,11 @@ export default function Home() {
     
     const hasVipToken = !!localStorage.getItem("fotion-vip-token");
     const rawBaseId = localStorage.getItem("fotion-session-id");
-    const seenLandingId = localStorage.getItem("fotion-seen-landing-id");
+    const hasSeenLandingPage = !!localStorage.getItem("fotion-seen-landing-id");
     
     if (hasVipToken) {
       setSessionType("vip");
-    } else if (rawBaseId?.startsWith("demo_user_") && seenLandingId === rawBaseId) {
+    } else if (rawBaseId?.startsWith("demo_user_") && hasSeenLandingPage) {
       setSessionType("demo");
     } else {
       setSessionType("none");
@@ -380,7 +378,6 @@ export default function Home() {
     );
   }
 
-  // PORTFOLIO INTERCEPT 
   if (!isSignedIn && sessionType === "none") {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
@@ -447,7 +444,6 @@ export default function Home() {
     );
   }
 
-  // DASHBOARD
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col relative">
       <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
