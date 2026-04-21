@@ -16,13 +16,19 @@ export const getTasks = query({
     const identity = await ctx.auth.getUserIdentity();
     const allTasks = await ctx.db.query("tasks").order("desc").collect();
 
-    const { actualSessionId, vipToken } = parseSessionId(args.sessionId);
+    const { actualSessionId } = parseSessionId(args.sessionId);
 
     return allTasks.filter(task => {
+      // 1. Admin sees their own tasks
       if (identity && !task.sessionId) return true;
-      if (vipToken && task.isPublic && task.shareToken === vipToken) return true;
+      
+      // 2. Sandbox/VIP users see tasks they specifically created
       if (actualSessionId && task.sessionId === actualSessionId) return true;
+      
+      // 3. Shared tasks ONLY show up in the Matrix AFTER they click "Add to My Matrix"
       if (actualSessionId && task.sharedWithSessions && task.sharedWithSessions.includes(actualSessionId)) return true;
+      
+      // FIX: The VIP dragnet is gone! Unaccepted shared tasks will NEVER enter the matrix.
       return false;
     });
   },
@@ -79,7 +85,7 @@ export const updateTask = mutation({
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
     sharedWithSessions: v.optional(v.array(v.string())),
-    sessionId: v.optional(v.string()), // Kept for safety fallback
+    sessionId: v.optional(v.string()), 
   },
   handler: async (ctx, args) => {
     const { id, sessionId, ...fields } = args;
@@ -96,6 +102,8 @@ export const deleteTask = mutation({
   },
 });
 
+// The singular query used by TaskDetailsPane.tsx
+// This still allows the VIP to fetch the task to view it in the inbox stage.
 export const getTask = query({
   args: { id: v.id("tasks"), sessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -106,7 +114,10 @@ export const getTask = query({
     const { actualSessionId, vipToken } = parseSessionId(args.sessionId);
 
     if (identity && !task.sessionId) return task;
+    
+    // This line is crucial: it lets the VIP load the task into the Details Pane to decide if they want it.
     if (vipToken && task.isPublic && task.shareToken === vipToken) return task;
+    
     if (actualSessionId && task.sessionId === actualSessionId) return task;
     if (actualSessionId && task.sharedWithSessions && task.sharedWithSessions.includes(actualSessionId)) return task;
     

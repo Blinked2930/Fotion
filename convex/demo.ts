@@ -4,17 +4,9 @@ import { v } from "convex/values";
 export const seedDemoData = mutation({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
-    // FIX: Strictly parse out ONLY the base ID. Ignore VIP tokens.
+    // Break off the exact session ID, ignoring any VIP garbage
     const actualSessionId = args.sessionId.split("||vip_")[0];
 
-    // 1. SECURITY CHECK: Silently exit if this is a VIP or Admin 
-    // instead of throwing an error, so we don't break page loads.
-    if (!actualSessionId.startsWith("demo_user_")) {
-      return false; 
-    }
-
-    // 2. Build the Foundation (Projects)
-    // FIX: Using the parsed base ID so the projects actually appear for the demo user
     const project1 = await ctx.db.insert("projects", { 
       name: "🚀 Portfolio Build", 
       isArchived: false,
@@ -30,7 +22,6 @@ export const seedDemoData = mutation({
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
 
-    // 3. Inject the Curated Tasks
     await ctx.db.insert("tasks", {
       title: "Fix responsive layout bugs on mobile",
       description: "<p>The navigation menu is clipping on screens smaller than 375px. Needs to be resolved before the final launch.</p>",

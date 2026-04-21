@@ -224,6 +224,50 @@ function CustomUserMenu({ sessionType }: { sessionType: "none" | "demo" | "vip" 
   );
 }
 
+function DebugOverlay({ onForceSeed }: { onForceSeed: () => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+
+  if (!isOpen) {
+    return (
+      <button onClick={() => setIsOpen(true)} className="fixed bottom-4 left-4 z-[999] bg-black/80 text-xs text-white px-3 py-1.5 rounded-full border border-zinc-700 shadow-xl opacity-50 hover:opacity-100 transition-opacity flex items-center gap-2">
+        🐛 <span className="font-medium">Debug</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-4 left-4 z-[999] bg-black/95 text-emerald-400 text-[11px] p-5 rounded-xl border border-emerald-500/30 w-[300px] font-mono shadow-2xl backdrop-blur-sm">
+      <div className="flex justify-between items-center mb-4 border-b border-emerald-500/30 pb-2">
+        <span className="font-bold text-white uppercase tracking-wider">System Debugger</span>
+        <button onClick={() => setIsOpen(false)} className="text-zinc-400 hover:text-white p-1 bg-zinc-800 rounded"><X className="w-3 h-3" /></button>
+      </div>
+      <div className="space-y-2 mb-4 break-all">
+        <p><strong className="text-white">Base ID:</strong> {localStorage.getItem("fotion-session-id") || "null"}</p>
+        <p><strong className="text-white">VIP Token:</strong> {localStorage.getItem("fotion-vip-token") || "null"}</p>
+        <p><strong className="text-white">Landing Seen:</strong> {localStorage.getItem("fotion-seen-landing") || "null"}</p>
+      </div>
+      <div className="space-y-2">
+        <button 
+          onClick={onForceSeed} 
+          className="w-full bg-blue-500/20 text-blue-400 border border-blue-500/50 py-2 rounded-lg hover:bg-blue-500/30 font-bold tracking-wide transition-colors"
+        >
+          FORCE SEED TASKS
+        </button>
+        <button 
+          onClick={() => { localStorage.clear(); window.location.href="/"; }} 
+          className="w-full bg-red-500/10 text-red-400 border border-red-500/50 py-2 rounded-lg hover:bg-red-500/20 font-bold tracking-wide transition-colors"
+        >
+          NUKE BROWSER MEMORY
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const [activeView, setActiveView] = useState<ViewType>("Matrix");
@@ -239,28 +283,11 @@ export default function Home() {
   const { isLoaded, isSignedIn } = useAuth();
   const guestSessionId = useGuestSession();
 
-  const tasksForVip = useQuery(api.tasks.getTasks, sessionType === "vip" ? { sessionId: guestSessionId ?? undefined } : "skip");
-
-  useEffect(() => {
-    const tokenMatch = guestSessionId?.match(/\|\|vip_(.+)$/);
-    const activeVipToken = tokenMatch ? tokenMatch[1] : null;
-
-    if (sessionType === "vip" && tasksForVip && activeVipToken) {
-      const targetTask = tasksForVip.find(t => t.shareToken === activeVipToken);
-      if (targetTask) {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get("taskId") !== targetTask._id) {
-          router.replace(`/?taskId=${targetTask._id}`);
-        }
-      }
-    }
-  }, [tasksForVip, sessionType, guestSessionId, router]);
-
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = newSearchParams(window.location.search);
     const vipParam = urlParams.get("vip");
 
     if (vipParam) {
@@ -269,8 +296,6 @@ export default function Home() {
       return;
     } 
     
-    // FIX: Look at the local storage directly to determine the state. 
-    // If there is NO ID, or if we need to show the landing page, keep sessionType as "none".
     const hasVipToken = !!localStorage.getItem("fotion-vip-token");
     const rawBaseId = localStorage.getItem("fotion-session-id");
     const hasSeenLandingPage = !!localStorage.getItem("fotion-seen-landing");
@@ -294,8 +319,6 @@ export default function Home() {
   const handleStartDemo = async () => {
     setIsGeneratingDemo(true);
     try {
-      // The useGuestSession hook already created a demo_user_ ID.
-      // We just need to grab it and seed it.
       let demoId = localStorage.getItem("fotion-session-id");
       if (!demoId || !demoId.startsWith("demo_user_")) {
         demoId = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
@@ -303,16 +326,25 @@ export default function Home() {
       }
       
       await seedDemoData({ sessionId: demoId });
-      
-      // Mark that they have clicked the button so they bypass this screen next time
       localStorage.setItem("fotion-seen-landing", "true");
-      
       setSessionType("demo");
       setIsGeneratingDemo(false);
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      alert("Failed to seed demo data: " + error.message);
       setIsGeneratingDemo(false);
     } 
+  };
+
+  const handleForceSeed = async () => {
+    try {
+      const demoId = localStorage.getItem("fotion-session-id");
+      if (!demoId) return alert("No session ID found!");
+      await seedDemoData({ sessionId: demoId });
+      alert("Seeded tasks successfully!");
+      window.location.reload();
+    } catch (error: any) {
+      alert("Seeding failed: " + error.message);
+    }
   };
 
   if (!isLoaded || (!isSignedIn && guestSessionId === null && !isMounted)) {
@@ -464,6 +496,8 @@ export default function Home() {
         <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
         <PushPromptModal />
       </main>
+
+      <DebugOverlay onForceSeed={handleForceSeed} />
     </div>
   );
 }
