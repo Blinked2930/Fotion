@@ -1,6 +1,6 @@
 "use client"; 
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { EisenhowerMatrix } from "@/components/views/EisenhowerMatrix";
 import { NewTaskForm } from "@/components/views/NewTaskForm";
 import { ViewTabs, ViewType } from "@/components/ui/ViewTabs";
@@ -271,7 +271,7 @@ function DebugOverlay({ onForceSeed, sessionType, guestId }: { onForceSeed: () =
   );
 }
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeView, setActiveView] = useState<ViewType>("Matrix");
@@ -520,5 +520,17 @@ export default function Home() {
 
       <DebugOverlay onForceSeed={handleForceSeed} sessionType={sessionType} guestId={guestSessionId} />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-zinc-300 dark:text-zinc-700" />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }
