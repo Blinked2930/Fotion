@@ -286,6 +286,11 @@ export default function Home() {
     setIsMounted(true);
   }, []);
 
+  const handleViewChange = (view: ViewType) => {
+    setActiveView(view);
+    localStorage.setItem("fotion-active-view", view);
+  };
+
   const handleStartDemo = async () => {
     setIsGeneratingDemo(true);
     try {
