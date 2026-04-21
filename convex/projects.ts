@@ -19,19 +19,27 @@ export const getProjects = query({
     const projects = await ctx.db.query("projects").collect();
     const unarchivedProjects = projects.filter(p => !p.isArchived);
 
+    // FIX: Strict isolation. Do not allow Admin to see Guest projects under any circumstances.
     if (identity) {
-        return unarchivedProjects.filter(p => !p.sessionId || (actualSessionId && p.sessionId === actualSessionId));
+        return unarchivedProjects.filter(p => !p.sessionId);
     }
 
     const allTasks = await ctx.db.query("tasks").collect();
-    const visibleSharedTaskProjectIds = allTasks
-        .filter(t => vipToken && t.isPublic && t.shareToken === vipToken && t.projectId)
+    
+    // FIX: A bulletproof check that gathers project IDs from ALL tasks the user is actively authorized to view. 
+    // This solves the 'Empty' bug by creating an explicit dependency relationship.
+    const visibleTaskProjectIds = allTasks
+        .filter(t => {
+            if (vipToken && t.isPublic && t.shareToken === vipToken) return true;
+            if (actualSessionId && t.sessionId === actualSessionId) return true;
+            if (actualSessionId && t.sharedWithSessions?.includes(actualSessionId)) return true;
+            return false;
+        })
         .map(t => t.projectId);
 
     return unarchivedProjects.filter(p => {
-        // FIX: Project fetching explicitly matches the parsed demo_user_ ID
         if (actualSessionId && p.sessionId === actualSessionId) return true;
-        if (visibleSharedTaskProjectIds.includes(p._id)) return true;
+        if (visibleTaskProjectIds.includes(p._id)) return true;
         return false;
     });
   },

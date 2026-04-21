@@ -19,8 +19,11 @@ export const getTasks = query({
     const { actualSessionId } = parseSessionId(args.sessionId);
 
     return allTasks.filter(task => {
-      // 1. Admin sees their own tasks
-      if (identity && !task.sessionId) return true;
+      // FIX: Strict isolation. If the user is identified as Admin, 
+      // evaluate exclusively under Admin rules and do not fall through to guest checks.
+      if (identity) {
+        return !task.sessionId;
+      }
       
       // 2. Sandbox/VIP users see tasks they specifically created
       if (actualSessionId && task.sessionId === actualSessionId) return true;
@@ -28,7 +31,6 @@ export const getTasks = query({
       // 3. Shared tasks ONLY show up in the Matrix AFTER they click "Add to My Matrix"
       if (actualSessionId && task.sharedWithSessions && task.sharedWithSessions.includes(actualSessionId)) return true;
       
-      // FIX: VIP Dragnet is permanently deleted. Unaccepted tasks will NEVER enter the matrix.
       return false;
     });
   },
@@ -122,7 +124,10 @@ export const getTask = query({
 
     const { actualSessionId, vipToken } = parseSessionId(args.sessionId);
 
-    if (identity && !task.sessionId) return task;
+    // FIX: Strict isolation for the Admin route
+    if (identity) {
+      return !task.sessionId ? task : null;
+    }
     
     // Allows the VIP to load the task into the Details Pane to PREVIEW IT.
     if (vipToken && task.isPublic && task.shareToken === vipToken) return task;

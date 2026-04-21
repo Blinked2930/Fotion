@@ -12,7 +12,7 @@ import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -273,6 +273,7 @@ function DebugOverlay({ onForceSeed, sessionType, guestId }: { onForceSeed: () =
 
 export default function Home() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeView, setActiveView] = useState<ViewType>("Matrix");
   const [isMounted, setIsMounted] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -290,21 +291,20 @@ export default function Home() {
   const vipTask = useQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip");
 
   useEffect(() => {
-    // FIX: Prevent fatal crash by strictly checking if vipTask exists before accessing _id
-    if (sessionType === "vip" && vipTask) {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("taskId") !== vipTask?._id) {
+    // FIX: Using searchParams avoids the Next.js unreactive window.location infinite loop
+    if (sessionType === "vip" && vipTask && vipTask._id) {
+      const currentTaskId = searchParams.get("taskId");
+      if (currentTaskId !== vipTask._id) {
         router.replace(`/?taskId=${vipTask._id}`);
       }
     }
-  }, [vipTask, sessionType, router]);
+  }, [vipTask, sessionType, router, searchParams]);
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
-    const urlParams = new URLSearchParams(window.location.search);
-    const vipParam = urlParams.get("vip");
+    const vipParam = searchParams.get("vip");
 
     if (vipParam && !isSignedIn) {
       localStorage.setItem("fotion-vip-token", vipParam);
@@ -331,7 +331,7 @@ export default function Home() {
     }
     
     setIsMounted(true);
-  }, [isSignedIn]);
+  }, [isSignedIn, searchParams]);
 
   const handleViewChange = (view: ViewType) => {
     setActiveView(view);
