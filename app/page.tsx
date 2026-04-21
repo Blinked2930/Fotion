@@ -239,7 +239,6 @@ export default function Home() {
   const { isLoaded, isSignedIn } = useAuth();
   const guestSessionId = useGuestSession();
 
-  // MAGIC AUTO-OPEN: Fetch tasks for the VIP to see if we should pop the pane
   const tasksForVip = useQuery(api.tasks.getTasks, sessionType === "vip" ? { sessionId: guestSessionId ?? undefined } : "skip");
 
   useEffect(() => {
@@ -265,37 +264,48 @@ export default function Home() {
     const vipParam = urlParams.get("vip");
 
     if (vipParam) {
-      // Clean up the URL but save the token locally for the hook to find
       localStorage.setItem("fotion-vip-token", vipParam);
       window.location.href = "/"; 
       return;
     } 
     
-    // Determine the active mode based on what the hook generates
+    // FIX: Look at the local storage directly to determine the state. 
+    // If there is NO ID, or if we need to show the landing page, keep sessionType as "none".
     const hasVipToken = !!localStorage.getItem("fotion-vip-token");
+    const rawBaseId = localStorage.getItem("fotion-session-id");
+    const hasSeenLandingPage = !!localStorage.getItem("fotion-seen-landing");
+    
     if (hasVipToken) {
       setSessionType("vip");
-    } else if (localStorage.getItem("fotion-session-id")?.startsWith("demo_user_")) {
+    } else if (rawBaseId?.startsWith("demo_user_") && hasSeenLandingPage) {
       setSessionType("demo");
+    } else {
+      setSessionType("none");
     }
     
     setIsMounted(true);
   }, []);
 
-  const handleViewChange = (view: ViewType) => {
-    setActiveView(view);
-    localStorage.setItem("fotion-active-view", view);
-  };
-
   const handleStartDemo = async () => {
     setIsGeneratingDemo(true);
     try {
-      const newDemoId = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
-      localStorage.setItem("fotion-session-id", newDemoId);
-      localStorage.removeItem("fotion-vip-token");
-      await seedDemoData({ sessionId: newDemoId });
-      window.location.href = "/";
+      // The useGuestSession hook already created a demo_user_ ID.
+      // We just need to grab it and seed it.
+      let demoId = localStorage.getItem("fotion-session-id");
+      if (!demoId || !demoId.startsWith("demo_user_")) {
+        demoId = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+        localStorage.setItem("fotion-session-id", demoId);
+      }
+      
+      await seedDemoData({ sessionId: demoId });
+      
+      // Mark that they have clicked the button so they bypass this screen next time
+      localStorage.setItem("fotion-seen-landing", "true");
+      
+      setSessionType("demo");
+      setIsGeneratingDemo(false);
     } catch (error) {
+      console.error(error);
       setIsGeneratingDemo(false);
     } 
   };
