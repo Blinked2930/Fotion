@@ -212,12 +212,12 @@ function PaneContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
 
-  // VIP Inbox Stage Logic
+  // VIP Inbox Stage Logic (FIXED: Coerced to strict booleans)
   const actualSessionId = guestSessionId?.split("||vip_")[0];
-  const isOwner = isSignedIn || task?.sessionId === actualSessionId;
-  const isSharedViewer = !isOwner && task?.shareToken && guestSessionId?.includes(`vip_${task.shareToken}`);
-  const hasAccepted = isSharedViewer && actualSessionId && task?.sharedWithSessions?.includes(actualSessionId);
-  const needsToAccept = isSharedViewer && !hasAccepted;
+  const isOwner = !!(isSignedIn || task?.sessionId === actualSessionId);
+  const isSharedViewer = !!(!isOwner && task?.shareToken && guestSessionId?.includes(`vip_${task.shareToken}`));
+  const hasAccepted = !!(isSharedViewer && actualSessionId && task?.sharedWithSessions?.includes(actualSessionId));
+  const needsToAccept = !!(isSharedViewer && !hasAccepted);
 
   const editor = useEditor({
     extensions: [
@@ -291,6 +291,7 @@ function PaneContent() {
     if (!task || !displayTaskId) return;
     let token = task.shareToken;
     
+    // FIX: Using an atomic update just like RawDataView to stay in sync
     if (!token) {
       token = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
       await updateTask({ id: displayTaskId, isPublic: true, shareToken: token });
