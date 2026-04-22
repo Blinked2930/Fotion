@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Check, Calendar, List, AlignLeft, Folder } from "lucide-react";
+import { Check, Calendar, List, AlignLeft, Folder, Target } from "lucide-react";
 import { getListColor, getProjectColor } from "../views/NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession";
 
@@ -133,7 +133,6 @@ export function TaskCard({
   let isOverdue = false;
   let demandsAttentionToday = false; 
 
-  // NEW: Check both dates for overdue status!
   if ((task.doByDate && task.doByDate < startOfToday) || (task.doOnDate && task.doOnDate < startOfToday)) {
     isOverdue = true;
   }
@@ -204,11 +203,23 @@ export function TaskCard({
             <span className="text-[14px] sm:text-[15px] font-medium text-[var(--foreground)] break-words leading-tight mt-0.5">
               <HighlightText text={task.title} query={searchQuery} />
             </span>
-            {task.description && task.description !== "<p></p>" && (
-              <span className={`shrink-0 p-1.5 rounded-md ${isOverdue ? 'text-red-400 dark:text-red-500' : demandsAttentionToday ? 'text-amber-400 dark:text-amber-500' : 'text-zinc-400 dark:text-zinc-500'}`} title="Contains notes">
-                <AlignLeft className="w-4 h-4" />
-              </span>
-            )}
+            <div className="flex items-center gap-1 shrink-0">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleInlineUpdate("isFocused", !task.isFocused);
+                }}
+                className={`p-1.5 rounded-md transition-colors ${task.isFocused ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'text-zinc-300 dark:text-zinc-600 hover:text-emerald-500 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+                title={task.isFocused ? "Remove from Focus Session" : "Add to Focus Session"}
+              >
+                <Target className="w-4 h-4" />
+              </button>
+              {task.description && task.description !== "<p></p>" && (
+                <span className={`p-1.5 rounded-md ${isOverdue ? 'text-red-400 dark:text-red-500' : demandsAttentionToday ? 'text-amber-400 dark:text-amber-500' : 'text-zinc-400 dark:text-zinc-500'}`} title="Contains notes">
+                  <AlignLeft className="w-4 h-4" />
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

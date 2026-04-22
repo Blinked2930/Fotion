@@ -43,6 +43,7 @@ export const createTask = mutation({
     isUrgent: v.boolean(),
     isImportant: v.boolean(),
     isForFunsies: v.boolean(),
+    isFocused: v.optional(v.boolean()),
     status: v.optional(v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done"))),
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     isToday: v.optional(v.boolean()),
@@ -61,6 +62,7 @@ export const createTask = mutation({
 
     return await ctx.db.insert("tasks", {
       ...args,
+      isFocused: args.isFocused ?? false,
       status: args.status ?? "todo",
       listCategory: args.listCategory ?? "Current",
       isToday: args.isToday ?? false,
@@ -77,6 +79,7 @@ export const updateTask = mutation({
     isUrgent: v.optional(v.boolean()),
     isImportant: v.optional(v.boolean()),
     isForFunsies: v.optional(v.boolean()),
+    isFocused: v.optional(v.boolean()),
     status: v.optional(v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done"))),
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     isToday: v.optional(v.boolean()),
@@ -148,6 +151,7 @@ export const createManyTasks = mutation({
         isUrgent: v.boolean(),
         isImportant: v.boolean(),
         isForFunsies: v.boolean(),
+        isFocused: v.optional(v.boolean()),
         status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
         listCategory: v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe")),
         isToday: v.boolean(),
@@ -171,6 +175,7 @@ export const createManyTasks = mutation({
       
       const id = await ctx.db.insert("tasks", {
         ...task,
+        isFocused: task.isFocused ?? false,
         sessionId: taskSessionId
       });
       taskIds.push(id);

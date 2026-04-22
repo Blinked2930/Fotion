@@ -22,6 +22,7 @@ export default defineSchema({
     isUrgent: v.boolean(),
     isImportant: v.boolean(),
     isForFunsies: v.boolean(),
+    isFocused: v.optional(v.boolean()), // NEW: Focus Session Toggle
     
     status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
     
