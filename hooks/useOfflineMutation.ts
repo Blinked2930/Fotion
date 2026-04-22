@@ -3,9 +3,6 @@
 import { useEffect, useCallback, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 
-/**
- * OFFLINE WRITES: Queues mutations when offline and flushes when online.
- */
 export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) {
   const mutate = useMutation(mutationFunc);
 
@@ -16,11 +13,13 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
       if (queueRaw) {
         try {
           const queue = JSON.parse(queueRaw);
+          if (queue.length > 0) console.log(`[Sync] Flushing ${queue.length} offline mutations for ${mutationName}`);
+          
           for (const args of queue) {
             try {
               await mutate(args);
             } catch (err) {
-              console.error(`Failed to flush ${mutationName}:`, err);
+              console.error(`[Sync] Failed to flush ${mutationName}:`, err);
             }
           }
           localStorage.removeItem(key);
@@ -32,18 +31,37 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
 
     window.addEventListener('online', flushQueue);
     if (typeof window !== "undefined" && navigator.onLine) {
-      flushQueue();
+      // Small delay to ensure Convex WebSocket connects before flushing
+      setTimeout(flushQueue, 1500); 
     }
     return () => window.removeEventListener('online', flushQueue);
   }, [mutate, mutationName]);
 
   const executeWithSync = useCallback(async (args: any) => {
     if (typeof window !== "undefined" && !navigator.onLine) {
+      // 1. Add to mutation queue
       const key = `offline_queue_${mutationName}`;
       const queue = JSON.parse(localStorage.getItem(key) || "[]");
       queue.push(args);
       localStorage.setItem(key, JSON.stringify(queue));
-      return `temp_offline_${crypto.randomUUID()}`;
+      
+      const tempId = `temp_offline_${crypto.randomUUID()}`;
+
+      // 2. OPTIMISTIC UI: Inject fake task directly into local read cache
+      if (mutationName === "createTask") {
+        const cacheKey = "offline_cache_getTasks";
+        const existing = JSON.parse(localStorage.getItem(cacheKey) || "[]");
+        const optimisticTask = {
+          _id: tempId,
+          _creationTime: Date.now(),
+          status: "todo",
+          ...args,
+        };
+        localStorage.setItem(cacheKey, JSON.stringify([optimisticTask, ...existing]));
+        window.dispatchEvent(new Event("offline_cache_updated")); // Tell UI to re-render
+      }
+
+      return tempId;
     } else {
       return await mutate(args);
     }
@@ -52,34 +70,38 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
   return executeWithSync;
 }
 
-/**
- * OFFLINE READS: Caches Convex queries to localStorage and serves them if offline.
- */
 export function useOfflineQuery(queryFunc: any, args: any, queryName: string) {
-  // If args is "skip", we pass "skip" to Convex natively
   const data = useQuery(queryFunc, args === "skip" ? "skip" : args);
   const [cachedData, setCachedData] = useState<any>(undefined);
 
   useEffect(() => {
     const key = `offline_cache_${queryName}`;
-    
     if (data !== undefined && data !== null) {
-      // If we got fresh data from the server, save it to the local vault
       setCachedData(data);
       localStorage.setItem(key, JSON.stringify(data));
-    } else if (typeof window !== "undefined") {
-      // If we are waiting or offline, check the local vault
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        try {
-          setCachedData(JSON.parse(saved));
-        } catch (e) {
-          console.error(`Failed to parse offline cache for ${queryName}`);
-        }
-      }
     }
   }, [data, queryName]);
 
-  // Return fresh data if we have it, otherwise fallback to the cache
+  useEffect(() => {
+    const loadCache = () => {
+      if (typeof window !== "undefined" && !navigator.onLine) {
+        const key = `offline_cache_${queryName}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          try { setCachedData(JSON.parse(saved)); } catch (e) {}
+        }
+      }
+    };
+    
+    loadCache();
+    window.addEventListener('offline', loadCache);
+    window.addEventListener('offline_cache_updated', loadCache); // Listen for optimistic updates
+    
+    return () => {
+      window.removeEventListener('offline', loadCache);
+      window.removeEventListener('offline_cache_updated', loadCache);
+    };
+  }, [queryName]);
+
   return data !== undefined ? data : cachedData;
 }

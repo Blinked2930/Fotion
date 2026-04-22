@@ -5,10 +5,11 @@ import { api } from "@/convex/_generated/api";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { Loader2, Sun } from "lucide-react";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
+import { useOfflineQuery } from "@/hooks/useOfflineMutation";
 
 export function TodayView() {
   const sessionId = useGuestSession(); 
-  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
+  const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks"); 
 
   if (tasks === undefined) {
     return (

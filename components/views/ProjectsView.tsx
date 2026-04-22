@@ -7,10 +7,11 @@ import { Folder, Inbox, Loader2 } from "lucide-react";
 import { getProjectColor } from "./NewTaskForm";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
+import { useOfflineQuery } from "@/hooks/useOfflineMutation";
 
 export function ProjectsView() {
   const sessionId = useGuestSession(); 
-  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
+  const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks"); 
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | "ALL" | "UNASSIGNED">("ALL");

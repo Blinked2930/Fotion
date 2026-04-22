@@ -14,7 +14,7 @@ import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target } from "lucide-react";
+import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
@@ -22,7 +22,7 @@ import { PushPromptModal } from "@/components/ui/PushPromptModal";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { useTheme } from "next-themes";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
-import { useOfflineQuery } from "@/hooks/useOfflineMutation"; // NEW IMPORT
+import { useOfflineQuery } from "@/hooks/useOfflineMutation";
 
 function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -355,7 +355,7 @@ function HomeContent() {
     } 
   };
 
-  // FIX: Break out of infinite loader if offline
+  // Bypass infinite loader if offline
   if ((!isOffline && !isLoaded) || (!isOffline && !isSignedIn && guestSessionId === null && !isMounted)) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
@@ -364,7 +364,7 @@ function HomeContent() {
     );
   }
 
-  // FIX: Bypass landing page if offline so you can reach the cached Matrix
+  // Bypass landing page if offline so you can reach the cached Matrix
   if (!isSignedIn && sessionType === "none" && !isOffline) {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
@@ -433,6 +433,14 @@ function HomeContent() {
 
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col relative">
+      
+      {/* GLOBAL OFFLINE BANNER */}
+      {isOffline && (
+        <div className="w-full bg-amber-500 text-amber-950 px-4 py-2 text-xs sm:text-sm font-bold text-center flex items-center justify-center gap-2 shadow-md z-[100]">
+          <WifiOff className="w-4 h-4" /> You are currently offline. Changes are saving locally.
+        </div>
+      )}
+
       <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3 text-[15px]">
