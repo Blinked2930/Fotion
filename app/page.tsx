@@ -11,9 +11,10 @@ import { ProjectsView } from "@/components/views/ProjectsView";
 import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
+import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay"; // NEW IMPORT
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
@@ -233,6 +234,9 @@ function HomeContent() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
+  // NEW: Focus Session State
+  const [isFocusSessionOpen, setIsFocusSessionOpen] = useState(false);
+
   const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");
   const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
   const seedDemoData = useMutation(api.demo.seedDemoData);
@@ -242,6 +246,10 @@ function HomeContent() {
 
   const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
   const vipTask = useQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip");
+  
+  // Query all tasks for the Focus Session count
+  const allTasks = useQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined });
+  const focusedTasks = allTasks?.filter(t => t.isFocused && t.status !== "done") || [];
 
   const hasAutoOpenedVip = useRef(false);
 
@@ -467,6 +475,24 @@ function HomeContent() {
         <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
         <PushPromptModal />
       </main>
+
+      {/* NEW: Floating Focus Button */}
+      {focusedTasks.length > 0 && !isFocusSessionOpen && (
+        <button 
+          onClick={() => setIsFocusSessionOpen(true)}
+          className="fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-[50] flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-6 py-3.5 rounded-full shadow-2xl shadow-emerald-500/30 transition-all active:scale-95 animate-in slide-in-from-bottom-6"
+        >
+          <Target className="w-5 h-5" /> Start Focus ({focusedTasks.length})
+        </button>
+      )}
+
+      {/* NEW: Focus Session Overlay */}
+      <FocusSessionOverlay 
+        isOpen={isFocusSessionOpen} 
+        onClose={() => setIsFocusSessionOpen(false)} 
+        focusedTasks={focusedTasks} 
+      />
+
     </div>
   );
 }
