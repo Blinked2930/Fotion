@@ -32,13 +32,12 @@ export function TodayView() {
     return timestamp < startOfToday;
   };
 
-  // NEW: Forces overdue tasks into the Today board
-  const activeTasks = tasks.filter(t => 
+  const activeTasks = tasks.filter((t: any) => 
     t.status !== "done" &&
     (t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate) || isOverdue(t.doOnDate) || isOverdue(t.doByDate))
   );
 
-  const doneTasks = tasks.filter(t => 
+  const doneTasks = tasks.filter((t: any) => 
     t.status === "done" && isDateToday(t.completedAt)
   );
 
@@ -60,7 +59,7 @@ export function TodayView() {
         <div className="space-y-6">
           {activeTasks.length > 0 && (
             <div className="space-y-2">
-              {activeTasks.map(task => (
+              {activeTasks.map((task: any) => (
                 <TaskCard 
                   key={task._id} 
                   task={task} 
@@ -79,7 +78,7 @@ export function TodayView() {
             <div className="pt-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 ml-1">Completed Today</h3>
               <div className="space-y-2 opacity-60">
-                {doneTasks.map(task => (
+                {doneTasks.map((task: any) => (
                   <TaskCard 
                     key={task._id} 
                     task={task} 

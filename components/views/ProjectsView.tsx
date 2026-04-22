@@ -24,19 +24,19 @@ export function ProjectsView() {
     );
   }
 
-  const filteredTasks = tasks.filter(t => {
+  const filteredTasks = tasks.filter((t: any) => {
     if (selectedProjectId === "ALL") return true;
     if (selectedProjectId === "UNASSIGNED") return !t.projectId;
     return t.projectId === selectedProjectId;
   });
 
   const totalTasks = filteredTasks.length;
-  const completedTasks = filteredTasks.filter(t => t.status === "done").length;
+  const completedTasks = filteredTasks.filter((t: any) => t.status === "done").length;
   const progressPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
   const activeTasks = filteredTasks
-    .filter(t => t.status !== "done")
-    .sort((a, b) => {
+    .filter((t: any) => t.status !== "done")
+    .sort((a: any, b: any) => {
       if (a.isToday && !b.isToday) return -1;
       if (!a.isToday && b.isToday) return 1;
       
@@ -57,7 +57,7 @@ export function ProjectsView() {
       return 0;
     });
 
-  const doneTasks = filteredTasks.filter(t => t.status === "done");
+  const doneTasks = filteredTasks.filter((t: any) => t.status === "done");
 
   return (
     <div className="w-full max-w-4xl mx-auto pb-32 animate-in fade-in duration-300">
@@ -70,7 +70,7 @@ export function ProjectsView() {
           All Tasks
         </button>
 
-        {projects.map(p => {
+        {projects.map((p: any) => {
           const isSelected = selectedProjectId === p._id;
           const colorClass = getProjectColor(p._id);
           return (
@@ -98,7 +98,7 @@ export function ProjectsView() {
         <h2 className="text-2xl font-bold text-[var(--foreground)] mb-2">
           {selectedProjectId === "ALL" ? "Global Overview" : 
            selectedProjectId === "UNASSIGNED" ? "Unassigned Tasks" : 
-           projects.find(p => p._id === selectedProjectId)?.name}
+           projects.find((p: any) => p._id === selectedProjectId)?.name}
         </h2>
         <div className="flex items-center gap-4 text-sm text-zinc-500 mb-4">
           <span className="font-medium">{completedTasks} / {totalTasks} Completed</span>
@@ -118,7 +118,7 @@ export function ProjectsView() {
         <div className="space-y-6">
           {activeTasks.length > 0 && (
             <div className="space-y-2">
-              {activeTasks.map(task => (
+              {activeTasks.map((task: any) => (
                 <TaskCard 
                   key={task._id} 
                   task={task} 
@@ -136,7 +136,7 @@ export function ProjectsView() {
             <div className="pt-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 ml-1">Completed</h3>
               <div className="space-y-2 opacity-60">
-                {doneTasks.map(task => (
+                {doneTasks.map((task: any) => (
                   <TaskCard 
                     key={task._id} 
                     task={task} 

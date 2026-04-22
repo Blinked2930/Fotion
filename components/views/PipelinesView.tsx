@@ -4,11 +4,11 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { Loader2, ListTodo } from "lucide-react";
-import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
+import { useGuestSession } from "@/hooks/useGuestSession"; 
 import { useOfflineQuery } from "@/hooks/useOfflineMutation";
 
 export function PipelinesView() {
-  const sessionId = useGuestSession(); // NEW
+  const sessionId = useGuestSession(); 
   const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks");
 
   if (tasks === undefined) {
@@ -19,12 +19,12 @@ export function PipelinesView() {
     );
   }
 
-  const activeTasks = tasks.filter(t => t.status !== "done");
+  const activeTasks = tasks.filter((t: any) => t.status !== "done");
 
   const columns = [
-    { id: "Current", label: "Current Focus", tasks: activeTasks.filter(t => (!t.listCategory || t.listCategory === "Current")) },
-    { id: "Waiting For", label: "Waiting For", tasks: activeTasks.filter(t => t.listCategory === "Waiting For") },
-    { id: "Someday Maybe", label: "Someday / Maybe", tasks: activeTasks.filter(t => t.listCategory === "Someday Maybe") }
+    { id: "Current", label: "Current Focus", tasks: activeTasks.filter((t: any) => (!t.listCategory || t.listCategory === "Current")) },
+    { id: "Waiting For", label: "Waiting For", tasks: activeTasks.filter((t: any) => t.listCategory === "Waiting For") },
+    { id: "Someday Maybe", label: "Someday / Maybe", tasks: activeTasks.filter((t: any) => t.listCategory === "Someday Maybe") }
   ];
 
   return (
@@ -36,7 +36,7 @@ export function PipelinesView() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
-        {columns.map(col => (
+        {columns.map((col: any) => (
           <div key={col.id} className="w-full sm:w-1/3 bg-zinc-50/50 dark:bg-[#151515] rounded-2xl p-3 border border-[var(--border)]">
             <div className="flex items-center justify-between mb-4 px-1">
               <h3 className="font-semibold text-[var(--foreground)] text-sm">{col.label}</h3>
@@ -46,7 +46,7 @@ export function PipelinesView() {
             </div>
             
             <div className="space-y-2">
-              {col.tasks.map(task => (
+              {col.tasks.map((task: any) => (
                 <TaskCard 
                   key={task._id} 
                   task={task} 
