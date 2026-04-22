@@ -235,7 +235,6 @@ function HomeContent() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
   const [isFocusSessionOpen, setIsFocusSessionOpen] = useState(false);
-  // NEW: Track mouse proximity to the corner
   const [isNearFocusButton, setIsNearFocusButton] = useState(false);
 
   const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");
@@ -253,7 +252,6 @@ function HomeContent() {
 
   const hasAutoOpenedVip = useRef(false);
 
-  // Mouse tracking for proximity fade
   useEffect(() => {
     if (typeof window === "undefined") return;
     const handleMouseMove = (e: MouseEvent) => {
@@ -488,12 +486,12 @@ function HomeContent() {
         <PushPromptModal />
       </main>
 
-      {focusedTasks.length > 0 && !isFocusSessionOpen && (
+      {!isFocusSessionOpen && (
         <button 
           onClick={() => setIsFocusSessionOpen(true)}
           className={`fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-[50] flex items-center gap-2 bg-white dark:bg-[#252525] border border-[var(--border)] text-[var(--foreground)] font-bold px-6 py-3.5 rounded-full shadow-2xl shadow-black/5 transition-all duration-300 active:scale-95 ${isNearFocusButton ? 'sm:opacity-100 sm:translate-y-0' : 'sm:opacity-20 sm:translate-y-2'}`}
         >
-          <Target className="w-5 h-5 text-zinc-500" /> Start Focus ({focusedTasks.length})
+          <Target className="w-5 h-5 text-zinc-500" /> Start Focus {focusedTasks.length > 0 ? `(${focusedTasks.length})` : ""}
         </button>
       )}
 
