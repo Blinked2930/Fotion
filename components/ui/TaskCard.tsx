@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Check, Calendar, List, AlignLeft, Folder, Target } from "lucide-react";
 import { getListColor, getProjectColor } from "../views/NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession";
+import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation"; // NEW IMPORT
 
 function PillDropdown({ 
   currentValue, 
@@ -105,7 +106,9 @@ export function TaskCard({
   searchQuery?: string
 }) {
   const router = useRouter();
-  const updateTask = useMutation(api.tasks.updateTask);
+  
+  // FIX: Swap native useMutation for offline sync
+  const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
   
   const sessionId = useGuestSession();
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
