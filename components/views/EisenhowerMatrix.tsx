@@ -1,14 +1,14 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { Loader2, LayoutGrid } from "lucide-react";
-import { useGuestSession } from "@/hooks/useGuestSession"; // NEW
+import { useGuestSession } from "@/hooks/useGuestSession"; 
+import { useOfflineQuery } from "@/hooks/useOfflineMutation"; // NEW IMPORT
 
 export function EisenhowerMatrix() {
-  const sessionId = useGuestSession(); // NEW
-  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); // NEW
+  const sessionId = useGuestSession(); 
+  const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks"); // FIX: Offline Query
 
   if (tasks === undefined) {
     return (
@@ -30,7 +30,7 @@ export function EisenhowerMatrix() {
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
   const tomorrowTime = startOfTomorrow.getTime();
 
-  const activeTasks = tasks.filter(t => {
+  const activeTasks = tasks.filter((t: any) => {
     if (t.status === "done") return false;
     
     if (t.doOnDate && t.doOnDate >= tomorrowTime) {
@@ -46,27 +46,27 @@ export function EisenhowerMatrix() {
   const quadrants = [
     { 
       id: "q1", title: "Do First", desc: "Urgent & Important", 
-      tasks: activeTasks.filter(t => t.isUrgent && t.isImportant && !t.isForFunsies), 
+      tasks: activeTasks.filter((t: any) => t.isUrgent && t.isImportant && !t.isForFunsies), 
       color: "border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/10", headerColor: "text-red-600 dark:text-red-400" 
     },
     { 
       id: "q2", title: "Schedule", desc: "Important, Not Urgent", 
-      tasks: activeTasks.filter(t => !t.isUrgent && t.isImportant && !t.isForFunsies), 
+      tasks: activeTasks.filter((t: any) => !t.isUrgent && t.isImportant && !t.isForFunsies), 
       color: "border-blue-200 dark:border-blue-900/50 bg-blue-50/30 dark:bg-blue-900/10", headerColor: "text-blue-600 dark:text-blue-400" 
     },
     { 
       id: "q3", title: "Delegate", desc: "Urgent, Not Important", 
-      tasks: activeTasks.filter(t => t.isUrgent && !t.isImportant && !t.isForFunsies), 
+      tasks: activeTasks.filter((t: any) => t.isUrgent && !t.isImportant && !t.isForFunsies), 
       color: "border-orange-200 dark:border-orange-900/50 bg-orange-50/30 dark:bg-orange-900/10", headerColor: "text-orange-600 dark:text-orange-400" 
     },
     { 
       id: "q4", title: "Eliminate", desc: "Neither", 
-      tasks: activeTasks.filter(t => !t.isUrgent && !t.isImportant && !t.isForFunsies), 
+      tasks: activeTasks.filter((t: any) => !t.isUrgent && !t.isImportant && !t.isForFunsies), 
       color: "border-zinc-200 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-800/10", headerColor: "text-[var(--foreground)]" 
     },
     { 
       id: "q5", title: "For Funsies", desc: "Because Life Needs Play", 
-      tasks: activeTasks.filter(t => t.isForFunsies), 
+      tasks: activeTasks.filter((t: any) => t.isForFunsies), 
       color: "border-purple-200 dark:border-purple-900/50 bg-purple-50/30 dark:bg-purple-900/10", headerColor: "text-purple-600 dark:text-purple-400" 
     }
   ];
@@ -100,7 +100,7 @@ export function EisenhowerMatrix() {
               <p className="text-[11px] text-zinc-500 uppercase tracking-wider font-medium px-1 mb-4">{q.desc}</p>
               
               <div className="flex-1 space-y-2">
-                {q.tasks.map(task => (
+                {q.tasks.map((task: any) => (
                   <TaskCard 
                     key={task._id} 
                     task={task} 

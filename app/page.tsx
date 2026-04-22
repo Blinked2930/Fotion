@@ -15,13 +15,14 @@ import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target } from "lucide-react";
-import { useQuery, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
 import { PushPromptModal } from "@/components/ui/PushPromptModal";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { useTheme } from "next-themes";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
+import { useOfflineQuery } from "@/hooks/useOfflineMutation"; // NEW IMPORT
 
 function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -44,7 +45,7 @@ function ThemeToggle() {
 function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [query, setQuery] = useState("");
   const sessionId = useGuestSession();
-  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined });
+  const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -57,7 +58,7 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
 
   if (!isOpen) return null;
 
-  const results = tasks?.filter(t => 
+  const results = tasks?.filter((t: any) => 
     query.length > 1 && (
       t.title.toLowerCase().includes(query.toLowerCase()) || 
       (t.description && t.description.toLowerCase().includes(query.toLowerCase()))
@@ -89,7 +90,7 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
           ) : results.length === 0 ? (
             <div className="text-center py-10 text-zinc-400 text-sm">No tasks found matching "{query}"</div>
           ) : (
-            results.map(task => {
+            results.map((task: any) => {
               const inTitle = task.title.toLowerCase().includes(query.toLowerCase());
               const inBody = !!(task.description && task.description.toLowerCase().includes(query.toLowerCase()));
 
@@ -115,7 +116,7 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
 
 function ExportButton() {
   const sessionId = useGuestSession();
-  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined });
+  const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks");
   
   const handleExport = () => {
     if (!tasks || tasks.length === 0) return;
@@ -137,7 +138,7 @@ function ExportButton() {
       return `"${stringValue.replace(/"/g, '""')}"`;
     };
 
-    const csvRows = tasks.map(task => {
+    const csvRows = tasks.map((task: any) => {
       return [
         task._id, new Date(task._creationTime).toISOString(), task.title, task.status, task.listCategory || "Current", task.projectId || "None",
         !!task.isToday, !!task.isUrgent, !!task.isImportant, !!task.isForFunsies,
@@ -244,11 +245,27 @@ function HomeContent() {
   const { isLoaded, isSignedIn } = useAuth();
   const guestSessionId = useGuestSession();
 
+  // NETWORK DETECTION
+  const [isOffline, setIsOffline] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsOffline(!navigator.onLine);
+      const onOffline = () => setIsOffline(true);
+      const onOnline = () => setIsOffline(false);
+      window.addEventListener('offline', onOffline);
+      window.addEventListener('online', onOnline);
+      return () => {
+        window.removeEventListener('offline', onOffline);
+        window.removeEventListener('online', onOnline);
+      };
+    }
+  }, []);
+
   const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
-  const vipTask = useQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip");
+  const vipTask = useOfflineQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip", "getTaskByShareToken");
   
-  const allTasks = useQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined });
-  const focusedTasks = allTasks?.filter(t => t.isFocused && t.status !== "done") || [];
+  const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks");
+  const focusedTasks = allTasks?.filter((t: any) => t.isFocused && t.status !== "done") || [];
 
   const hasAutoOpenedVip = useRef(false);
 
@@ -338,7 +355,8 @@ function HomeContent() {
     } 
   };
 
-  if (!isLoaded || (!isSignedIn && guestSessionId === null && !isMounted)) {
+  // FIX: Break out of infinite loader if offline
+  if ((!isOffline && !isLoaded) || (!isOffline && !isSignedIn && guestSessionId === null && !isMounted)) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-zinc-300 dark:text-zinc-700" />
@@ -346,7 +364,8 @@ function HomeContent() {
     );
   }
 
-  if (!isSignedIn && sessionType === "none") {
+  // FIX: Bypass landing page if offline so you can reach the cached Matrix
+  if (!isSignedIn && sessionType === "none" && !isOffline) {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
         
