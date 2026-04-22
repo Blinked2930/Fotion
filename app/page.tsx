@@ -11,7 +11,7 @@ import { ProjectsView } from "@/components/views/ProjectsView";
 import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
-import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay"; // NEW IMPORT
+import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target } from "lucide-react";
@@ -234,7 +234,6 @@ function HomeContent() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
-  // NEW: Focus Session State
   const [isFocusSessionOpen, setIsFocusSessionOpen] = useState(false);
 
   const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");
@@ -247,7 +246,6 @@ function HomeContent() {
   const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
   const vipTask = useQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip");
   
-  // Query all tasks for the Focus Session count
   const allTasks = useQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined });
   const focusedTasks = allTasks?.filter(t => t.isFocused && t.status !== "done") || [];
 
@@ -476,17 +474,19 @@ function HomeContent() {
         <PushPromptModal />
       </main>
 
-      {/* NEW: Floating Focus Button */}
+      {/* NEW: Floating Focus Button with Proximity Fade Trick */}
       {focusedTasks.length > 0 && !isFocusSessionOpen && (
         <button 
           onClick={() => setIsFocusSessionOpen(true)}
-          className="fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-[50] flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-6 py-3.5 rounded-full shadow-2xl shadow-emerald-500/30 transition-all active:scale-95 animate-in slide-in-from-bottom-6"
+          className="group fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-[50] flex items-center gap-2.5 bg-white dark:bg-[#252525] border border-[var(--border)] text-[var(--foreground)] font-medium text-[13px] px-5 py-3 rounded-full shadow-lg shadow-black/5 transition-all duration-300 sm:opacity-30 sm:hover:opacity-100 active:scale-95 hover:border-emerald-200 dark:hover:border-emerald-800/60 animate-in slide-in-from-bottom-6"
         >
-          <Target className="w-5 h-5" /> Start Focus ({focusedTasks.length})
+          {/* Invisible hit area expansion */}
+          <div className="absolute -inset-16 z-[-1] rounded-full" />
+          <Target className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> 
+          Start Focus ({focusedTasks.length})
         </button>
       )}
 
-      {/* NEW: Focus Session Overlay */}
       <FocusSessionOverlay 
         isOpen={isFocusSessionOpen} 
         onClose={() => setIsFocusSessionOpen(false)} 
