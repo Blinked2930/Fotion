@@ -180,7 +180,7 @@ export function NewTaskForm() {
     }
   };
 
-  const selectedProject = projects?.find(p => p._id === projectId);
+  const selectedProject = projects?.find((p: any) => p._id === projectId);
 
   return (
     <>
@@ -297,7 +297,7 @@ export function NewTaskForm() {
                     {isProjectDropdownOpen && (
                       <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[250px] overflow-y-auto">
                         <button type="button" onClick={() => { setProjectId(null); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">None</button>
-                        {projects?.map(p => (
+                        {projects?.map((p: any) => (
                           <button key={p._id} type="button" onClick={() => { setProjectId(p._id); setIsProjectDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">{p.name}</button>
                         ))}
                         <div className="border-t border-[var(--border)] my-1"></div>

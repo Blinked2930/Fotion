@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { calculateQuadrant } from "@/lib/eisenhower";
 import { useRouter } from "next/navigation";
@@ -13,38 +12,7 @@ import {
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
-
-// Custom Hook for Offline Mutation Sync
-function useOfflineSyncMutation(mutationFunc: any, mutationName: string) {
-  const mutate = useMutation(mutationFunc);
-
-  useEffect(() => {
-    const handleOnline = () => {
-      const key = `offline_queue_${mutationName}`;
-      const queueRaw = localStorage.getItem(key);
-      if (queueRaw) {
-        try {
-          const queue = JSON.parse(queueRaw);
-          queue.forEach((args: any) => mutate(args));
-          localStorage.removeItem(key);
-        } catch (e) {}
-      }
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [mutate, mutationName]);
-
-  return (args: any) => {
-    if (typeof window !== "undefined" && !navigator.onLine) {
-      const key = `offline_queue_${mutationName}`;
-      const queue = JSON.parse(localStorage.getItem(key) || "[]");
-      queue.push(args);
-      localStorage.setItem(key, JSON.stringify(queue));
-    } else {
-      return mutate(args);
-    }
-  };
-}
+import { useOfflineQuery, useOfflineSyncMutation } from "@/hooks/useOfflineMutation";
 
 const NotionHeader = ({ icon: Icon, label, minWidth }: { icon: any, label: string, minWidth?: string }) => (
   <th className="border border-[var(--border)] px-3 py-2 font-normal text-zinc-500 dark:text-zinc-400 text-[13px] bg-zinc-50/50 dark:bg-zinc-900/50 text-left align-middle" style={{ minWidth: minWidth || '140px' }}>
@@ -161,8 +129,10 @@ export function RawDataView() {
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const sessionId = useGuestSession(); 
-  const tasks = useQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }); 
-  const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
+  
+  // FIX: Converted to Global Offline Queries
+  const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks"); 
+  const projects = useOfflineQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined }, "getProjects");
   
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
   const createProject = useOfflineSyncMutation(api.projects.createProject, "createProject");
@@ -216,11 +186,11 @@ export function RawDataView() {
 
   const projectOptions = [
     { value: null, label: "None" },
-    ...projects.map(p => ({ value: p._id, label: p.name }))
+    ...projects.map((p: any) => ({ value: p._id, label: p.name }))
   ];
 
   const ProjectPill = (id: string) => {
-    const p = projects.find(proj => proj._id === id);
+    const p = projects.find((proj: any) => proj._id === id);
     if (!p) return <span className="text-zinc-400 text-xs">Empty</span>;
     return <span className={`px-3 py-0.5 rounded-full border text-[12px] font-medium whitespace-nowrap ${getProjectColor(id)}`}>{p.name}</span>;
   };
@@ -248,7 +218,7 @@ export function RawDataView() {
               </tr>
             </thead>
             <tbody>
-              {tasks.map((task) => {
+              {tasks.map((task: any) => {
                 const quadrant = calculateQuadrant(task.isForFunsies, task.isUrgent, task.isImportant);
                 return (
                   <tr key={task._id} className="hover:bg-zinc-50 dark:bg-zinc-900/40 transition-colors group">

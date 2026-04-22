@@ -13,8 +13,6 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
       if (queueRaw) {
         try {
           const queue = JSON.parse(queueRaw);
-          if (queue.length > 0) console.log(`[Sync] Flushing ${queue.length} offline mutations for ${mutationName}`);
-          
           for (const args of queue) {
             try {
               await mutate(args);
@@ -31,7 +29,6 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
 
     window.addEventListener('online', flushQueue);
     if (typeof window !== "undefined" && navigator.onLine) {
-      // Small delay to ensure Convex WebSocket connects before flushing
       setTimeout(flushQueue, 1500); 
     }
     return () => window.removeEventListener('online', flushQueue);
@@ -73,35 +70,48 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
 export function useOfflineQuery(queryFunc: any, args: any, queryName: string) {
   const data = useQuery(queryFunc, args === "skip" ? "skip" : args);
   const [cachedData, setCachedData] = useState<any>(undefined);
+  const [isOffline, setIsOffline] = useState(false);
 
+  // Track exact online/offline state
+  useEffect(() => {
+    setIsOffline(!navigator.onLine);
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Update Cache only when ONLINE and data is fresh
   useEffect(() => {
     const key = `offline_cache_${queryName}`;
-    if (data !== undefined && data !== null) {
+    if (!isOffline && data !== undefined && data !== null) {
       setCachedData(data);
       localStorage.setItem(key, JSON.stringify(data));
     }
-  }, [data, queryName]);
+  }, [data, isOffline, queryName]);
 
+  // Read Cache (Triggered on mount, network drops, or optimistic UI updates)
   useEffect(() => {
     const loadCache = () => {
-      if (typeof window !== "undefined" && !navigator.onLine) {
-        const key = `offline_cache_${queryName}`;
-        const saved = localStorage.getItem(key);
-        if (saved) {
-          try { setCachedData(JSON.parse(saved)); } catch (e) {}
-        }
+      const key = `offline_cache_${queryName}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try { setCachedData(JSON.parse(saved)); } catch (e) {}
       }
     };
     
     loadCache();
-    window.addEventListener('offline', loadCache);
-    window.addEventListener('offline_cache_updated', loadCache); // Listen for optimistic updates
+    window.addEventListener('offline_cache_updated', loadCache); 
     
     return () => {
-      window.removeEventListener('offline', loadCache);
       window.removeEventListener('offline_cache_updated', loadCache);
     };
   }, [queryName]);
 
-  return data !== undefined ? data : cachedData;
+  // CRITICAL FIX: If offline, FORCE the use of cachedData so optimistic UI works.
+  return isOffline ? cachedData : (data !== undefined ? data : cachedData);
 }
