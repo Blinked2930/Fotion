@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare, ListFilter } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { useGuestSession } from "@/hooks/useGuestSession";
+import { useOfflineSyncMutation, useOfflineQuery } from "@/hooks/useOfflineMutation";
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, InputRule } from '@tiptap/core';
@@ -58,9 +59,9 @@ import { EditorToolbar } from "./TaskDetailsPane";
 
 export function NewTaskForm() {
   const sessionId = useGuestSession();
-  const createTask = useMutation(api.tasks.createTask);
-  const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
-  const createProject = useMutation(api.projects.createProject);
+  const createTask = useOfflineSyncMutation(api.tasks.createTask, "createTask");
+  const createProject = useOfflineSyncMutation(api.projects.createProject, "createProject");
+  const projects = useOfflineQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined }, "getProjects");
 
   const [title, setTitle] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
@@ -116,6 +117,7 @@ export function NewTaskForm() {
         const hasTags = stateRef.current.isUrgent || stateRef.current.isImportant || stateRef.current.isForFunsies || stateRef.current.isToday || stateRef.current.listCategory !== "Current" || stateRef.current.doOnDate || stateRef.current.doByDate || stateRef.current.projectId;
 
         if (stateRef.current.title.trim() !== "" || hasNotes || hasTags) {
+          // FIRE AND FORGET
           createTask({
             title: stateRef.current.title.trim() || "Unknown Task",
             description: hasNotes ? descriptionHTML : undefined,
@@ -128,7 +130,8 @@ export function NewTaskForm() {
             doByDate: stateRef.current.doByDate,
             projectId: stateRef.current.projectId as any,
             sessionId: sessionId ?? undefined,
-          });
+          }).catch(console.error);
+          
           setIsExpanded(false);
           setTimeout(() => resetForm(), 300);
         } else {
@@ -140,18 +143,21 @@ export function NewTaskForm() {
     return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, [createTask, isModalOpen, editor, isProjectDropdownOpen, sessionId]);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!title.trim() && (!editor || editor.isEmpty)) {
       setIsExpanded(false);
       return;
     }
-    await createTask({
+    
+    // FIRE AND FORGET - UI snaps shut immediately
+    createTask({
       title: title.trim() || "Unknown Task",
       description: (editor && !editor.isEmpty) ? editor.getHTML() : undefined,
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
       sessionId: sessionId ?? undefined,
-    });
+    }).catch(console.error);
+    
     setIsExpanded(false);
     setTimeout(() => resetForm(), 300);
   };
@@ -171,10 +177,12 @@ export function NewTaskForm() {
     }
   };
 
-  const handleCreateProject = async () => {
+  const handleCreateProject = () => {
     if (newProjectName.trim()) {
-      const newId = await createProject({ name: newProjectName.trim(), sessionId: sessionId ?? undefined });
-      setProjectId(newId);
+      createProject({ name: newProjectName.trim(), sessionId: sessionId ?? undefined })
+        .then(newId => setProjectId(newId))
+        .catch(console.error);
+        
       setIsModalOpen(false);
       setNewProjectName("");
     }

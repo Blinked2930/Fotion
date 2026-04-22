@@ -3,26 +3,42 @@
 import { useEffect, useCallback, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 
+// Safe ID generator that never crashes on desktop or HTTP
+const generateTempId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `temp_${crypto.randomUUID()}`;
+  }
+  return `temp_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+};
+
+const safeParse = (str: string | null) => {
+  if (!str || str === "undefined" || str === "null") return null;
+  try { return JSON.parse(str); } catch (e) { return null; }
+};
+
 export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) {
   const mutate = useMutation(mutationFunc);
 
   useEffect(() => {
     const flushQueue = async () => {
       const key = `offline_queue_${mutationName}`;
-      const queueRaw = localStorage.getItem(key);
-      if (queueRaw) {
-        try {
-          const queue = JSON.parse(queueRaw);
-          for (const args of queue) {
-            try {
-              await mutate(args);
-            } catch (err) {
-              console.error(`[Sync] Failed to flush ${mutationName}:`, err);
-            }
+      const queue = safeParse(localStorage.getItem(key));
+      
+      if (queue && Array.isArray(queue) && queue.length > 0) {
+        const failedQueue = [];
+        
+        for (const args of queue) {
+          try {
+            await mutate(args);
+          } catch (err) {
+            failedQueue.push(args); 
           }
+        }
+        
+        if (failedQueue.length === 0) {
           localStorage.removeItem(key);
-        } catch (e) {
-          console.error(`Failed to parse offline queue for ${mutationName}`);
+        } else {
+          localStorage.setItem(key, JSON.stringify(failedQueue));
         }
       }
     };
@@ -35,32 +51,36 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
   }, [mutate, mutationName]);
 
   const executeWithSync = useCallback(async (args: any) => {
+    // 1. ALWAYS trigger Optimistic UI so the app feels instant
+    const tempId = generateTempId();
+    const cacheKey = "offline_cache_getTasks";
+    let existingCache = safeParse(localStorage.getItem(cacheKey)) || [];
+
+    if (mutationName === "createTask") {
+      const optimisticTask = { _id: tempId, _creationTime: Date.now(), status: "todo", ...args };
+      localStorage.setItem(cacheKey, JSON.stringify([optimisticTask, ...existingCache]));
+      window.dispatchEvent(new Event("offline_cache_updated"));
+    } else if (mutationName === "updateTask") {
+      existingCache = existingCache.map((task: any) => task._id === args.id ? { ...task, ...args } : task);
+      localStorage.setItem(cacheKey, JSON.stringify(existingCache));
+      window.dispatchEvent(new Event("offline_cache_updated"));
+    } else if (mutationName === "deleteTask") {
+      existingCache = existingCache.filter((task: any) => task._id !== args.id);
+      localStorage.setItem(cacheKey, JSON.stringify(existingCache));
+      window.dispatchEvent(new Event("offline_cache_updated"));
+    }
+
+    // 2. Network Routing
     if (typeof window !== "undefined" && !navigator.onLine) {
-      // 1. Add to mutation queue
+      // True Offline: Save to local queue for later
       const key = `offline_queue_${mutationName}`;
-      const queue = JSON.parse(localStorage.getItem(key) || "[]");
+      const queue = safeParse(localStorage.getItem(key)) || [];
       queue.push(args);
       localStorage.setItem(key, JSON.stringify(queue));
-      
-      const tempId = `temp_offline_${crypto.randomUUID()}`;
-
-      // 2. OPTIMISTIC UI: Inject fake task directly into local read cache
-      if (mutationName === "createTask") {
-        const cacheKey = "offline_cache_getTasks";
-        const existing = JSON.parse(localStorage.getItem(cacheKey) || "[]");
-        const optimisticTask = {
-          _id: tempId,
-          _creationTime: Date.now(),
-          status: "todo",
-          ...args,
-        };
-        localStorage.setItem(cacheKey, JSON.stringify([optimisticTask, ...existing]));
-        window.dispatchEvent(new Event("offline_cache_updated")); // Tell UI to re-render
-      }
-
       return tempId;
     } else {
-      return await mutate(args);
+      // Online (or Lie-Fi): Let Convex handle the background sync
+      return mutate(args);
     }
   }, [mutate, mutationName]);
 
@@ -72,8 +92,8 @@ export function useOfflineQuery(queryFunc: any, args: any, queryName: string) {
   const [cachedData, setCachedData] = useState<any>(undefined);
   const [isOffline, setIsOffline] = useState(false);
 
-  // Track exact online/offline state
   useEffect(() => {
+    if (typeof window === "undefined") return;
     setIsOffline(!navigator.onLine);
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
@@ -85,7 +105,6 @@ export function useOfflineQuery(queryFunc: any, args: any, queryName: string) {
     };
   }, []);
 
-  // Update Cache only when ONLINE and data is fresh
   useEffect(() => {
     const key = `offline_cache_${queryName}`;
     if (!isOffline && data !== undefined && data !== null) {
@@ -94,24 +113,17 @@ export function useOfflineQuery(queryFunc: any, args: any, queryName: string) {
     }
   }, [data, isOffline, queryName]);
 
-  // Read Cache (Triggered on mount, network drops, or optimistic UI updates)
   useEffect(() => {
     const loadCache = () => {
       const key = `offline_cache_${queryName}`;
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        try { setCachedData(JSON.parse(saved)); } catch (e) {}
-      }
+      const saved = safeParse(localStorage.getItem(key));
+      if (saved) setCachedData(saved);
     };
     
-    loadCache();
+    loadCache(); 
     window.addEventListener('offline_cache_updated', loadCache); 
-    
-    return () => {
-      window.removeEventListener('offline_cache_updated', loadCache);
-    };
+    return () => window.removeEventListener('offline_cache_updated', loadCache);
   }, [queryName]);
 
-  // CRITICAL FIX: If offline, FORCE the use of cachedData so optimistic UI works.
   return isOffline ? cachedData : (data !== undefined ? data : cachedData);
 }
