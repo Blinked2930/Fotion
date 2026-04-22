@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { 
   Loader2, Type, PlayCircle, Calendar, CheckSquare, 
-  List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon, AlertTriangle 
+  List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon, AlertTriangle, Target 
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
@@ -242,6 +242,7 @@ export function RawDataView() {
                 <NotionHeader icon={Folder} label="Project" minWidth="160px" />
                 <NotionHeader icon={ListIcon} label="Pipelines" minWidth="160px" />
                 <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
+                <NotionHeader icon={Target} label="Focus Mode" minWidth="120px" />
                 <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
                 {isSignedIn && <NotionHeader icon={LinkIcon} label="Share Access" minWidth="160px" />}
               </tr>
@@ -283,6 +284,7 @@ export function RawDataView() {
                     <NotionCell><BeautifulDropdown value={task.projectId} options={projectOptions} onChange={(val) => handleUpdate(task._id, "projectId", val)} renderPill={ProjectPill} placeholder="None" actionLabel="+ Create Project" onActionClick={() => { setPendingTaskId(task._id); setIsModalOpen(true); }} /></NotionCell>
                     <NotionCell><BeautifulDropdown value={task.listCategory || "Current"} options={[{value: 'Current'}, {value: 'Waiting For'}, {value: 'Someday Maybe'}]} onChange={(val) => handleUpdate(task._id, "listCategory", val)} renderPill={ListPill} /></NotionCell>
                     <NotionCell><span className="text-zinc-600 dark:text-zinc-300 text-[12px]">{quadrant}</span></NotionCell>
+                    <NotionCell><button onClick={() => handleUpdate(task._id, "isFocused", !task.isFocused)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isFocused ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isFocused && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
                     <NotionCell><button onClick={() => handleUpdate(task._id, "isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
 
                     {isSignedIn && (
@@ -290,7 +292,6 @@ export function RawDataView() {
                         <div className="flex items-center">
                           <button 
                             onClick={() => {
-                              // FIX: Clear sharedWithSessions array when revoking access
                               if (task.shareToken && task.isPublic) {
                                 updateTask({ id: task._id, shareToken: "", isPublic: false, sharedWithSessions: [] });
                               } else {
