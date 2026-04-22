@@ -218,14 +218,26 @@ function PaneContent() {
   const hasAccepted = !!(isSharedViewer && actualSessionId && task?.sharedWithSessions?.includes(actualSessionId));
   const needsToAccept = !!(isSharedViewer && !hasAccepted);
 
+  // FIX 1: Create a secure memory reference for the editor's onBlur closure
+  const editorStateRef = useRef({ taskId: displayTaskId, needsToAccept });
+  useEffect(() => {
+    editorStateRef.current = { taskId: displayTaskId, needsToAccept };
+  }, [displayTaskId, needsToAccept]);
+
   const editor = useEditor({
     extensions: [
       StarterKit, TaskList, TaskItem.configure({ nested: true }), DoubleSpaceFix,
       Placeholder.configure({ placeholder: "Type your notes here... (Use 1. or - or [ ] for lists)" })
     ],
-    content: task?.description || "",
+    content: "", // Initialize completely empty to prevent flash of wrong data
     immediatelyRender: false, 
-    onBlur: ({ editor }) => { handleUpdate("description", editor.getHTML()); },
+    onBlur: ({ editor }) => { 
+      // FIX 2: Only ever pull the ID from the secure reference, never from React state directly
+      const { taskId, needsToAccept: isViewOnly } = editorStateRef.current;
+      if (taskId && !isViewOnly) {
+        updateTask({ id: taskId, description: editor.getHTML() }); 
+      }
+    },
   });
 
   useEffect(() => { if (task) setTitle(task.title); }, [task]);
@@ -237,9 +249,21 @@ function PaneContent() {
     }
   }, [title, isOpen]);
 
+  // FIX 3: Strict editor wipe & sync logic
   useEffect(() => {
-    if (task && editor && task.description !== editor.getHTML()) editor.commands.setContent(task.description || "");
-  }, [task?.description, editor]);
+    if (!editor) return;
+    
+    if (!task || task._id !== displayTaskId) {
+      // If the task hasn't loaded yet, or the ID changed, wipe the editor instantly
+      if (editor.getHTML() !== "<p></p>") editor.commands.setContent("");
+    } else {
+      // Once loaded, sync the new data
+      const incomingContent = task.description || "";
+      if (editor.getHTML() !== incomingContent) {
+        editor.commands.setContent(incomingContent);
+      }
+    }
+  }, [task, displayTaskId, editor]);
 
   useEffect(() => {
     if (editor) {
