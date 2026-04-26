@@ -22,7 +22,7 @@ import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
 import { useAuth } from "@clerk/nextjs";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
-import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation"; // NEW IMPORT
+import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation"; 
 
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
@@ -172,7 +172,25 @@ function PaneContent() {
   const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
   const [isOpen, setIsOpen] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [isSorting, setIsSorting] = useState(false); 
+  
+  // NEW: Memory for sort state
+  const [isSorting, setIsSorting] = useState(false);
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedSort = localStorage.getItem("fotion-editor-sort");
+      if (savedSort === "true") setIsSorting(true);
+    }
+  }, []);
+
+  const handleToggleSort = () => {
+    setIsSorting(prev => {
+      const next = !prev;
+      localStorage.setItem("fotion-editor-sort", String(next));
+      return next;
+    });
+  };
+
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
@@ -201,13 +219,11 @@ function PaneContent() {
       requestAnimationFrame(() => { requestAnimationFrame(() => setIsOpen(true)); });
     } else {
       setIsOpen(false);
-      setIsSorting(false); 
     }
   }, [taskId]);
 
   const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId, sessionId: guestSessionId ?? undefined } : "skip");
   
-  // FIX: Swap native mutations for offline sync
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
   const deleteTask = useOfflineSyncMutation(api.tasks.deleteTask, "deleteTask");
 
@@ -454,7 +470,7 @@ function PaneContent() {
             <hr className="border-[var(--border)] my-6" />
 
             <div className={`space-y-2 pb-4 max-w-full ${needsToAccept ? 'opacity-80 pointer-events-none' : ''}`}>
-              <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} disabled={needsToAccept} />
+              <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={handleToggleSort} disabled={needsToAccept} />
               <div className={`w-full text-[var(--foreground)] text-base leading-relaxed ${isSorting ? "sort-checklists" : ""}`}>
                 <EditorContent editor={editor} className="tiptap outline-none h-full break-words" />
               </div>

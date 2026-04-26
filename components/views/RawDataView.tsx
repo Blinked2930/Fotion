@@ -1,27 +1,50 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { api } from "@/convex/_generated/api";
 import { calculateQuadrant } from "@/lib/eisenhower";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import { api } from "@/convex/_generated/api";
 import { 
   Loader2, Type, PlayCircle, Calendar, CheckSquare, 
-  List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon, AlertTriangle, Target 
+  List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon, AlertTriangle, Target, FilterX
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
 import { useOfflineQuery, useOfflineSyncMutation } from "@/hooks/useOfflineMutation";
 
-const NotionHeader = ({ icon: Icon, label, minWidth }: { icon: any, label: string, minWidth?: string }) => (
-  <th className="border border-[var(--border)] px-3 py-2 font-normal text-zinc-500 dark:text-zinc-400 text-[13px] bg-zinc-50/50 dark:bg-zinc-900/50 text-left align-middle" style={{ minWidth: minWidth || '140px' }}>
-    <div className="flex items-center gap-1.5 whitespace-nowrap">
-      <Icon className="w-3.5 h-3.5 text-zinc-400" />
-      {label}
-    </div>
-  </th>
-);
+type SortConfig = { key: string, direction: 'asc' | 'desc' }[];
+
+const NotionHeader = ({ 
+  icon: Icon, label, minWidth, sortKey, currentSorts, onSort 
+}: { 
+  icon: any, label: string, minWidth?: string, sortKey?: string, currentSorts?: SortConfig, onSort?: (key: string) => void 
+}) => {
+  const sortInfo = currentSorts?.find(s => s.key === sortKey);
+  const sortIndex = currentSorts && sortInfo ? currentSorts.findIndex(s => s.key === sortKey) + 1 : -1;
+  
+  return (
+    <th 
+      onClick={() => sortKey && onSort && onSort(sortKey)}
+      className={`border border-[var(--border)] px-3 py-2 font-normal text-[13px] text-left align-middle select-none ${sortKey ? 'cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800' : 'bg-zinc-50/50 dark:bg-zinc-900/50'} ${sortInfo ? 'text-[var(--foreground)] bg-zinc-100/50 dark:bg-zinc-800/50' : 'text-zinc-500 dark:text-zinc-400'}`} 
+      style={{ minWidth: minWidth || '140px' }}
+    >
+      <div className="flex items-center justify-between whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          <Icon className={`w-3.5 h-3.5 ${sortInfo ? 'text-blue-500' : 'text-zinc-400'}`} />
+          {label}
+        </div>
+        {sortInfo && (
+          <div className="flex items-center gap-1 text-[10px] font-bold text-blue-500 ml-2 bg-blue-50 dark:bg-blue-900/30 px-1.5 rounded">
+            <span>{sortIndex}</span>
+            <span>{sortInfo.direction === 'asc' ? '↑' : '↓'}</span>
+          </div>
+        )}
+      </div>
+    </th>
+  );
+};
 
 const NotionCell = ({ children }: { children: React.ReactNode }) => (
   <td className="border border-[var(--border)] px-3 py-1.5 text-[13px] text-[var(--foreground)] align-middle h-[40px]">
@@ -130,7 +153,6 @@ export function RawDataView() {
   const { isSignedIn } = useAuth();
   const sessionId = useGuestSession(); 
   
-  // FIX: Converted to Global Offline Queries
   const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks"); 
   const projects = useOfflineQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined }, "getProjects");
   
@@ -140,8 +162,10 @@ export function RawDataView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
-  
   const [syncState, setSyncState] = useState<"synced" | "offline" | "syncing">("synced");
+
+  // NEW: Sort State
+  const [sortConfig, setSortConfig] = useState<SortConfig>([]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -195,30 +219,84 @@ export function RawDataView() {
     return <span className={`px-3 py-0.5 rounded-full border text-[12px] font-medium whitespace-nowrap ${getProjectColor(id)}`}>{p.name}</span>;
   };
 
+  // MULTI-COLUMN SORT LOGIC
+  const handleSort = (key: string) => {
+    setSortConfig(prev => {
+      const existingIndex = prev.findIndex(s => s.key === key);
+      const newConfig = [...prev];
+      
+      if (existingIndex >= 0) {
+        if (newConfig[existingIndex].direction === 'asc') {
+          newConfig[existingIndex].direction = 'desc';
+        } else {
+          newConfig.splice(existingIndex, 1);
+        }
+      } else {
+        newConfig.push({ key, direction: 'asc' });
+      }
+      return newConfig;
+    });
+  };
+
+  const sortedTasks = [...tasks].sort((a, b) => {
+    for (const sort of sortConfig) {
+      let aVal = a[sort.key];
+      let bVal = b[sort.key];
+
+      if (sort.key === 'quadrant') {
+        aVal = calculateQuadrant(a.isForFunsies, a.isUrgent, a.isImportant);
+        bVal = calculateQuadrant(b.isForFunsies, b.isUrgent, b.isImportant);
+      } else if (sort.key === 'projectId') {
+        aVal = projects?.find((p: any) => p._id === a.projectId)?.name || "Z";
+        bVal = projects?.find((p: any) => p._id === b.projectId)?.name || "Z";
+      }
+
+      if (aVal === null || aVal === undefined) aVal = "";
+      if (bVal === null || bVal === undefined) bVal = "";
+      
+      if (aVal === bVal) continue;
+      
+      if (aVal < bVal) return sort.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sort.direction === 'asc' ? 1 : -1;
+    }
+    return 0;
+  });
+
   return (
     <>
+      {sortConfig.length > 0 && (
+        <div className="mb-3 flex items-center justify-end">
+          <button 
+            onClick={() => setSortConfig([])}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400 rounded-md text-xs font-bold transition-colors border border-red-200 dark:border-red-900/50"
+          >
+            <FilterX className="w-3.5 h-3.5" /> Clear Sort ({sortConfig.length})
+          </button>
+        </div>
+      )}
+
       <div className="w-full overflow-x-auto pb-64 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-swipe-zone relative">
         <div className="inline-block min-w-full align-middle">
           <table className="w-full text-left border-collapse border border-[var(--border)]">
             <thead>
               <tr>
-                <NotionHeader icon={Type} label="Task Name" minWidth="280px" />
-                <NotionHeader icon={PlayCircle} label="Status" minWidth="130px" />
-                <NotionHeader icon={Calendar} label="Due By Date" minWidth="150px" />
-                <NotionHeader icon={Calendar} label="Do On Date" minWidth="150px" />
-                <NotionHeader icon={CheckSquare} label="Important?" minWidth="110px" />
-                <NotionHeader icon={CheckSquare} label="Urgent?" minWidth="100px" />
-                <NotionHeader icon={CheckSquare} label="For Funsies" minWidth="110px" />
-                <NotionHeader icon={Folder} label="Project" minWidth="160px" />
-                <NotionHeader icon={ListIcon} label="Pipelines" minWidth="160px" />
-                <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" />
-                <NotionHeader icon={Target} label="Focus Mode" minWidth="120px" />
-                <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" />
+                <NotionHeader icon={Type} label="Task Name" minWidth="280px" sortKey="title" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={PlayCircle} label="Status" minWidth="130px" sortKey="status" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={Calendar} label="Due By Date" minWidth="150px" sortKey="doByDate" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={Calendar} label="Do On Date" minWidth="150px" sortKey="doOnDate" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={CheckSquare} label="Important?" minWidth="110px" sortKey="isImportant" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={CheckSquare} label="Urgent?" minWidth="100px" sortKey="isUrgent" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={CheckSquare} label="For Funsies" minWidth="110px" sortKey="isForFunsies" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={Folder} label="Project" minWidth="160px" sortKey="projectId" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={ListIcon} label="Pipelines" minWidth="160px" sortKey="listCategory" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={Sigma} label="Quadrant" minWidth="180px" sortKey="quadrant" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={Target} label="Focus Mode" minWidth="120px" sortKey="isFocused" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={CheckSquare} label="Today" minWidth="90px" sortKey="isToday" currentSorts={sortConfig} onSort={handleSort} />
                 {isSignedIn && <NotionHeader icon={LinkIcon} label="Share Access" minWidth="160px" />}
               </tr>
             </thead>
             <tbody>
-              {tasks.map((task: any) => {
+              {sortedTasks.map((task: any) => {
                 const quadrant = calculateQuadrant(task.isForFunsies, task.isUrgent, task.isImportant);
                 return (
                   <tr key={task._id} className="hover:bg-zinc-50 dark:bg-zinc-900/40 transition-colors group">

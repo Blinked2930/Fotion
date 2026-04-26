@@ -76,7 +76,25 @@ export function NewTaskForm() {
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  
+  // NEW: Memory for sort state
   const [isSorting, setIsSorting] = useState(false);
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedSort = localStorage.getItem("fotion-editor-sort");
+      if (savedSort === "true") setIsSorting(true);
+    }
+  }, []);
+
+  const handleToggleSort = () => {
+    setIsSorting(prev => {
+      const next = !prev;
+      localStorage.setItem("fotion-editor-sort", String(next));
+      return next;
+    });
+  };
+
   const formRef = useRef<HTMLFormElement>(null);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -100,7 +118,6 @@ export function NewTaskForm() {
   const resetForm = () => {
     setTitle(""); setIsUrgent(false); setIsImportant(false); setIsForFunsies(false);
     setIsToday(false); setListCategory("Current"); setDoOnDate(null); setDoByDate(null); setProjectId(null);
-    setIsSorting(false);
     editor?.commands.setContent("");
   };
 
@@ -117,7 +134,6 @@ export function NewTaskForm() {
         const hasTags = stateRef.current.isUrgent || stateRef.current.isImportant || stateRef.current.isForFunsies || stateRef.current.isToday || stateRef.current.listCategory !== "Current" || stateRef.current.doOnDate || stateRef.current.doByDate || stateRef.current.projectId;
 
         if (stateRef.current.title.trim() !== "" || hasNotes || hasTags) {
-          // FIRE AND FORGET
           createTask({
             title: stateRef.current.title.trim() || "Unknown Task",
             description: hasNotes ? descriptionHTML : undefined,
@@ -150,7 +166,6 @@ export function NewTaskForm() {
       return;
     }
     
-    // FIRE AND FORGET - UI snaps shut immediately
     createTask({
       title: title.trim() || "Unknown Task",
       description: (editor && !editor.isEmpty) ? editor.getHTML() : undefined,
@@ -270,7 +285,7 @@ export function NewTaskForm() {
             <div className="space-y-3 w-full sm:ml-7 sm:pr-7 pb-1">
               
               <div className="w-full bg-zinc-50 dark:bg-[#1a1a1a] rounded-xl p-3 border border-[var(--border)] mt-2">
-                <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={() => setIsSorting(!isSorting)} />
+                <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={handleToggleSort} />
                 <div 
                   className={`w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[80px] ${isSorting ? "sort-checklists" : ""}`}
                   onClick={() => editor?.commands.focus()}
