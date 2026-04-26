@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 
 function parseSessionId(raw?: string) {
   if (!raw) return { actualSessionId: undefined, vipToken: undefined };
@@ -181,5 +181,23 @@ export const createManyTasks = mutation({
       taskIds.push(id);
     }
     return taskIds;
+  },
+});
+
+// NEW: Internal mutation to reset the 'Today' flag
+export const resetTodayFlags = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const tasks = await ctx.db.query("tasks").collect();
+    let resetCount = 0;
+
+    for (const task of tasks) {
+      if (task.isToday) {
+        await ctx.db.patch(task._id, { isToday: false });
+        resetCount++;
+      }
+    }
+    console.log(`Reset isToday flag for ${resetCount} tasks.`);
+    return resetCount;
   },
 });

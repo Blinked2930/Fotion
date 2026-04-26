@@ -10,4 +10,12 @@ crons.daily(
   internal.demo.cleanupOldDemos
 );
 
+// Central European Summer Time (CEST / Albania) is UTC+2
+// 2:00 AM CEST = 0:00 AM UTC (Midnight UTC)
+crons.daily(
+  "reset-is-today-flags",
+  { hourUTC: 0, minuteUTC: 0 },
+  internal.tasks.resetTodayFlags
+);
+
 export default crons;
