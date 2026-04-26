@@ -77,7 +77,6 @@ export function NewTaskForm() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   
-  // NEW: Memory for sort state
   const [isSorting, setIsSorting] = useState(false);
   
   useEffect(() => {
@@ -253,6 +252,15 @@ export function NewTaskForm() {
         }
         @media (prefers-color-scheme: dark) {
           .tiptap input[type="checkbox"] { border-color: #52525b; }
+        }
+
+        /* IRONCLAD CSS FLEXBOX SORTING - UPDATED TO IGNORE SUBTASKS */
+        .sort-checklists .tiptap ul { display: flex !important; flex-direction: column !important; }
+        .sort-checklists .tiptap ul > li { order: 1 !important; transition: opacity 0.2s ease; }
+        .sort-checklists .tiptap ul > li[data-checked="true"],
+        .sort-checklists .tiptap ul > li:has(> label > input[type="checkbox"]:checked) {
+            order: 999 !important;
+            opacity: 0.4 !important;
         }
       `}</style>
       <form 
