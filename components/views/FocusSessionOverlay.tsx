@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
-  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical 
+  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon
 } from "lucide-react";
 
 import {
@@ -26,27 +26,12 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const playChime = () => {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    
-    osc.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, ctx.currentTime); 
-    
-    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
-    
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 1.5);
-  } catch (error) {
-    console.log("Audio not supported or user interaction required first.");
-  }
+type FocusMode = "work" | "short-break" | "long-break";
+
+const MODE_TIMES = {
+  "work": 25 * 60,
+  "short-break": 5 * 60,
+  "long-break": 15 * 60,
 };
 
 function SortableTaskItem({ 
@@ -86,7 +71,6 @@ function SortableTaskItem({
         'bg-white dark:bg-[#1c1c1c] border-[var(--border)] hover:border-zinc-400 dark:hover:border-zinc-500'
       }`}
     >
-      {/* touch-none is critical here so mobile scrolling doesn't break the DND drag */}
       <div 
         {...attributes} 
         {...listeners} 
@@ -127,24 +111,22 @@ export function FocusSessionOverlay({
   
   const [localQueue, setLocalQueue] = useState<any[]>(initialTasks);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"work" | "break">("work");
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [mode, setMode] = useState<FocusMode>("work");
+  const [timeLeft, setTimeLeft] = useState(MODE_TIMES["work"]);
   const [isRunning, setIsRunning] = useState(false);
+
+  // References for robust background time tracking
+  const expectedEndTimeRef = useRef<number | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     setLocalQueue(initialTasks);
   }, [initialTasks]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 }, 
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 5 }, 
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   useEffect(() => {
@@ -153,28 +135,111 @@ export function FocusSessionOverlay({
     }
   }, [isOpen, localQueue, activeTaskId]);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-    } else if (timeLeft === 0 && isRunning) {
-      playChime(); 
-      setIsRunning(false);
-      switchMode(mode === "work" ? "break" : "work");
+  // Initializes and unlocks the audio context on user interaction
+  const initAudio = () => {
+    if (!audioCtxRef.current) {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      audioCtxRef.current = new AudioContext();
     }
-    return () => clearInterval(interval);
-  }, [isRunning, timeLeft, mode]);
+    
+    const ctx = audioCtxRef.current;
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
 
-  const toggleTimer = () => setIsRunning(!isRunning);
-  const resetTimer = () => {
-    setIsRunning(false);
-    setTimeLeft(mode === "work" ? 25 * 60 : 5 * 60);
+    // Play a completely silent sound to force iOS/macOS to unlock background audio
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    gainNode.gain.value = 0;
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.01);
   };
 
-  const switchMode = (newMode: "work" | "break") => {
+  const playChime = () => {
+    try {
+      if (!audioCtxRef.current) initAudio();
+      const ctx = audioCtxRef.current!;
+      if (ctx.state === "suspended") ctx.resume();
+
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Calming double-chime tone
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime); 
+      osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.15); // Shift pitch slightly
+      
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.0);
+      
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 2.0);
+    } catch (error) {
+      console.log("Audio playback failed.", error);
+    }
+  };
+
+  // TRUE TIME COUNTDOWN LOGIC
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (isRunning) {
+      interval = setInterval(() => {
+        if (expectedEndTimeRef.current) {
+          const now = Date.now();
+          const remainingSeconds = Math.round((expectedEndTimeRef.current - now) / 1000);
+
+          if (remainingSeconds <= 0) {
+            // Timer Finished!
+            setTimeLeft(0);
+            setIsRunning(false);
+            expectedEndTimeRef.current = null;
+            playChime();
+
+            // Auto-switch logic
+            if (mode === "work") {
+              switchMode("short-break");
+            } else {
+              switchMode("work");
+            }
+          } else {
+            setTimeLeft(remainingSeconds);
+          }
+        }
+      }, 500); // Check twice a second to catch the exact boundary, even if throttled
+    }
+
+    return () => clearInterval(interval);
+  }, [isRunning, mode]);
+
+  const toggleTimer = () => {
+    initAudio(); // Golden ticket: unlock audio immediately on tap
+    if (!isRunning) {
+      expectedEndTimeRef.current = Date.now() + timeLeft * 1000;
+      setIsRunning(true);
+    } else {
+      setIsRunning(false);
+      expectedEndTimeRef.current = null; // Pause: clear target time
+    }
+  };
+
+  const resetTimer = () => {
+    setIsRunning(false);
+    expectedEndTimeRef.current = null;
+    setTimeLeft(MODE_TIMES[mode]);
+  };
+
+  const switchMode = (newMode: FocusMode) => {
     setMode(newMode);
     setIsRunning(false);
-    setTimeLeft(newMode === "work" ? 25 * 60 : 5 * 60);
+    expectedEndTimeRef.current = null;
+    setTimeLeft(MODE_TIMES[newMode]);
   };
 
   const handleMarkDone = (task: any) => {
@@ -205,7 +270,6 @@ export function FocusSessionOverlay({
 
   return (
     <div className="fixed inset-0 z-[200] bg-[var(--background)]/95 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col">
-      {/* Top Bar - Sticky on Mobile */}
       <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border)] md:border-none">
         <div className="flex items-center gap-2 text-[var(--foreground)] font-bold tracking-widest uppercase text-xs sm:text-sm">
           <Target className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-500" /> Focus Session
@@ -215,21 +279,24 @@ export function FocusSessionOverlay({
         </button>
       </div>
 
-      {/* Main Layout: Scrolls vertically on mobile, fixed columns on desktop */}
       <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row max-w-6xl w-full mx-auto">
         
         {/* Timer Section */}
         <div className="flex flex-col justify-center items-center w-full md:flex-1 shrink-0 min-h-[60vh] md:min-h-0 md:h-full p-6 sm:p-8">
-          <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 rounded-full p-1 mb-6 sm:mb-8 shadow-inner border border-[var(--border)]">
-            <button onClick={() => switchMode("work")} className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${mode === "work" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'}`}>
+          
+          {/* Mode Selector */}
+          <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 rounded-full p-1 mb-6 sm:mb-8 shadow-inner border border-[var(--border)] max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            <button onClick={() => switchMode("work")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "work" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'}`}>
               <Target className="w-3 h-3 sm:w-4 sm:h-4" /> Deep Work
             </button>
-            <button onClick={() => switchMode("break")} className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${mode === "break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'}`}>
+            <button onClick={() => switchMode("short-break")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "short-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'}`}>
               <Coffee className="w-3 h-3 sm:w-4 sm:h-4" /> Short Break
+            </button>
+            <button onClick={() => switchMode("long-break")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "long-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'}`}>
+              <Moon className="w-3 h-3 sm:w-4 sm:h-4" /> Long Break
             </button>
           </div>
 
-          {/* Scaled down timer for mobile */}
           <div className="text-[5rem] sm:text-[7rem] md:text-[9rem] font-black tracking-tighter tabular-nums leading-none text-[var(--foreground)] mb-6 sm:mb-8">
             {formatTime(timeLeft)}
           </div>
