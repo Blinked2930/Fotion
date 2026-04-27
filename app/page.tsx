@@ -66,8 +66,14 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
   ) || [];
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex flex-col items-center pt-[10vh] px-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[80vh] animate-in slide-in-from-top-4 duration-200">
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex flex-col items-center pt-[10vh] px-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="w-full max-w-2xl bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[80vh] animate-in slide-in-from-top-4 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         <div className="flex items-center gap-3 p-4 border-b border-[var(--border)]">
           <Search className="w-5 h-5 text-zinc-400" />

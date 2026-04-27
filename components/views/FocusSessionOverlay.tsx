@@ -115,7 +115,6 @@ export function FocusSessionOverlay({
   const [timeLeft, setTimeLeft] = useState(MODE_TIMES["work"]);
   const [isRunning, setIsRunning] = useState(false);
 
-  // References for robust background time tracking
   const expectedEndTimeRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -135,7 +134,6 @@ export function FocusSessionOverlay({
     }
   }, [isOpen, localQueue, activeTaskId]);
 
-  // Initializes and unlocks the audio context on user interaction
   const initAudio = () => {
     if (!audioCtxRef.current) {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -147,7 +145,6 @@ export function FocusSessionOverlay({
       ctx.resume();
     }
 
-    // Play a completely silent sound to force iOS/macOS to unlock background audio
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();
     osc.connect(gainNode);
@@ -157,7 +154,7 @@ export function FocusSessionOverlay({
     osc.stop(ctx.currentTime + 0.01);
   };
 
-  const playChime = () => {
+  const playStartChime = () => {
     try {
       if (!audioCtxRef.current) initAudio();
       const ctx = audioCtxRef.current!;
@@ -169,23 +166,51 @@ export function FocusSessionOverlay({
       osc.connect(gainNode);
       gainNode.connect(ctx.destination);
       
-      // Calming double-chime tone
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime); 
-      osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.15); // Shift pitch slightly
+      // Clean, positive start sound
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(440, ctx.currentTime); 
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); 
       
       gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.0);
+      gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05); // 50% volume
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
       
       osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 2.0);
+      osc.stop(ctx.currentTime + 0.8);
     } catch (error) {
-      console.log("Audio playback failed.", error);
+      console.log("Start audio playback failed.", error);
     }
   };
 
-  // TRUE TIME COUNTDOWN LOGIC
+  const playFinishChime = () => {
+    try {
+      if (!audioCtxRef.current) initAudio();
+      const ctx = audioCtxRef.current!;
+      if (ctx.state === "suspended") ctx.resume();
+
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Harsh, loud, repeating alert sound to cut through music
+      osc.type = "square";
+      osc.frequency.setValueAtTime(880, ctx.currentTime); 
+      osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.2); 
+      osc.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.4); 
+      
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 0.05); // Max Volume (100%)
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.5);
+      
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 2.5);
+    } catch (error) {
+      console.log("Finish audio playback failed.", error);
+    }
+  };
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
@@ -196,13 +221,11 @@ export function FocusSessionOverlay({
           const remainingSeconds = Math.round((expectedEndTimeRef.current - now) / 1000);
 
           if (remainingSeconds <= 0) {
-            // Timer Finished!
             setTimeLeft(0);
             setIsRunning(false);
             expectedEndTimeRef.current = null;
-            playChime();
+            playFinishChime(); // CRITICAL: Fire loud completion chime
 
-            // Auto-switch logic
             if (mode === "work") {
               switchMode("short-break");
             } else {
@@ -212,20 +235,21 @@ export function FocusSessionOverlay({
             setTimeLeft(remainingSeconds);
           }
         }
-      }, 500); // Check twice a second to catch the exact boundary, even if throttled
+      }, 500); 
     }
 
     return () => clearInterval(interval);
   }, [isRunning, mode]);
 
   const toggleTimer = () => {
-    initAudio(); // Golden ticket: unlock audio immediately on tap
+    initAudio(); 
     if (!isRunning) {
+      playStartChime(); // CRITICAL: Fire confirmation start chime
       expectedEndTimeRef.current = Date.now() + timeLeft * 1000;
       setIsRunning(true);
     } else {
       setIsRunning(false);
-      expectedEndTimeRef.current = null; // Pause: clear target time
+      expectedEndTimeRef.current = null; 
     }
   };
 
