@@ -154,29 +154,35 @@ export function FocusSessionOverlay({
     osc.stop(ctx.currentTime + 0.01);
   };
 
+  // Helper to play a single soothing bell tone
+  const playNote = (ctx: AudioContext, freq: number, startTimeOffset: number, duration: number, maxVolume: number) => {
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    osc.type = "sine"; // Purest, softest acoustic wave
+    osc.frequency.value = freq;
+    
+    const startTime = ctx.currentTime + startTimeOffset;
+    gainNode.gain.setValueAtTime(0, startTime);
+    gainNode.gain.linearRampToValueAtTime(maxVolume, startTime + 0.05); // Soft tap attack
+    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration); // Long, echoing fade
+    
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  };
+
   const playStartChime = () => {
     try {
       if (!audioCtxRef.current) initAudio();
       const ctx = audioCtxRef.current!;
       if (ctx.state === "suspended") ctx.resume();
 
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      // Clean, positive start sound
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(440, ctx.currentTime); 
-      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); 
-      
-      gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05); // 50% volume
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-      
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.8);
+      // Soft ascending perfect fourth
+      playNote(ctx, 523.25, 0.0, 1.5, 0.2); // C5
+      playNote(ctx, 698.46, 0.15, 1.5, 0.2); // F5
     } catch (error) {
       console.log("Start audio playback failed.", error);
     }
@@ -188,24 +194,11 @@ export function FocusSessionOverlay({
       const ctx = audioCtxRef.current!;
       if (ctx.state === "suspended") ctx.resume();
 
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      // Harsh, loud, repeating alert sound to cut through music
-      osc.type = "square";
-      osc.frequency.setValueAtTime(880, ctx.currentTime); 
-      osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.2); 
-      osc.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.4); 
-      
-      gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 0.05); // Max Volume (100%)
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.5);
-      
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 2.5);
+      // Soothing Major 7th Chord Arpeggio (Zen Bell vibe)
+      playNote(ctx, 523.25, 0.0, 3.0, 0.3);  // Root (C5)
+      playNote(ctx, 659.25, 0.15, 3.0, 0.3); // Major 3rd (E5)
+      playNote(ctx, 783.99, 0.3, 3.0, 0.3);  // Perfect 5th (G5)
+      playNote(ctx, 987.77, 0.45, 4.0, 0.4); // Major 7th (B5) - Lingers the longest
     } catch (error) {
       console.log("Finish audio playback failed.", error);
     }
@@ -224,7 +217,7 @@ export function FocusSessionOverlay({
             setTimeLeft(0);
             setIsRunning(false);
             expectedEndTimeRef.current = null;
-            playFinishChime(); // CRITICAL: Fire loud completion chime
+            playFinishChime(); // Fire soothing meditation chime
 
             if (mode === "work") {
               switchMode("short-break");
@@ -244,7 +237,7 @@ export function FocusSessionOverlay({
   const toggleTimer = () => {
     initAudio(); 
     if (!isRunning) {
-      playStartChime(); // CRITICAL: Fire confirmation start chime
+      playStartChime(); 
       expectedEndTimeRef.current = Date.now() + timeLeft * 1000;
       setIsRunning(true);
     } else {
