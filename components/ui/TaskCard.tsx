@@ -7,7 +7,8 @@ import { api } from "@/convex/_generated/api";
 import { Check, Calendar, List, AlignLeft, Folder, Target } from "lucide-react";
 import { getListColor, getProjectColor } from "../views/NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession";
-import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation"; // NEW IMPORT
+import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation"; 
+import { useAuth } from "@clerk/nextjs";
 
 function PillDropdown({ 
   currentValue, 
@@ -106,12 +107,33 @@ export function TaskCard({
   searchQuery?: string
 }) {
   const router = useRouter();
+  const { isSignedIn } = useAuth();
   
-  // FIX: Swap native useMutation for offline sync
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
   
   const sessionId = useGuestSession();
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
+
+  // Ownership calculation for strict focus boundaries
+  const actualSessionId = sessionId?.split("||vip_")[0];
+  const isOwner = !!(isSignedIn || (task.sessionId && task.sessionId === actualSessionId));
+
+  const isTaskFocused = isOwner 
+    ? !!task.isFocused 
+    : !!task.focusedSessions?.includes(actualSessionId!);
+
+  const handleToggleFocus = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isOwner) {
+      handleInlineUpdate("isFocused", !task.isFocused);
+    } else {
+      const currentFocused = task.focusedSessions || [];
+      const newFocused = currentFocused.includes(actualSessionId!)
+        ? currentFocused.filter((id: string) => id !== actualSessionId)
+        : [...currentFocused, actualSessionId!];
+      handleInlineUpdate("focusedSessions", newFocused);
+    }
+  };
 
   const toggleTaskCompletion = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -208,12 +230,9 @@ export function TaskCard({
             </span>
             <div className="flex items-center gap-1 shrink-0">
               <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleInlineUpdate("isFocused", !task.isFocused);
-                }}
-                className={`p-1.5 rounded-md transition-colors ${task.isFocused ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'text-zinc-300 dark:text-zinc-600 hover:text-emerald-500 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
-                title={task.isFocused ? "Remove from Focus Session" : "Add to Focus Session"}
+                onClick={handleToggleFocus}
+                className={`p-1.5 rounded-md transition-colors ${isTaskFocused ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'text-zinc-300 dark:text-zinc-600 hover:text-emerald-500 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+                title={isTaskFocused ? "Remove from Focus Session" : "Add to Focus Session"}
               >
                 <Target className="w-4 h-4" />
               </button>
