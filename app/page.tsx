@@ -270,7 +270,17 @@ function HomeContent() {
   const vipTask = useOfflineQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip", "getTaskByShareToken");
   
   const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks");
-  const focusedTasks = allTasks?.filter((t: any) => t.isFocused && t.status !== "done") || [];
+
+  // FIX: Isolate the Focus Session logic.
+  const actualSessionId = guestSessionId?.split("||vip_")[0];
+  const focusedTasks = allTasks?.filter((t: any) => {
+    if (t.status === "done") return false;
+    // Check if the current viewer owns the task
+    const isOwner = !!(isSignedIn || (t.sessionId && t.sessionId === actualSessionId));
+    // If owner, use global isFocused. If guest, check their isolated array.
+    if (isOwner) return t.isFocused;
+    return t.focusedSessions && t.focusedSessions.includes(actualSessionId);
+  }) || [];
 
   const hasAutoOpenedVip = useRef(false);
 
@@ -289,7 +299,6 @@ function HomeContent() {
     if (sessionType === "vip" && vipTask && vipTask._id && !hasAutoOpenedVip.current) {
       const currentTaskId = searchParams.get("taskId");
       if (currentTaskId !== vipTask._id) {
-        // Use URLSearchParams to merge parameters instead of blindly overwriting
         const params = new URLSearchParams(window.location.search);
         params.set("taskId", vipTask._id);
         router.replace(`/?${params.toString()}`);
@@ -302,11 +311,9 @@ function HomeContent() {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
-    // PWA Launch Recovery
     const vipParam = searchParams.get("vip");
     const sessionParam = searchParams.get("session");
 
-    // If PWA opens with a session parameter, force it into local storage
     if (sessionParam && !isSignedIn) {
       localStorage.setItem("fotion-session-id", sessionParam);
     }
@@ -332,7 +339,6 @@ function HomeContent() {
       }
       setSessionType("vip");
 
-      // The Magic Sync Hack - Play nice with existing parameters
       if (typeof window !== "undefined") {
         const currentVipToken = localStorage.getItem("fotion-vip-token");
         const params = new URLSearchParams(window.location.search);

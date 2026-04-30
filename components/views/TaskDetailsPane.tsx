@@ -231,7 +231,7 @@ function PaneContent() {
   const [isNearBottom, setIsNearBottom] = useState(false);
 
   const actualSessionId = guestSessionId?.split("||vip_")[0];
-  const isOwner = !!(isSignedIn || task?.sessionId === actualSessionId);
+  const isOwner = !!(isSignedIn || (task?.sessionId && task.sessionId === actualSessionId));
   const isSharedViewer = !!(!isOwner && task?.shareToken && guestSessionId?.includes(`vip_${task.shareToken}`));
   const hasAccepted = !!(isSharedViewer && actualSessionId && task?.sharedWithSessions?.includes(actualSessionId));
   const needsToAccept = !!(isSharedViewer && !hasAccepted);
@@ -284,7 +284,6 @@ function PaneContent() {
     }
   }, [editor, needsToAccept]);
 
-  // FIXED ROUTER TUG-OF-WAR
   const closePane = () => {
     const params = new URLSearchParams(window.location.search);
     params.delete("taskId");
@@ -356,6 +355,25 @@ function PaneContent() {
         id: displayTaskId, 
         sharedWithSessions: [...currentSessions, actualSessionId],
       });
+    }
+  };
+
+  // FIX: Isolated Focus Session Toggles
+  const isTaskFocused = isOwner 
+    ? !!task?.isFocused 
+    : !!task?.focusedSessions?.includes(actualSessionId!);
+
+  const handleToggleFocus = () => {
+    if (!task || !displayTaskId || needsToAccept) return;
+    
+    if (isOwner) {
+      handleUpdate("isFocused", !task.isFocused);
+    } else {
+      const currentFocused = task.focusedSessions || [];
+      const newFocused = currentFocused.includes(actualSessionId!)
+        ? currentFocused.filter((id: string) => id !== actualSessionId)
+        : [...currentFocused, actualSessionId!];
+      handleUpdate("focusedSessions", newFocused);
     }
   };
 
@@ -454,15 +472,17 @@ function PaneContent() {
             <textarea ref={titleRef} value={title} onChange={handleTitleChange} onBlur={() => handleUpdate("title", title)} readOnly={needsToAccept} rows={1} className={`w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300 resize-none overflow-hidden block py-1 leading-tight mt-0 ${needsToAccept ? 'opacity-80' : ''}`} placeholder="Task title" />
 
             <div className="flex flex-col gap-1 sm:gap-2 text-[15px] max-w-full">
+              
               <PropertyRow icon={Target} label="Focus Mode" disabled={needsToAccept}>
                 <button 
                   type="button" 
-                  onClick={() => handleUpdate("isFocused", !task.isFocused)} 
-                  className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isFocused ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                  onClick={handleToggleFocus} 
+                  className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${isTaskFocused ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                 >
-                  {task.isFocused ? "In Focus Session" : "Add to Focus Session"}
+                  {isTaskFocused ? "In Focus Session" : "Add to Focus Session"}
                 </button>
               </PropertyRow>
+
               <PropertyRow icon={CheckSquare} label="Today" disabled={needsToAccept}><button type="button" onClick={() => handleUpdate("isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></PropertyRow>
               <PropertyRow icon={PlayCircle} label="Status" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{[{ id: 'todo', label: 'To Do', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' }, { id: 'in-progress', label: 'In Progress', activeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50' }, { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50' }].map((s) => (<button key={s.id} onClick={() => handleStatusUpdate(s.id as any)} className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${task.status === s.id ? s.activeClass : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>{s.label}</button>))}</div></PropertyRow>
               <PropertyRow icon={Calendar} label="Due By Date" disabled={needsToAccept}><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>

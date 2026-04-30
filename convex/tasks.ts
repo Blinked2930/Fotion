@@ -91,6 +91,7 @@ export const updateTask = mutation({
     shareToken: v.optional(v.string()),
     sharedWithSessions: v.optional(v.array(v.string())),
     sessionId: v.optional(v.string()), 
+    focusedSessions: v.optional(v.array(v.string())), // NEW: VIP Focus Isolation
   },
   handler: async (ctx, args) => {
     const { id, sessionId, ...fields } = args;
