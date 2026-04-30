@@ -8,10 +8,10 @@ import { api } from "@/convex/_generated/api";
 export type ViewType = "Matrix" | "Pipelines" | "Today" | "Projects" | "Raw Data";
 
 const defaultTabs: { id: ViewType; icon: any; label: string }[] = [
-  { id: "Matrix", icon: LayoutGrid, label: "Matrix" },
-  { id: "Pipelines", icon: ListTodo, label: "Pipelines" },
   { id: "Today", icon: Calendar, label: "Today" },
+  { id: "Pipelines", icon: ListTodo, label: "Pipelines" },
   { id: "Projects", icon: FolderGit2, label: "Projects" },
+  { id: "Matrix", icon: LayoutGrid, label: "Matrix" },
   { id: "Raw Data", icon: Database, label: "Raw Data" },
 ];
 

@@ -289,7 +289,10 @@ function HomeContent() {
     if (sessionType === "vip" && vipTask && vipTask._id && !hasAutoOpenedVip.current) {
       const currentTaskId = searchParams.get("taskId");
       if (currentTaskId !== vipTask._id) {
-        router.replace(`/?taskId=${vipTask._id}`);
+        // Use URLSearchParams to merge parameters instead of blindly overwriting
+        const params = new URLSearchParams(window.location.search);
+        params.set("taskId", vipTask._id);
+        router.replace(`/?${params.toString()}`);
       }
       hasAutoOpenedVip.current = true;
     }
@@ -329,13 +332,24 @@ function HomeContent() {
       }
       setSessionType("vip");
 
-      // The Magic Sync Hack
+      // The Magic Sync Hack - Play nice with existing parameters
       if (typeof window !== "undefined") {
         const currentVipToken = localStorage.getItem("fotion-vip-token");
-        const syncUrl = `/?vip=${currentVipToken}&session=${currentSessionId}`;
-        
-        if (window.location.search !== `?vip=${currentVipToken}&session=${currentSessionId}`) {
-           window.history.replaceState(null, '', syncUrl);
+        const params = new URLSearchParams(window.location.search);
+        let urlNeedsUpdate = false;
+
+        if (currentVipToken && params.get("vip") !== currentVipToken) {
+          params.set("vip", currentVipToken);
+          urlNeedsUpdate = true;
+        }
+        if (currentSessionId && params.get("session") !== currentSessionId) {
+          params.set("session", currentSessionId);
+          urlNeedsUpdate = true;
+        }
+
+        if (urlNeedsUpdate) {
+          const syncUrl = `${window.location.pathname}?${params.toString()}`;
+          window.history.replaceState(null, '', syncUrl);
         }
       }
 

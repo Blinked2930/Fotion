@@ -284,18 +284,24 @@ function PaneContent() {
     }
   }, [editor, needsToAccept]);
 
+  // FIXED ROUTER TUG-OF-WAR
+  const closePane = () => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("taskId");
+    const newSearch = params.toString();
+    router.replace(`${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`, { scroll: false });
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: PointerEvent | MouseEvent) => {
       if (showDeleteModal || !isPaneOpen) return;
       const target = e.target as HTMLElement;
       if (target.closest('button') || target.closest('input') || target.closest('.fixed.inset-0')) return;
-      if (paneRef.current && !paneRef.current.contains(target)) router.replace(window.location.pathname, { scroll: false });
+      if (paneRef.current && !paneRef.current.contains(target)) closePane();
     };
     document.addEventListener("pointerdown", handleClickOutside, true);
     return () => document.removeEventListener("pointerdown", handleClickOutside, true);
   }, [showDeleteModal, router, isPaneOpen]);
-
-  const closePane = () => router.replace(window.location.pathname, { scroll: false });
 
   const onTouchStart = (e: React.TouchEvent) => { setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }); };
   const onTouchEnd = (e: React.TouchEvent) => {
