@@ -43,6 +43,7 @@ export default defineSchema({
     // NEW: Anonymous Cloud Session Architecture
     sessionId: v.optional(v.string()), 
     sharedWithSessions: v.optional(v.array(v.string())), 
+    focusedSessions: v.optional(v.array(v.string())), // NEW: VIP Focus Isolation
   })
     .index("by_status", ["status"])
     .index("by_listCategory", ["listCategory"])
