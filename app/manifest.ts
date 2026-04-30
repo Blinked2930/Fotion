@@ -5,7 +5,6 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Fotion',
     short_name: 'Fotion',
     description: 'Lightning-fast task triage.',
-    start_url: '/',
     display: 'standalone',
     background_color: '#191919', // Set to match your dark mode background
     theme_color: '#191919',
