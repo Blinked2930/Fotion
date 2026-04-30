@@ -251,7 +251,6 @@ function HomeContent() {
   const { isLoaded, isSignedIn } = useAuth();
   const guestSessionId = useGuestSession();
 
-  // NETWORK DETECTION
   const [isOffline, setIsOffline] = useState(false);
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -300,19 +299,18 @@ function HomeContent() {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
     
+    // PWA Launch Recovery
     const vipParam = searchParams.get("vip");
+    const sessionParam = searchParams.get("session");
+
+    // If PWA opens with a session parameter, force it into local storage
+    if (sessionParam && !isSignedIn) {
+      localStorage.setItem("fotion-session-id", sessionParam);
+    }
 
     if (vipParam && !isSignedIn) {
       localStorage.setItem("fotion-vip-token", vipParam);
-      
-      let baseId = localStorage.getItem("fotion-session-id");
-      if (!baseId) {
-        baseId = `vip_guest_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
-        localStorage.setItem("fotion-session-id", baseId);
-      }
-
-      window.location.href = "/"; 
-      return;
+      // Removed the location override here so the params stick in the URL
     } 
 
     if (isSignedIn) {
@@ -322,12 +320,30 @@ function HomeContent() {
     }
     
     const hasVipToken = !!localStorage.getItem("fotion-vip-token");
-    const rawBaseId = localStorage.getItem("fotion-session-id");
+    let currentSessionId = localStorage.getItem("fotion-session-id");
     const hasSeenLandingPage = !!localStorage.getItem("fotion-seen-landing-id");
     
     if (hasVipToken) {
+      if (!currentSessionId) {
+        currentSessionId = `vip_guest_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+        localStorage.setItem("fotion-session-id", currentSessionId);
+      }
       setSessionType("vip");
-    } else if (rawBaseId?.startsWith("demo_user_") && hasSeenLandingPage) {
+
+      // The Magic Sync Hack: Silently push their VIP token AND Session ID into the URL bar.
+      // When iOS Add to Homescreen takes a snapshot of the URL, it will grab this,
+      // allowing the PWA sandbox to load their existing browser data perfectly.
+      if (typeof window !== "undefined") {
+        const currentVipToken = localStorage.getItem("fotion-vip-token");
+        const syncUrl = `/?vip=${currentVipToken}&session=${currentSessionId}`;
+        
+        // Only replace if it doesn't already match to avoid loops
+        if (window.location.search !== `?vip=${currentVipToken}&session=${currentSessionId}`) {
+           window.history.replaceState(null, '', syncUrl);
+        }
+      }
+
+    } else if (currentSessionId?.startsWith("demo_user_") && hasSeenLandingPage) {
       setSessionType("demo");
     } else {
       setSessionType("none");
@@ -361,7 +377,6 @@ function HomeContent() {
     } 
   };
 
-  // Bypass infinite loader if offline
   if ((!isOffline && !isLoaded) || (!isOffline && !isSignedIn && guestSessionId === null && !isMounted)) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
@@ -370,7 +385,6 @@ function HomeContent() {
     );
   }
 
-  // Bypass landing page if offline so you can reach the cached Matrix
   if (!isSignedIn && sessionType === "none" && !isOffline) {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
@@ -535,17 +549,5 @@ function HomeContent() {
       />
 
     </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-zinc-300 dark:text-zinc-700" />
-      </div>
-    }>
-      <HomeContent />
-    </Suspense>
   );
 }
