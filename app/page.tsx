@@ -310,7 +310,6 @@ function HomeContent() {
 
     if (vipParam && !isSignedIn) {
       localStorage.setItem("fotion-vip-token", vipParam);
-      // Removed the location override here so the params stick in the URL
     } 
 
     if (isSignedIn) {
@@ -330,14 +329,11 @@ function HomeContent() {
       }
       setSessionType("vip");
 
-      // The Magic Sync Hack: Silently push their VIP token AND Session ID into the URL bar.
-      // When iOS Add to Homescreen takes a snapshot of the URL, it will grab this,
-      // allowing the PWA sandbox to load their existing browser data perfectly.
+      // The Magic Sync Hack
       if (typeof window !== "undefined") {
         const currentVipToken = localStorage.getItem("fotion-vip-token");
         const syncUrl = `/?vip=${currentVipToken}&session=${currentSessionId}`;
         
-        // Only replace if it doesn't already match to avoid loops
         if (window.location.search !== `?vip=${currentVipToken}&session=${currentSessionId}`) {
            window.history.replaceState(null, '', syncUrl);
         }
@@ -549,5 +545,17 @@ function HomeContent() {
       />
 
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-zinc-300 dark:text-zinc-700" />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }
