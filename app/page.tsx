@@ -12,6 +12,7 @@ import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay";
+import { InstallScreen } from "@/components/views/InstallScreen"; // NEW IMPORT
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff } from "lucide-react";
@@ -252,6 +253,8 @@ function HomeContent() {
   const guestSessionId = useGuestSession();
 
   const [isOffline, setIsOffline] = useState(false);
+  const [showInstallScreen, setShowInstallScreen] = useState(false); // NEW STATE
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setIsOffline(!navigator.onLine);
@@ -271,13 +274,10 @@ function HomeContent() {
   
   const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks");
 
-  // FIX: Isolate the Focus Session logic.
   const actualSessionId = guestSessionId?.split("||vip_")[0];
   const focusedTasks = allTasks?.filter((t: any) => {
     if (t.status === "done") return false;
-    // Check if the current viewer owns the task
     const isOwner = !!(isSignedIn || (t.sessionId && t.sessionId === actualSessionId));
-    // If owner, use global isFocused. If guest, check their isolated array.
     if (isOwner) return t.isFocused;
     return t.focusedSessions && t.focusedSessions.includes(actualSessionId);
   }) || [];
@@ -306,6 +306,20 @@ function HomeContent() {
       hasAutoOpenedVip.current = true;
     }
   }, [vipTask, sessionType, router, searchParams]);
+
+  // NEW PWA INSTALL DETECTION
+  const checkNeedsInstall = () => {
+    if (typeof window === "undefined") return false;
+    if (sessionStorage.getItem("fotion-bypassed-install")) return false;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
+    return isMobile && !isStandalone;
+  };
+
+  const handleBypassInstall = () => {
+    sessionStorage.setItem("fotion-bypassed-install", "true");
+    setShowInstallScreen(false);
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
@@ -338,6 +352,7 @@ function HomeContent() {
         localStorage.setItem("fotion-session-id", currentSessionId);
       }
       setSessionType("vip");
+      if (checkNeedsInstall()) setShowInstallScreen(true); // TRIGGER VIP INSTALL SCREEN
 
       if (typeof window !== "undefined") {
         const currentVipToken = localStorage.getItem("fotion-vip-token");
@@ -361,6 +376,7 @@ function HomeContent() {
 
     } else if (currentSessionId?.startsWith("demo_user_") && hasSeenLandingPage) {
       setSessionType("demo");
+      if (checkNeedsInstall()) setShowInstallScreen(true); // TRIGGER DEMO INSTALL SCREEN
     } else {
       setSessionType("none");
     }
@@ -375,6 +391,11 @@ function HomeContent() {
 
   const handleStartDemo = async () => {
     setIsGeneratingDemo(true);
+    
+    if (checkNeedsInstall()) {
+      setShowInstallScreen(true); // TRIGGER LIVE DEMO INSTALL SCREEN
+    }
+
     try {
       let demoId = localStorage.getItem("fotion-session-id");
       if (!demoId || !demoId.startsWith("demo_user_")) {
@@ -465,6 +486,10 @@ function HomeContent() {
         </div>
       </div>
     );
+  }
+
+  if (showInstallScreen) {
+    return <InstallScreen onBypass={handleBypassInstall} />;
   }
 
   return (
