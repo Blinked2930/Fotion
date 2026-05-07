@@ -12,7 +12,7 @@ import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay";
-import { InstallScreen } from "@/components/views/InstallScreen"; // NEW IMPORT
+import { InstallScreen } from "@/components/views/InstallScreen"; 
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff } from "lucide-react";
@@ -253,7 +253,10 @@ function HomeContent() {
   const guestSessionId = useGuestSession();
 
   const [isOffline, setIsOffline] = useState(false);
-  const [showInstallScreen, setShowInstallScreen] = useState(false); // NEW STATE
+  
+  // NEW PWA INSTALL STATES
+  const [showInstallScreen, setShowInstallScreen] = useState(false); 
+  const [pendingAction, setPendingAction] = useState<"demo" | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -307,7 +310,6 @@ function HomeContent() {
     }
   }, [vipTask, sessionType, router, searchParams]);
 
-  // NEW PWA INSTALL DETECTION
   const checkNeedsInstall = () => {
     if (typeof window === "undefined") return false;
     if (sessionStorage.getItem("fotion-bypassed-install")) return false;
@@ -319,6 +321,12 @@ function HomeContent() {
   const handleBypassInstall = () => {
     sessionStorage.setItem("fotion-bypassed-install", "true");
     setShowInstallScreen(false);
+    
+    // Resume interrupted actions
+    if (pendingAction === "demo") {
+      setPendingAction(null);
+      handleStartDemo(); 
+    }
   };
 
   useEffect(() => {
@@ -352,7 +360,7 @@ function HomeContent() {
         localStorage.setItem("fotion-session-id", currentSessionId);
       }
       setSessionType("vip");
-      if (checkNeedsInstall()) setShowInstallScreen(true); // TRIGGER VIP INSTALL SCREEN
+      if (checkNeedsInstall()) setShowInstallScreen(true);
 
       if (typeof window !== "undefined") {
         const currentVipToken = localStorage.getItem("fotion-vip-token");
@@ -376,7 +384,7 @@ function HomeContent() {
 
     } else if (currentSessionId?.startsWith("demo_user_") && hasSeenLandingPage) {
       setSessionType("demo");
-      if (checkNeedsInstall()) setShowInstallScreen(true); // TRIGGER DEMO INSTALL SCREEN
+      if (checkNeedsInstall()) setShowInstallScreen(true);
     } else {
       setSessionType("none");
     }
@@ -390,12 +398,14 @@ function HomeContent() {
   };
 
   const handleStartDemo = async () => {
-    setIsGeneratingDemo(true);
-    
+    // HALT AND SHOW INSTALL SCREEN IF NEEDED
     if (checkNeedsInstall()) {
-      setShowInstallScreen(true); // TRIGGER LIVE DEMO INSTALL SCREEN
+      setPendingAction("demo");
+      setShowInstallScreen(true);
+      return; 
     }
 
+    setIsGeneratingDemo(true);
     try {
       let demoId = localStorage.getItem("fotion-session-id");
       if (!demoId || !demoId.startsWith("demo_user_")) {
@@ -407,13 +417,14 @@ function HomeContent() {
       localStorage.setItem("fotion-seen-landing-id", demoId);
       
       setSessionType("demo");
-      setIsGeneratingDemo(false);
     } catch (error: any) {
       alert("Failed to seed demo data: " + error.message);
+    } finally {
       setIsGeneratingDemo(false);
-    } 
+    }
   };
 
+  // 1. Loading States
   if ((!isOffline && !isLoaded) || (!isOffline && !isSignedIn && guestSessionId === null && !isMounted)) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
@@ -422,6 +433,12 @@ function HomeContent() {
     );
   }
 
+  // 2. Install Interceptor (Takes precedence over the Landing Page)
+  if (showInstallScreen) {
+    return <InstallScreen onBypass={handleBypassInstall} />;
+  }
+
+  // 3. Landing Page
   if (!isSignedIn && sessionType === "none" && !isOffline) {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
@@ -488,10 +505,7 @@ function HomeContent() {
     );
   }
 
-  if (showInstallScreen) {
-    return <InstallScreen onBypass={handleBypassInstall} />;
-  }
-
+  // 4. Main App Interface
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col relative">
       
