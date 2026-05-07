@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, Apple, Share, PlusSquare, MoreVertical, X, Check, Download } from 'lucide-react';
+import { Smartphone, Apple, Share, PlusSquare, MoreVertical, MoreHorizontal, X, Check, Download } from 'lucide-react';
 
 export const InstallScreen = ({ onBypass }: { onBypass: () => void }) => {
     const [device, setDevice] = useState<'ios' | 'android' | null>(null);
@@ -32,9 +32,9 @@ export const InstallScreen = ({ onBypass }: { onBypass: () => void }) => {
                     </div>
                     
                     <div className="text-center space-y-4">
-                        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--foreground)]">Install Fotion</h1>
+                        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--foreground)]">Install Protocol</h1>
                         <p className="text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                            To ensure maximum reliability offline and preserve your session, Fotion must be installed directly to your device.
+                            To ensure maximum reliability offline and preserve your session, this tool must be installed directly to your device.
                         </p>
                     </div>
 
@@ -80,8 +80,12 @@ export const InstallScreen = ({ onBypass }: { onBypass: () => void }) => {
                         {device === 'ios' ? (
                             <>
                                 <div className="flex items-start gap-4">
+                                    <MoreHorizontal size={18} className="text-emerald-500 shrink-0 mt-0.5" />
+                                    <p className="leading-snug">Tap the <strong className="text-[var(--foreground)]">3-dot menu</strong>.</p>
+                                </div>
+                                <div className="flex items-start gap-4">
                                     <Share size={18} className="text-emerald-500 shrink-0 mt-0.5" />
-                                    <p className="leading-snug">Tap the <strong className="text-[var(--foreground)]">Share icon</strong> in the bottom menu.</p>
+                                    <p className="leading-snug">Tap the <strong className="text-[var(--foreground)]">Share icon</strong>.</p>
                                 </div>
                                 <div className="flex items-start gap-4">
                                     <PlusSquare size={18} className="text-emerald-500 shrink-0 mt-0.5" />
@@ -96,11 +100,11 @@ export const InstallScreen = ({ onBypass }: { onBypass: () => void }) => {
                             <>
                                 <div className="flex items-start gap-4">
                                     <MoreVertical size={18} className="text-emerald-500 shrink-0 mt-0.5" />
-                                    <p className="leading-snug">Tap the <strong className="text-[var(--foreground)]">3-dot menu</strong> in the top right.</p>
+                                    <p className="leading-snug">Tap the <strong className="text-[var(--foreground)]">3-dot menu</strong> in the top right corner.</p>
                                 </div>
                                 <div className="flex items-start gap-4">
                                     <PlusSquare size={18} className="text-emerald-500 shrink-0 mt-0.5" />
-                                    <p className="leading-snug">Tap <strong className="text-[var(--foreground)]">Add to Home screen</strong>.</p>
+                                    <p className="leading-snug">Scroll down and tap <strong className="text-[var(--foreground)]">Add to Home screen</strong>.</p>
                                 </div>
                                 <div className="flex items-start gap-4">
                                     <Check size={18} className="text-emerald-500 shrink-0 mt-0.5" />
