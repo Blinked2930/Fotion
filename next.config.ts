@@ -5,6 +5,14 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
+  workboxOptions: {
+    disableDevLogs: true,
+    exclude: [
+      // Exclude Clerk endpoints and API routes from Service Worker caching
+      /^\/__clerk\/.*$/i,
+      /^\/api\/.*$/i,
+    ],
+  },
 });
 
 const nextConfig: NextConfig = {
