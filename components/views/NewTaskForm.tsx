@@ -7,6 +7,7 @@ import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare, List
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineSyncMutation, useOfflineQuery } from "@/hooks/useOfflineMutation";
+import { RepeatDropdown } from "@/components/ui/RepeatDropdown";
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, InputRule } from '@tiptap/core';
@@ -389,16 +390,11 @@ export function NewTaskForm() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-zinc-500">
                         <span className="font-medium text-zinc-400">Repeat:</span>
-                        <select 
+                        <RepeatDropdown 
                           value={recurrenceRule} 
-                          onChange={(e) => setRecurrenceRule(e.target.value as any)}
-                          className={`bg-transparent text-[13px] font-medium outline-none cursor-pointer border rounded-md px-1 py-0.5 transition-colors ${recurrenceRule !== 'none' ? 'border-pink-300 text-pink-600 dark:border-pink-800 dark:text-pink-400' : 'border-transparent hover:border-[var(--border)] text-zinc-600 dark:text-zinc-300'}`}
-                        >
-                          <option value="none" className="text-zinc-800 dark:text-zinc-200 bg-white dark:bg-[#252525]">None</option>
-                          <option value="daily" className="text-zinc-800 dark:text-zinc-200 bg-white dark:bg-[#252525]">Daily</option>
-                          <option value="weekly" className="text-zinc-800 dark:text-zinc-200 bg-white dark:bg-[#252525]">Weekly</option>
-                          <option value="monthly" className="text-zinc-800 dark:text-zinc-200 bg-white dark:bg-[#252525]">Monthly</option>
-                        </select>
+                          onChange={setRecurrenceRule}
+                          align="right"
+                        />
                       </div>
                     </div>
                   </div>

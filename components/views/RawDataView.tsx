@@ -7,12 +7,13 @@ import { useAuth } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { 
   Loader2, Type, PlayCircle, Calendar, CheckSquare, 
-  List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon, AlertTriangle, Target, FilterX
+  List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon, AlertTriangle, Target, FilterX, Repeat
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
 import { useOfflineQuery, useOfflineSyncMutation } from "@/hooks/useOfflineMutation";
+import { RepeatDropdown } from "@/components/ui/RepeatDropdown";
 
 type SortConfig = { key: string, direction: 'asc' | 'desc' }[];
 
@@ -249,6 +250,9 @@ export function RawDataView() {
       } else if (sort.key === 'projectId') {
         aVal = projects?.find((p: any) => p._id === a.projectId)?.name || "Z";
         bVal = projects?.find((p: any) => p._id === b.projectId)?.name || "Z";
+      } else if (sort.key === 'recurrenceRule') {
+        aVal = a.recurrenceRule || "none";
+        bVal = b.recurrenceRule || "none";
       }
 
       if (aVal === null || aVal === undefined) aVal = "";
@@ -284,6 +288,7 @@ export function RawDataView() {
                 <NotionHeader icon={PlayCircle} label="Status" minWidth="130px" sortKey="status" currentSorts={sortConfig} onSort={handleSort} />
                 <NotionHeader icon={Calendar} label="Due By Date" minWidth="150px" sortKey="doByDate" currentSorts={sortConfig} onSort={handleSort} />
                 <NotionHeader icon={Calendar} label="Do On Date" minWidth="150px" sortKey="doOnDate" currentSorts={sortConfig} onSort={handleSort} />
+                <NotionHeader icon={Repeat} label="Repeat" minWidth="120px" sortKey="recurrenceRule" currentSorts={sortConfig} onSort={handleSort} />
                 <NotionHeader icon={CheckSquare} label="Important?" minWidth="110px" sortKey="isImportant" currentSorts={sortConfig} onSort={handleSort} />
                 <NotionHeader icon={CheckSquare} label="Urgent?" minWidth="100px" sortKey="isUrgent" currentSorts={sortConfig} onSort={handleSort} />
                 <NotionHeader icon={CheckSquare} label="For Funsies" minWidth="110px" sortKey="isForFunsies" currentSorts={sortConfig} onSort={handleSort} />
@@ -326,6 +331,17 @@ export function RawDataView() {
                     <NotionCell><BeautifulDropdown value={task.status} options={[{value: 'todo'}, {value: 'in-progress'}, {value: 'done'}]} onChange={(val) => handleUpdate(task._id, "status", val)} renderPill={StatusPill} /></NotionCell>
                     <NotionCell><div className="whitespace-nowrap min-w-[130px]"><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate(task._id, "doByDate", val)} alignPopover="right" /></div></NotionCell>
                     <NotionCell><div className="whitespace-nowrap min-w-[130px]"><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate(task._id, "doOnDate", val)} alignPopover="right" /></div></NotionCell>
+                    <NotionCell>
+                      <RepeatDropdown 
+                        value={task.recurrenceRule || "none"} 
+                        onChange={(val) => {
+                          const updates: any = { recurrenceRule: val };
+                          if (val !== "none" && !task.recurringGroupId) updates.recurringGroupId = crypto.randomUUID();
+                          else if (val === "none") updates.recurringGroupId = undefined;
+                          updateTask({ id: task._id, ...updates });
+                        }} 
+                      />
+                    </NotionCell>
                     <NotionCell><button onClick={() => handleUpdate(task._id, "isImportant", !task.isImportant)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isImportant ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isImportant && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
                     <NotionCell><button onClick={() => handleUpdate(task._id, "isUrgent", !task.isUrgent)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isUrgent ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isUrgent && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
                     <NotionCell><button onClick={() => handleUpdate(task._id, "isForFunsies", !task.isForFunsies)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isForFunsies ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isForFunsies && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>

@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
   Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered,
-  Globe, Link as LinkIcon, ListFilter, UserPlus, Target
+  Globe, Link as LinkIcon, ListFilter, UserPlus, Target, Repeat
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -23,6 +23,7 @@ import { getProjectColor, getListColor } from "./NewTaskForm";
 import { useAuth } from "@clerk/nextjs";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
 import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation"; 
+import { RepeatDropdown } from "@/components/ui/RepeatDropdown"; 
 
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
@@ -488,6 +489,22 @@ function PaneContent() {
               <PropertyRow icon={PlayCircle} label="Status" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{[{ id: 'todo', label: 'To Do', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' }, { id: 'in-progress', label: 'In Progress', activeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50' }, { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50' }].map((s) => (<button key={s.id} onClick={() => handleStatusUpdate(s.id as any)} className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${task.status === s.id ? s.activeClass : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>{s.label}</button>))}</div></PropertyRow>
               <PropertyRow icon={Calendar} label="Due By Date" disabled={needsToAccept}><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Calendar} label="Do On Date" disabled={needsToAccept}><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" /></PropertyRow>
+              <PropertyRow icon={Repeat} label="Repeat" disabled={needsToAccept}>
+                <RepeatDropdown 
+                  value={task.recurrenceRule || "none"} 
+                  onChange={(val) => {
+                    if (needsToAccept || !displayTaskId) return;
+                    const updates: any = { id: displayTaskId, recurrenceRule: val };
+                    if (val !== "none" && !task.recurringGroupId) {
+                       updates.recurringGroupId = crypto.randomUUID();
+                    } else if (val === "none") {
+                       updates.recurringGroupId = undefined;
+                    }
+                    updateTask(updates);
+                  }}
+                  disabled={needsToAccept}
+                />
+              </PropertyRow>
               <PropertyRow icon={Sigma} label="Matrix Tags" disabled={needsToAccept}><div className="flex flex-wrap gap-2"><button onClick={() => handleUpdate("isUrgent", !task.isUrgent)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Urgent</button><button onClick={() => handleUpdate("isImportant", !task.isImportant)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Important</button><button onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>For Funsies</button></div></PropertyRow>
               <PropertyRow icon={List} label="Pipelines" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{['Current', 'Waiting For', 'Someday Maybe'].map(listName => (<button key={listName} onClick={() => handleUpdate("listCategory", listName)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>{listName}</button>))}</div></PropertyRow>
               <PropertyRow icon={Folder} label="Project" disabled={needsToAccept}><ProjectSelect value={task.projectId} onChange={(val) => handleUpdate("projectId", val)} /></PropertyRow>
