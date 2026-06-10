@@ -225,6 +225,7 @@ function PaneContent() {
   
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
   const deleteTask = useOfflineSyncMutation(api.tasks.deleteTask, "deleteTask");
+  const deleteRecurringTasks = useOfflineSyncMutation(api.tasks.deleteRecurringTasks, "deleteRecurringTasks");
 
   const [title, setTitle] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -516,12 +517,22 @@ function PaneContent() {
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm animate-in zoom-in-95 duration-200 border border-[var(--border)]">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
-              <h3 className="font-bold text-lg text-[var(--foreground)] mb-4">Delete Task?</h3>
+              <h3 className="font-bold text-lg text-[var(--foreground)] mb-0">Delete Task?</h3>
             </div>
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setShowDeleteModal(false)} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
-              <button type="button" autoFocus onClick={() => { deleteTask({ id: displayTaskId as any }); closePane(); setShowDeleteModal(false); }} className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#1c1c1c]">Yes, Delete</button>
-            </div>
+            
+            {task?.recurringGroupId ? (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">This is a repeating task. What do you want to delete?</p>
+                <button type="button" onClick={() => { deleteTask({ id: displayTaskId as any }); closePane(); setShowDeleteModal(false); }} className="w-full px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-lg transition-colors border border-red-200 dark:border-red-800">Delete Just This Task</button>
+                <button type="button" onClick={() => { deleteRecurringTasks({ groupId: task.recurringGroupId as string }); closePane(); setShowDeleteModal(false); }} className="w-full px-4 py-2.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm">Delete All Uncompleted Repeating Tasks</button>
+                <button type="button" onClick={() => setShowDeleteModal(false)} className="w-full px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors mt-1">Cancel</button>
+              </div>
+            ) : (
+              <div className="flex justify-end gap-3 mt-4">
+                <button type="button" onClick={() => setShowDeleteModal(false)} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
+                <button type="button" autoFocus onClick={() => { deleteTask({ id: displayTaskId as any }); closePane(); setShowDeleteModal(false); }} className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm rounded-lg transition-colors outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#1c1c1c]">Yes, Delete</button>
+              </div>
+            )}
           </div>
         </div>
       )}

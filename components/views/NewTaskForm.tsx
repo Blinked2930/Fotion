@@ -72,6 +72,7 @@ export function NewTaskForm() {
   const [doOnDate, setDoOnDate] = useState<number | null>(null);
   const [doByDate, setDoByDate] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [recurrenceRule, setRecurrenceRule] = useState<"none" | "daily" | "weekly" | "monthly">("none");
   const [isExpanded, setIsExpanded] = useState(false);
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -109,14 +110,15 @@ export function NewTaskForm() {
     immediatelyRender: false,
   });
 
-  const stateRef = useRef({ title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId });
+  const stateRef = useRef({ title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrenceRule });
   useEffect(() => {
-    stateRef.current = { title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId };
-  }, [title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId]);
+    stateRef.current = { title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrenceRule };
+  }, [title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrenceRule]);
 
   const resetForm = () => {
     setTitle(""); setIsUrgent(false); setIsImportant(false); setIsForFunsies(false);
     setIsToday(false); setListCategory("Current"); setDoOnDate(null); setDoByDate(null); setProjectId(null);
+    setRecurrenceRule("none");
     editor?.commands.setContent("");
   };
 
@@ -132,7 +134,10 @@ export function NewTaskForm() {
         const hasNotes = editor && !editor.isEmpty;
         const hasTags = stateRef.current.isUrgent || stateRef.current.isImportant || stateRef.current.isForFunsies || stateRef.current.isToday || stateRef.current.listCategory !== "Current" || stateRef.current.doOnDate || stateRef.current.doByDate || stateRef.current.projectId;
 
-        if (stateRef.current.title.trim() !== "" || hasNotes || hasTags) {
+        if (stateRef.current.title.trim() !== "" || hasNotes || hasTags || stateRef.current.recurrenceRule !== "none") {
+          const rule = stateRef.current.recurrenceRule;
+          const isRecurring = rule !== "none";
+          
           createTask({
             title: stateRef.current.title.trim() || "Unknown Task",
             description: hasNotes ? descriptionHTML : undefined,
@@ -145,6 +150,10 @@ export function NewTaskForm() {
             doByDate: stateRef.current.doByDate,
             projectId: stateRef.current.projectId as any,
             sessionId: sessionId ?? undefined,
+            ...(isRecurring ? {
+              recurrenceRule: rule as "daily" | "weekly" | "monthly",
+              recurringGroupId: crypto.randomUUID()
+            } : {})
           }).catch(console.error);
           
           setIsExpanded(false);
@@ -164,12 +173,18 @@ export function NewTaskForm() {
       setIsExpanded(false);
       return;
     }
+    const rule = recurrenceRule;
+    const isRecurring = rule !== "none";
     
     createTask({
       title: title.trim() || "Unknown Task",
       description: (editor && !editor.isEmpty) ? editor.getHTML() : undefined,
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
       sessionId: sessionId ?? undefined,
+      ...(isRecurring ? {
+        recurrenceRule: rule as "daily" | "weekly" | "monthly",
+        recurringGroupId: crypto.randomUUID()
+      } : {})
     }).catch(console.error);
     
     setIsExpanded(false);
@@ -362,7 +377,7 @@ export function NewTaskForm() {
 
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                   <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Dates</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">Dates & Repeat</span>
                     <div className="flex flex-wrap items-center gap-6 relative z-10">
                       <div className="flex items-center gap-2 text-sm text-zinc-500">
                         <span className="font-medium text-zinc-400">Do On:</span>
@@ -371,6 +386,19 @@ export function NewTaskForm() {
                       <div className="flex items-center gap-2 text-sm text-zinc-500">
                         <span className="font-medium text-zinc-400">Due By:</span>
                         <CustomDatePicker value={doByDate} onChange={setDoByDate} placeholder="Select date..." alignPopover="right" />
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-zinc-500">
+                        <span className="font-medium text-zinc-400">Repeat:</span>
+                        <select 
+                          value={recurrenceRule} 
+                          onChange={(e) => setRecurrenceRule(e.target.value as any)}
+                          className={`bg-transparent text-[13px] font-medium outline-none cursor-pointer border rounded-md px-1 py-0.5 transition-colors ${recurrenceRule !== 'none' ? 'border-pink-300 text-pink-600 dark:border-pink-800 dark:text-pink-400' : 'border-transparent hover:border-[var(--border)] text-zinc-600 dark:text-zinc-300'}`}
+                        >
+                          <option value="none" className="text-zinc-800 dark:text-zinc-200 bg-white dark:bg-[#252525]">None</option>
+                          <option value="daily" className="text-zinc-800 dark:text-zinc-200 bg-white dark:bg-[#252525]">Daily</option>
+                          <option value="weekly" className="text-zinc-800 dark:text-zinc-200 bg-white dark:bg-[#252525]">Weekly</option>
+                          <option value="monthly" className="text-zinc-800 dark:text-zinc-200 bg-white dark:bg-[#252525]">Monthly</option>
+                        </select>
                       </div>
                     </div>
                   </div>

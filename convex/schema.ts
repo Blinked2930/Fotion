@@ -44,6 +44,10 @@ export default defineSchema({
     sessionId: v.optional(v.string()), 
     sharedWithSessions: v.optional(v.array(v.string())), 
     focusedSessions: v.optional(v.array(v.string())), // NEW: VIP Focus Isolation
+
+    // NEW: Repeating Tasks
+    recurringGroupId: v.optional(v.string()),
+    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
   })
     .index("by_status", ["status"])
     .index("by_listCategory", ["listCategory"])

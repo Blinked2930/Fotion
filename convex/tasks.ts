@@ -54,6 +54,8 @@ export const createTask = mutation({
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
     sessionId: v.optional(v.string()),
+    recurringGroupId: v.optional(v.string()),
+    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -92,9 +94,43 @@ export const updateTask = mutation({
     sharedWithSessions: v.optional(v.array(v.string())),
     sessionId: v.optional(v.string()), 
     focusedSessions: v.optional(v.array(v.string())), // NEW: VIP Focus Isolation
+    recurringGroupId: v.optional(v.string()),
+    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
   },
   handler: async (ctx, args) => {
     const { id, sessionId, ...fields } = args;
+    
+    // Spawn next recurring task if marked done
+    if (fields.status === "done") {
+      const prevTask = await ctx.db.get(id);
+      if (prevTask && prevTask.status !== "done" && prevTask.recurrenceRule && prevTask.recurringGroupId) {
+        let newDoOnDate = prevTask.doOnDate;
+        let newDoByDate = prevTask.doByDate;
+        
+        const DAY_MS = 24 * 60 * 60 * 1000;
+        let offsetMs = 0;
+        if (prevTask.recurrenceRule === "daily") offsetMs = DAY_MS;
+        else if (prevTask.recurrenceRule === "weekly") offsetMs = 7 * DAY_MS;
+        else if (prevTask.recurrenceRule === "monthly") offsetMs = 30 * DAY_MS;
+        
+        if (offsetMs > 0) {
+          if (newDoOnDate) newDoOnDate += offsetMs;
+          else newDoOnDate = Date.now() + offsetMs;
+          
+          if (newDoByDate) newDoByDate += offsetMs;
+          
+          const { _id, _creationTime, completedAt, status, ...baseTask } = prevTask;
+          await ctx.db.insert("tasks", {
+            ...baseTask,
+            status: "todo",
+            doOnDate: newDoOnDate,
+            doByDate: newDoByDate,
+            isToday: false,
+          });
+        }
+      }
+    }
+
     await ctx.db.patch(id, fields);
     return id;
   },
@@ -106,6 +142,22 @@ export const deleteTask = mutation({
     await ctx.db.delete(args.id);
     return args.id;
   },
+});
+
+export const deleteRecurringTasks = mutation({
+  args: { groupId: v.string() },
+  handler: async (ctx, args) => {
+    const tasks = await ctx.db.query("tasks")
+      .filter(q => q.eq(q.field("recurringGroupId"), args.groupId))
+      .collect();
+      
+    // Only delete uncompleted tasks so history is preserved
+    for (const task of tasks) {
+      if (task.status !== "done") {
+        await ctx.db.delete(task._id);
+      }
+    }
+  }
 });
 
 export const getTaskByShareToken = query({
