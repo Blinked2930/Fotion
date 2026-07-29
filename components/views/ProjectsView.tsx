@@ -69,7 +69,6 @@ export function ProjectsView() {
   const sessionId = useGuestSession(); 
   const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks"); 
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
-  const updateProject = api.projects.updateProject ? useOfflineQuery(api.projects.updateProject as any, {} as any, "skip") : null; // We use useMutation for real action
   const updateProjectMutation = useMutation(api.projects.updateProject);
   const reorderTasksMutation = useMutation(api.tasks.reorderTasks);
 

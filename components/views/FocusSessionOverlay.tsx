@@ -416,7 +416,7 @@ export function FocusSessionOverlay({
               )}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-[var(--border)]">
+            <div className="mt-4 pt-4 pb-6 sm:pb-8 md:pb-8 border-t border-[var(--border)] shrink-0">
               <form onSubmit={handleQuickAdd} className="flex items-center gap-2 bg-white dark:bg-[#1a1a1a] p-2 rounded-xl border border-[var(--border)] focus-within:ring-2 focus-within:ring-zinc-200 dark:focus-within:ring-zinc-800 transition-shadow">
                 <Plus className="w-5 h-5 text-zinc-400 shrink-0 ml-1" />
                 <input 
