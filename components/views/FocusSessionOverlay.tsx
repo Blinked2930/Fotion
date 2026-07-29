@@ -287,6 +287,9 @@ export function FocusSessionOverlay({
     try {
       await createTask({
         title: newTaskTitle.trim(),
+        isUrgent: false,
+        isImportant: false,
+        isForFunsies: false,
         isFocused: true,
         sessionId: guestSessionId ?? undefined,
       });
