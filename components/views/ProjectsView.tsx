@@ -72,6 +72,14 @@ export function ProjectsView() {
   const updateProjectMutation = useMutation(api.projects.updateProject);
   const reorderTasksMutation = useMutation(api.tasks.reorderTasks);
 
+  const [optimisticTasks, setOptimisticTasks] = useState<any[] | null>(null);
+
+  // Clear optimistic tasks when real data updates
+  import { useEffect } from "react";
+  useEffect(() => {
+    setOptimisticTasks(null);
+  }, [tasks]);
+
   const [selectedProjectId, setSelectedProjectId] = useState<string | "ALL" | "UNASSIGNED">("ALL");
 
   const sensors = useSensors(
@@ -133,9 +141,12 @@ export function ProjectsView() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = activeTasks.findIndex((i: any) => i._id === active.id);
-      const newIndex = activeTasks.findIndex((i: any) => i._id === over.id);
-      const newItems = arrayMove(activeTasks, oldIndex, newIndex);
+      const currentTasks = optimisticTasks || activeTasks;
+      const oldIndex = currentTasks.findIndex((i: any) => i._id === active.id);
+      const newIndex = currentTasks.findIndex((i: any) => i._id === over.id);
+      const newItems = arrayMove(currentTasks, oldIndex, newIndex);
+      
+      setOptimisticTasks(newItems);
       
       // Calculate new orders and run mutation
       const updates = newItems.map((item: any, index: number) => ({
@@ -145,6 +156,8 @@ export function ProjectsView() {
       reorderTasksMutation({ tasks: updates });
     }
   };
+
+  const displayTasks = optimisticTasks || activeTasks;
 
   return (
     <div className="w-full max-w-4xl mx-auto pb-32 animate-in fade-in duration-300">
@@ -233,16 +246,16 @@ export function ProjectsView() {
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext 
-                    items={activeTasks.map((t: any) => t._id)}
+                    items={displayTasks.map((t: any) => t._id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    {activeTasks.map((task: any) => (
+                    {displayTasks.map((task: any) => (
                       <SortableTaskItem key={task._id} task={task} selectedProjectId={selectedProjectId} />
                     ))}
                   </SortableContext>
                 </DndContext>
               ) : (
-                activeTasks.map((task: any) => (
+                displayTasks.map((task: any) => (
                   <TaskCard 
                     key={task._id} 
                     task={task} 

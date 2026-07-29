@@ -80,7 +80,27 @@ export const updateProject = mutation({
       uncompletedTasks.sort((a, b) => {
         const orderA = a.order ?? 999999;
         const orderB = b.order ?? 999999;
-        return orderA - orderB;
+        if (orderA !== orderB) return orderA - orderB;
+
+        if (a.isToday && !b.isToday) return -1;
+        if (!a.isToday && b.isToday) return 1;
+        
+        const getScore = (t: any) => {
+          if (t.isUrgent && t.isImportant) return 4;
+          if (t.isImportant) return 3;
+          if (t.isUrgent) return 2;
+          return 1;
+        };
+        
+        const scoreA = getScore(a);
+        const scoreB = getScore(b);
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        
+        if (a.doByDate && !b.doByDate) return -1;
+        if (!a.doByDate && b.doByDate) return 1;
+        if (a.doByDate && b.doByDate) return a.doByDate - b.doByDate;
+        
+        return 0;
       });
       
       for (let i = 0; i < uncompletedTasks.length; i++) {
