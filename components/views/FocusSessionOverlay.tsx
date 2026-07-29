@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
-  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon
+  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useGuestSession } from "@/hooks/useGuestSession";
 
 import {
   DndContext, 
@@ -108,12 +110,16 @@ export function FocusSessionOverlay({
   focusedTasks: any[];
 }) {
   const updateTask = useMutation(api.tasks.updateTask);
+  const createTask = useMutation(api.tasks.createTask);
+  const router = useRouter();
+  const guestSessionId = useGuestSession();
   
   const [localQueue, setLocalQueue] = useState<any[]>(initialTasks);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [mode, setMode] = useState<FocusMode>("work");
   const [timeLeft, setTimeLeft] = useState(MODE_TIMES["work"]);
   const [isRunning, setIsRunning] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
 
   const expectedEndTimeRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -275,6 +281,21 @@ export function FocusSessionOverlay({
     }
   };
 
+  const handleQuickAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+    try {
+      await createTask({
+        title: newTaskTitle.trim(),
+        isFocused: true,
+        sessionId: guestSessionId ?? undefined,
+      });
+      setNewTaskTitle("");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, "0");
     const s = (seconds % 60).toString().padStart(2, "0");
@@ -333,9 +354,17 @@ export function FocusSessionOverlay({
               <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--foreground)] mb-4 sm:mb-6 max-w-xl leading-tight">
                 {activeTask.title}
               </h2>
-              <button onClick={() => handleMarkDone(activeTask)} className="flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 rounded-full font-bold shadow-lg active:scale-95 text-sm sm:text-base">
-                <Check className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" /> Mark as Complete
-              </button>
+              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
+                <button onClick={() => handleMarkDone(activeTask)} className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 rounded-full font-bold shadow-lg active:scale-95 text-sm sm:text-base">
+                  <Check className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" /> Mark as Complete
+                </button>
+                <button 
+                  onClick={() => router.push(`/?taskId=${activeTask._id}`)} 
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 bg-zinc-100 dark:bg-zinc-800 text-[var(--foreground)] hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full font-bold shadow-sm active:scale-95 text-sm sm:text-base border border-[var(--border)] transition-colors"
+                >
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5" /> Details
+                </button>
+              </div>
             </div>
           ) : (
             <div className="text-zinc-500 font-medium flex flex-col items-center gap-2 text-sm sm:text-base">
@@ -382,6 +411,19 @@ export function FocusSessionOverlay({
                   </SortableContext>
                 </DndContext>
               )}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-[var(--border)]">
+              <form onSubmit={handleQuickAdd} className="flex items-center gap-2 bg-white dark:bg-[#1a1a1a] p-2 rounded-xl border border-[var(--border)] focus-within:ring-2 focus-within:ring-zinc-200 dark:focus-within:ring-zinc-800 transition-shadow">
+                <Plus className="w-5 h-5 text-zinc-400 shrink-0 ml-1" />
+                <input 
+                  type="text" 
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  placeholder="Quick add to session..."
+                  className="w-full bg-transparent outline-none text-sm font-medium text-[var(--foreground)] placeholder:text-zinc-500"
+                />
+              </form>
             </div>
           </div>
         </div>

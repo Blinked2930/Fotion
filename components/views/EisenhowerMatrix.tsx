@@ -19,10 +19,16 @@ export function EisenhowerMatrix() {
   }
 
   const todayStr = new Date().toDateString();
+  const startOfToday = new Date(todayStr).getTime();
   
   const isDateToday = (timestamp?: number | null) => {
     if (!timestamp) return false;
     return new Date(timestamp).toDateString() === todayStr;
+  };
+
+  const isOverdue = (timestamp?: number | null) => {
+    if (!timestamp) return false;
+    return timestamp < startOfToday;
   };
 
   const startOfTomorrow = new Date();
@@ -38,7 +44,7 @@ export function EisenhowerMatrix() {
     }
     
     const isCurrent = !t.listCategory || t.listCategory === "Current";
-    const demandsAttentionToday = t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate);
+    const demandsAttentionToday = t.isToday || isDateToday(t.doOnDate) || isDateToday(t.doByDate) || isOverdue(t.doOnDate) || isOverdue(t.doByDate);
 
     return isCurrent || demandsAttentionToday;
   });

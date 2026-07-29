@@ -3,18 +3,83 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Folder, Inbox, Loader2 } from "lucide-react";
+import { Folder, Inbox, Loader2, GripVertical, GripHorizontal, ArrowRightCircle } from "lucide-react";
 import { getProjectColor } from "./NewTaskForm";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
 import { useOfflineQuery } from "@/hooks/useOfflineMutation";
 
+import {
+  DndContext, 
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  TouchSensor,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+function SortableTaskItem({ task, selectedProjectId }: { task: any, selectedProjectId: string }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: task._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`flex items-start gap-2 ${isDragging ? 'opacity-50' : ''}`}>
+      {selectedProjectId !== "ALL" && selectedProjectId !== "UNASSIGNED" && (
+        <div {...attributes} {...listeners} className="mt-4 cursor-grab active:cursor-grabbing p-1 text-zinc-300 hover:text-zinc-500 dark:hover:text-zinc-400 touch-none">
+          <GripVertical className="w-5 h-5" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <TaskCard 
+          task={task} 
+          hideProjectTag={selectedProjectId !== "ALL"} 
+          hidePipelineTag={false}
+          hideMatrixTags={false}
+          hideDoByDate={false}
+          hideDoOnDate={false}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function ProjectsView() {
   const sessionId = useGuestSession(); 
   const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks"); 
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
+  const updateProject = api.projects.updateProject ? useOfflineQuery(api.projects.updateProject as any, {} as any, "skip") : null; // We use useMutation for real action
+  const updateProjectMutation = useMutation(api.projects.updateProject);
+  const reorderTasksMutation = useMutation(api.tasks.reorderTasks);
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | "ALL" | "UNASSIGNED">("ALL");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   if (tasks === undefined || projects === undefined) {
     return (
@@ -37,6 +102,13 @@ export function ProjectsView() {
   const activeTasks = filteredTasks
     .filter((t: any) => t.status !== "done")
     .sort((a: any, b: any) => {
+      // If viewing a specific project, sort purely by custom order
+      if (selectedProjectId !== "ALL" && selectedProjectId !== "UNASSIGNED") {
+        const orderA = a.order ?? 999999;
+        const orderB = b.order ?? 999999;
+        if (orderA !== orderB) return orderA - orderB;
+      }
+
       if (a.isToday && !b.isToday) return -1;
       if (!a.isToday && b.isToday) return 1;
       
@@ -58,6 +130,22 @@ export function ProjectsView() {
     });
 
   const doneTasks = filteredTasks.filter((t: any) => t.status === "done");
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = activeTasks.findIndex((i: any) => i._id === active.id);
+      const newIndex = activeTasks.findIndex((i: any) => i._id === over.id);
+      const newItems = arrayMove(activeTasks, oldIndex, newIndex);
+      
+      // Calculate new orders and run mutation
+      const updates = newItems.map((item: any, index: number) => ({
+        id: item._id,
+        order: index
+      }));
+      reorderTasksMutation({ tasks: updates });
+    }
+  };
 
   return (
     <div className="w-full max-w-4xl mx-auto pb-32 animate-in fade-in duration-300">
@@ -95,11 +183,32 @@ export function ProjectsView() {
       </div>
 
       <div className="mb-8 mt-6">
-        <h2 className="text-2xl font-bold text-[var(--foreground)] mb-2">
-          {selectedProjectId === "ALL" ? "Global Overview" : 
-           selectedProjectId === "UNASSIGNED" ? "Unassigned Tasks" : 
-           projects.find((p: any) => p._id === selectedProjectId)?.name}
-        </h2>
+        <div className="flex items-center justify-between gap-4 mb-2">
+          <h2 className="text-2xl font-bold text-[var(--foreground)]">
+            {selectedProjectId === "ALL" ? "Global Overview" : 
+             selectedProjectId === "UNASSIGNED" ? "Unassigned Tasks" : 
+             projects.find((p: any) => p._id === selectedProjectId)?.name}
+          </h2>
+          {selectedProjectId !== "ALL" && selectedProjectId !== "UNASSIGNED" && (
+            <div className="flex items-center">
+              {(() => {
+                const proj = projects.find((p: any) => p._id === selectedProjectId);
+                if (!proj) return null;
+                const isSeq = proj.isSequential;
+                return (
+                  <button 
+                    onClick={() => updateProjectMutation({ id: proj._id as any, isSequential: !isSeq })}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors border ${isSeq ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50' : 'bg-transparent border-[var(--border)] text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                    title="When enabled, completing a task automatically brings the next one due."
+                  >
+                    <ArrowRightCircle className="w-3.5 h-3.5" />
+                    {isSeq ? "Sequential Mode Active" : "Run as Sequence"}
+                  </button>
+                );
+              })()}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-4 text-sm text-zinc-500 mb-4">
           <span className="font-medium">{completedTasks} / {totalTasks} Completed</span>
           <span>{progressPercent}%</span>
@@ -118,17 +227,34 @@ export function ProjectsView() {
         <div className="space-y-6">
           {activeTasks.length > 0 && (
             <div className="space-y-2">
-              {activeTasks.map((task: any) => (
-                <TaskCard 
-                  key={task._id} 
-                  task={task} 
-                  hideProjectTag={selectedProjectId !== "ALL"} 
-                  hidePipelineTag={false}
-                  hideMatrixTags={false}
-                  hideDoByDate={false}
-                  hideDoOnDate={false}
-                />
-              ))}
+              {selectedProjectId !== "ALL" && selectedProjectId !== "UNASSIGNED" ? (
+                <DndContext 
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext 
+                    items={activeTasks.map((t: any) => t._id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {activeTasks.map((task: any) => (
+                      <SortableTaskItem key={task._id} task={task} selectedProjectId={selectedProjectId} />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                activeTasks.map((task: any) => (
+                  <TaskCard 
+                    key={task._id} 
+                    task={task} 
+                    hideProjectTag={selectedProjectId !== "ALL"} 
+                    hidePipelineTag={false}
+                    hideMatrixTags={false}
+                    hideDoByDate={false}
+                    hideDoOnDate={false}
+                  />
+                ))
+              )}
             </div>
           )}
 

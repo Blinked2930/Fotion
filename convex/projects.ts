@@ -61,9 +61,14 @@ export const createProject = mutation({
 });
 
 export const updateProject = mutation({
-  args: { id: v.id("projects"), name: v.string() },
+  args: { 
+    id: v.id("projects"), 
+    name: v.optional(v.string()),
+    isSequential: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { name: args.name });
+    const { id, ...fields } = args;
+    await ctx.db.patch(id, fields);
   },
 });
 

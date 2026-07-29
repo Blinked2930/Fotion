@@ -56,6 +56,7 @@ export const createTask = mutation({
     sessionId: v.optional(v.string()),
     recurringGroupId: v.optional(v.string()),
     recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
+    order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -69,6 +70,7 @@ export const createTask = mutation({
       listCategory: args.listCategory ?? "Current",
       isToday: args.isToday ?? false,
       sessionId: taskSessionId, 
+      order: args.order,
     });
   },
 });
@@ -96,37 +98,66 @@ export const updateTask = mutation({
     focusedSessions: v.optional(v.array(v.string())), // NEW: VIP Focus Isolation
     recurringGroupId: v.optional(v.string()),
     recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
+    order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, sessionId, ...fields } = args;
     
-    // Spawn next recurring task if marked done
+    // Spawn next recurring task or sequential task if marked done
     if (fields.status === "done") {
       const prevTask = await ctx.db.get(id);
-      if (prevTask && prevTask.status !== "done" && prevTask.recurrenceRule && prevTask.recurringGroupId) {
-        let newDoOnDate = prevTask.doOnDate;
-        let newDoByDate = prevTask.doByDate;
-        
-        const DAY_MS = 24 * 60 * 60 * 1000;
-        let offsetMs = 0;
-        if (prevTask.recurrenceRule === "daily") offsetMs = DAY_MS;
-        else if (prevTask.recurrenceRule === "weekly") offsetMs = 7 * DAY_MS;
-        else if (prevTask.recurrenceRule === "monthly") offsetMs = 30 * DAY_MS;
-        
-        if (offsetMs > 0) {
-          if (newDoOnDate) newDoOnDate += offsetMs;
-          else newDoOnDate = Date.now() + offsetMs;
+      if (prevTask && prevTask.status !== "done") {
+        if (prevTask.recurrenceRule && prevTask.recurringGroupId) {
+          let newDoOnDate = prevTask.doOnDate;
+          let newDoByDate = prevTask.doByDate;
           
-          if (newDoByDate) newDoByDate += offsetMs;
+          const DAY_MS = 24 * 60 * 60 * 1000;
+          let offsetMs = 0;
+          if (prevTask.recurrenceRule === "daily") offsetMs = DAY_MS;
+          else if (prevTask.recurrenceRule === "weekly") offsetMs = 7 * DAY_MS;
+          else if (prevTask.recurrenceRule === "monthly") offsetMs = 30 * DAY_MS;
           
-          const { _id, _creationTime, completedAt, status, ...baseTask } = prevTask;
-          await ctx.db.insert("tasks", {
-            ...baseTask,
-            status: "todo",
-            doOnDate: newDoOnDate,
-            doByDate: newDoByDate,
-            isToday: false,
-          });
+          if (offsetMs > 0) {
+            if (newDoOnDate) newDoOnDate += offsetMs;
+            else newDoOnDate = Date.now() + offsetMs;
+            
+            if (newDoByDate) newDoByDate += offsetMs;
+            
+            const { _id, _creationTime, completedAt, status, ...baseTask } = prevTask;
+            await ctx.db.insert("tasks", {
+              ...baseTask,
+              status: "todo",
+              doOnDate: newDoOnDate,
+              doByDate: newDoByDate,
+              isToday: false,
+            });
+          }
+        }
+        
+        // NEW: Sequential Pipeline logic
+        if (prevTask.projectId) {
+          const project = await ctx.db.get(prevTask.projectId);
+          if (project?.isSequential) {
+            const projectTasks = await ctx.db.query("tasks")
+              .withIndex("by_project", q => q.eq("projectId", prevTask.projectId))
+              .collect();
+            
+            const uncompletedTasks = projectTasks.filter(t => t.status !== "done" && t._id !== id);
+            
+            if (uncompletedTasks.length > 0) {
+              uncompletedTasks.sort((a, b) => {
+                const orderA = a.order ?? 999999;
+                const orderB = b.order ?? 999999;
+                return orderA - orderB;
+              });
+              
+              const nextTask = uncompletedTasks[0];
+              await ctx.db.patch(nextTask._id, {
+                listCategory: "Current",
+                isToday: true,
+              });
+            }
+          }
         }
       }
     }
@@ -142,6 +173,20 @@ export const deleteTask = mutation({
     await ctx.db.delete(args.id);
     return args.id;
   },
+});
+
+export const reorderTasks = mutation({
+  args: {
+    tasks: v.array(v.object({
+      id: v.id("tasks"),
+      order: v.number()
+    }))
+  },
+  handler: async (ctx, args) => {
+    for (const task of args.tasks) {
+      await ctx.db.patch(task.id, { order: task.order });
+    }
+  }
 });
 
 export const deleteRecurringTasks = mutation({

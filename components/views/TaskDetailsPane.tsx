@@ -415,7 +415,7 @@ function PaneContent() {
           setIsNearBottom(paneRef.current.getBoundingClientRect().bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
-        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-white dark:bg-[#121212] sm:border-l border-[var(--border)] z-[60] flex flex-col transition-transform duration-[350ms] ease-out transform-gpu will-change-transform max-w-full overflow-x-hidden ${isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"}`}
+        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-white dark:bg-[#121212] sm:border-l border-[var(--border)] z-[250] flex flex-col transition-transform duration-[350ms] ease-out transform-gpu will-change-transform max-w-full overflow-x-hidden ${isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"}`}
       >
         {(!displayTaskId || task === undefined) ? (
           <div className="flex-1 flex items-center justify-center">{displayTaskId && <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />}</div>

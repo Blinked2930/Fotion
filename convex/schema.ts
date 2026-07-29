@@ -7,6 +7,7 @@ export default defineSchema({
     isArchived: v.boolean(),
     // NEW: Anonymous Cloud Session Architecture for Projects
     sessionId: v.optional(v.string()),
+    isSequential: v.optional(v.boolean()),
   }).index("by_sessionId", ["sessionId"]),
 
   notes: defineTable({
@@ -48,6 +49,9 @@ export default defineSchema({
     // NEW: Repeating Tasks
     recurringGroupId: v.optional(v.string()),
     recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
+
+    // NEW: Project task ordering
+    order: v.optional(v.number()),
   })
     .index("by_status", ["status"])
     .index("by_listCategory", ["listCategory"])
