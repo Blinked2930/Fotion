@@ -69,6 +69,28 @@ export const updateProject = mutation({
   handler: async (ctx, args) => {
     const { id, ...fields } = args;
     await ctx.db.patch(id, fields);
+    
+    if (fields.isSequential === true) {
+      const projectTasks = await ctx.db.query("tasks")
+        .withIndex("by_project", q => q.eq("projectId", id))
+        .collect();
+        
+      const uncompletedTasks = projectTasks.filter(t => t.status !== "done");
+      
+      uncompletedTasks.sort((a, b) => {
+        const orderA = a.order ?? 999999;
+        const orderB = b.order ?? 999999;
+        return orderA - orderB;
+      });
+      
+      for (let i = 0; i < uncompletedTasks.length; i++) {
+        if (i === 0) {
+           await ctx.db.patch(uncompletedTasks[i]._id, { listCategory: "Current" });
+        } else {
+           await ctx.db.patch(uncompletedTasks[i]._id, { listCategory: "Waiting For", isToday: false });
+        }
+      }
+    }
   },
 });
 
