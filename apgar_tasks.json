@@ -1,0 +1,91 @@
+{
+  "_creationTime": 1776069341965.4966,
+  "_id": "j973zb6wsz78wrzrnp114snyjn84sgtw",
+  "description": "<ul><li><p>Ask for introductions to 2 colleagues for a 15-minute chat.</p></li><li><p>Use the low-pressure script: 'Hey! I'm thinking about taking your advice and showing this timer to a few other midwives...'</p></li></ul><p></p>",
+  "doByDate": null,
+  "doOnDate": null,
+  "isForFunsies": false,
+  "isImportant": true,
+  "isToday": false,
+  "isUrgent": true,
+  "listCategory": "Someday Maybe",
+  "projectId": "jd719fph9k8pceyxhxp75f5wbd84sys2",
+  "status": "todo",
+  "title": "ask mom about midwives"
+}
+{
+  "_creationTime": 1776069341965.4968,
+  "_id": "j971eeggkpcpn94xnyppg6m0qh84sp0d",
+  "description": "<ul><li>Call the 2 recommended midwives.</li><li>Act as an eager student; let them vent about their administrative headaches.</li><li>Ask about tracking methods, frustrations, and their 'magic wand' solutions.</li><li>Do NOT show the app yet.</li></ul>",
+  "doByDate": null,
+  "doOnDate": null,
+  "isForFunsies": false,
+  "isImportant": true,
+  "isToday": false,
+  "isUrgent": false,
+  "listCategory": "Waiting For",
+  "projectId": "jd719fph9k8pceyxhxp75f5wbd84sys2",
+  "status": "todo",
+  "title": "Conduct Discovery Chats"
+}
+{
+  "_creationTime": 1776069341965.4973,
+  "_id": "j972mars389wh2ddvpmbz61z6d84rrx5",
+  "description": "<ul><li>Review notes from discovery chats and the silent observer test.</li><li>Implement necessary UI/UX fixes in the web app before broader release.</li></ul>",
+  "doByDate": null,
+  "doOnDate": null,
+  "isForFunsies": false,
+  "isImportant": false,
+  "isToday": false,
+  "isUrgent": false,
+  "listCategory": "Waiting For",
+  "projectId": "jd719fph9k8pceyxhxp75f5wbd84sys2",
+  "status": "todo",
+  "title": "Iterate on Alpha Feedback"
+}
+{
+  "_creationTime": 1776069341965.4976,
+  "_id": "j97453zmwj4p4akaqs9tpkjr4984ra2e",
+  "description": "<ul><li>Quantify the time/headache saved per birth based on interviews.</li><li>Draft potential subscription pricing (SaaS model).</li></ul>",
+  "doByDate": null,
+  "doOnDate": null,
+  "isForFunsies": false,
+  "isImportant": false,
+  "isToday": false,
+  "isUrgent": false,
+  "listCategory": "Someday Maybe",
+  "projectId": "jd719fph9k8pceyxhxp75f5wbd84sys2",
+  "status": "todo",
+  "title": "Calculate App Value & Pricing"
+}
+{
+  "_creationTime": 1776069341965.4978,
+  "_id": "j97f7p3cvxzc8f2she5emdjf9984rdr0",
+  "description": "<ul><li>Investigate using Capacitor to wrap the React web app into a native iOS/Android shell.</li><li>Review Apple App Store medical app guidelines.</li></ul>",
+  "doByDate": null,
+  "doOnDate": null,
+  "isForFunsies": false,
+  "isImportant": false,
+  "isToday": false,
+  "isUrgent": false,
+  "listCategory": "Someday Maybe",
+  "projectId": "jd719fph9k8pceyxhxp75f5wbd84sys2",
+  "status": "todo",
+  "title": "Research App Wrapping (Capacitor)"
+}
+{
+  "_creationTime": 1776918861186.5896,
+  "_id": "j97ftncnqpxfbey5t1933zadp185d9m5",
+  "description": "<ul data-type=\"taskList\"><li data-checked=\"true\" data-type=\"taskItem\"><label><input type=\"checkbox\" checked=\"checked\"><span></span></label><div><p>Add validation for data protection… or something</p></div></li><li data-checked=\"true\" data-type=\"taskItem\"><label><input type=\"checkbox\" checked=\"checked\"><span></span></label><div><p>Maybe just local storage?</p></div></li><li data-checked=\"false\" data-type=\"taskItem\"><label><input type=\"checkbox\"><span></span></label><div><p>Add login so that I can attach payment</p></div></li><li data-checked=\"false\" data-type=\"taskItem\"><label><input type=\"checkbox\"><span></span></label><div><p>Attach payment through stripe</p></div></li><li data-checked=\"false\" data-type=\"taskItem\"><label><input type=\"checkbox\"><span></span></label><div><p>Add voice-controlled portion for APGAR recording</p></div></li><li data-checked=\"false\" data-type=\"taskItem\"><label><input type=\"checkbox\"><span></span></label><div><p>Research legality of marketing to hospitals</p></div></li><li data-checked=\"false\" data-type=\"taskItem\"><label><input type=\"checkbox\"><span></span></label><div><p>Create waitlist and place to collect emails from midwives for the tool in a few years.</p></div></li></ul><p></p>",
+  "doByDate": null,
+  "doOnDate": null,
+  "isFocused": false,
+  "isForFunsies": false,
+  "isImportant": true,
+  "isToday": false,
+  "isUrgent": false,
+  "listCategory": "Someday Maybe",
+  "projectId": "jd719fph9k8pceyxhxp75f5wbd84sys2",
+  "status": "todo",
+  "title": "Apgar"
+}

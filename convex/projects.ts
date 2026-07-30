@@ -143,3 +143,11 @@ export const deleteProject = mutation({
     await ctx.db.delete(args.id);
   },
 });
+export const debugInfo = query({
+  args: {},
+  handler: async (ctx) => {
+    const projects = await ctx.db.query("projects").collect();
+    const tasks = await ctx.db.query("tasks").collect();
+    return { projects, tasks };
+  }
+});
