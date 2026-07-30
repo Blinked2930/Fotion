@@ -142,7 +142,11 @@ export const updateTask = mutation({
               .withIndex("by_project", q => q.eq("projectId", prevTask.projectId))
               .collect();
             
-            const uncompletedTasks = projectTasks.filter(t => t.status !== "done" && t._id !== id);
+            const uncompletedTasks = projectTasks.filter(t => 
+              t.status !== "done" && 
+              t._id !== id &&
+              t.sessionId === prevTask.sessionId
+            );
             
             if (uncompletedTasks.length > 0) {
               uncompletedTasks.sort((a, b) => {

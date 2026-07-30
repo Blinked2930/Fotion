@@ -208,7 +208,7 @@ export function ProjectsView() {
                 const isSeq = proj.isSequential;
                 return (
                   <button 
-                    onClick={() => updateProjectMutation({ id: proj._id as any, isSequential: !isSeq })}
+                    onClick={() => updateProjectMutation({ id: proj._id as any, isSequential: !isSeq, sessionId: sessionId ?? undefined })}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors border ${isSeq ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50' : 'bg-transparent border-[var(--border)] text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                     title="When enabled, completing a task automatically brings the next one due."
                   >

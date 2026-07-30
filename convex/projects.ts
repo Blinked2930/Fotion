@@ -65,17 +65,25 @@ export const updateProject = mutation({
     id: v.id("projects"), 
     name: v.optional(v.string()),
     isSequential: v.optional(v.boolean()),
+    sessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { id, ...fields } = args;
+    const { id, sessionId, ...fields } = args;
     await ctx.db.patch(id, fields);
     
     if (fields.isSequential === true) {
+      const { actualSessionId } = parseSessionId(sessionId);
+      const identity = await ctx.auth.getUserIdentity();
+      const targetSessionId = identity ? undefined : actualSessionId;
+
       const projectTasks = await ctx.db.query("tasks")
         .withIndex("by_project", q => q.eq("projectId", id))
         .collect();
         
-      const uncompletedTasks = projectTasks.filter(t => t.status !== "done");
+      const uncompletedTasks = projectTasks.filter(t => 
+        t.status !== "done" && 
+        t.sessionId === targetSessionId
+      );
       
       uncompletedTasks.sort((a, b) => {
         const orderA = a.order ?? 999999;
