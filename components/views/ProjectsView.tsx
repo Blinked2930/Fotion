@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Folder, Inbox, Loader2, GripVertical, GripHorizontal, ArrowRightCircle } from "lucide-react";
@@ -75,7 +75,6 @@ export function ProjectsView() {
   const [optimisticTasks, setOptimisticTasks] = useState<any[] | null>(null);
 
   // Clear optimistic tasks when real data updates
-  import { useEffect } from "react";
   useEffect(() => {
     setOptimisticTasks(null);
   }, [tasks]);
