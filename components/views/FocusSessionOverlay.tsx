@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
-  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText, Flame, Sparkles, CheckCircle2
+  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -433,85 +433,35 @@ export function FocusSessionOverlay({
         {/* Timer Section */}
         <div className="flex flex-col justify-center items-center w-full md:flex-1 shrink-0 min-h-[60vh] md:min-h-0 md:h-full p-6 sm:p-8">
           
-          {/* Aesthetic Daily Tracker & 4-Session Cycle Progress */}
-          <div className="w-full max-w-sm sm:max-w-md mb-6 sm:mb-8 p-3.5 sm:p-4 rounded-2xl bg-white/80 dark:bg-[#1a1a1a]/80 border border-[var(--border)] shadow-sm backdrop-blur-md transition-all">
-            <div className="flex items-center justify-between mb-3 px-0.5">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center text-orange-500">
-                  <Flame className="w-4 h-4 fill-orange-500" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block leading-none">
-                    Daily Progress
-                  </span>
-                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">
-                    Long break after 4 sessions
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-[var(--border)]">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs font-bold text-[var(--foreground)]">
-                  {completedToday} {completedToday === 1 ? "Session" : "Sessions"} Today
-                </span>
-              </div>
-            </div>
-
-            {/* 4 Segment Indicators */}
-            <div className="grid grid-cols-4 gap-2">
+          {/* Minimal Monochrome Daily Progress Indicator */}
+          <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 px-4 py-1.5 rounded-full bg-zinc-100/80 dark:bg-zinc-900/80 border border-[var(--border)] text-xs font-medium text-zinc-500 dark:text-zinc-400 backdrop-blur-sm">
+            <div className="flex items-center gap-1.5" title="4-session cycle to long break">
               {[1, 2, 3, 4].map((step) => {
                 const isLongBreakJustCompleted = mode === "long-break" && completedToday > 0 && completedToday % 4 === 0;
                 const completedInCycle = isLongBreakJustCompleted ? 4 : (completedToday % 4);
-                
                 const isCompleted = step <= completedInCycle;
                 const isActive = !isCompleted && mode === "work" && (step === completedInCycle + 1);
 
                 return (
-                  <div
+                  <span
                     key={step}
-                    className={`relative flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all duration-300 ${
+                    className={`h-2 rounded-full transition-all duration-300 ${
                       isCompleted
-                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                        ? "w-5 bg-[var(--foreground)]"
                         : isActive
-                        ? "bg-amber-500/10 border-amber-500/50 text-amber-600 dark:text-amber-400 ring-2 ring-amber-500/20 animate-pulse"
-                        : "bg-zinc-100/60 dark:bg-zinc-800/40 border-zinc-200/80 dark:border-zinc-800 text-zinc-400 dark:text-zinc-600"
+                        ? "w-5 bg-zinc-400 dark:bg-zinc-500 animate-pulse"
+                        : "w-2 bg-zinc-300 dark:bg-zinc-700"
                     }`}
-                  >
-                    <div className="flex items-center justify-center h-5 w-5 mb-1">
-                      {isCompleted ? (
-                        <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-                      ) : isActive ? (
-                        <Target className="w-4 h-4" />
-                      ) : step === 4 ? (
-                        <Moon className="w-3.5 h-3.5 opacity-60" />
-                      ) : (
-                        <span className="text-xs font-bold opacity-60">{step}</span>
-                      )}
-                    </div>
-                    <span className="text-[10px] font-semibold tracking-tight uppercase truncate max-w-full">
-                      {step === 4 ? "Long Break" : `Session ${step}`}
-                    </span>
-                  </div>
+                  />
                 );
               })}
             </div>
 
-            {/* Cycle Status Subtext */}
-            <div className="mt-2.5 text-center text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-              {mode === "long-break" && completedToday > 0 && completedToday % 4 === 0 ? (
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-1">
-                  🎉 Cycle Complete! 4 sessions done. Enjoy your long break!
-                </span>
-              ) : mode === "short-break" ? (
-                <span>
-                  Short break time • {4 - (completedToday % 4)} focus {4 - (completedToday % 4) === 1 ? "session" : "sessions"} until long break
-                </span>
-              ) : (
-                <span>
-                  Session {(completedToday % 4) + 1} of 4 • {4 - ((completedToday % 4) + 1) === 0 ? "Long break after this session!" : `${4 - ((completedToday % 4) + 1)} more to long break`}
-                </span>
-              )}
-            </div>
+            <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+
+            <span className="tracking-wide">
+              <strong className="text-[var(--foreground)] font-bold">{completedToday}</strong> {completedToday === 1 ? "session" : "sessions"} today
+            </span>
           </div>
 
           {/* Mode Selector */}
