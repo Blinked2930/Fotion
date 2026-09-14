@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
-  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText
+  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText, Flame, Sparkles, CheckCircle2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -35,6 +35,14 @@ const MODE_TIMES = {
   "work": 25 * 60,
   "short-break": 5 * 60,
   "long-break": 15 * 60,
+};
+
+const getTodayDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 function SortableTaskItem({ 
@@ -133,20 +141,45 @@ export function FocusSessionOverlay({
   const [timeLeft, setTimeLeft] = useState(MODE_TIMES["work"]);
   const [isRunning, setIsRunning] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [completedToday, setCompletedToday] = useState<number>(0);
 
   const expectedEndTimeRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const hasRestoredRef = useRef(false);
+  const completedTodayRef = useRef<number>(0);
 
   useEffect(() => {
     setLocalQueue(initialTasks);
   }, [initialTasks]);
 
-  // Restore saved focus timer state on initial mount
+  const updateCompletedToday = (newCount: number) => {
+    const todayStr = getTodayDateString();
+    setCompletedToday(newCount);
+    completedTodayRef.current = newCount;
+    try {
+      localStorage.setItem("fotion-focus-daily-stats", JSON.stringify({ date: todayStr, count: newCount }));
+    } catch (e) {
+      console.error("Failed to save daily focus stats", e);
+    }
+  };
+
+  // Restore saved focus timer state and daily stats on initial mount
   useEffect(() => {
     if (typeof window === "undefined" || hasRestoredRef.current) return;
     hasRestoredRef.current = true;
     try {
+      const todayStr = getTodayDateString();
+      const savedDaily = localStorage.getItem("fotion-focus-daily-stats");
+      if (savedDaily) {
+        const parsedDaily = JSON.parse(savedDaily);
+        if (parsedDaily.date === todayStr && typeof parsedDaily.count === "number") {
+          setCompletedToday(parsedDaily.count);
+          completedTodayRef.current = parsedDaily.count;
+        } else {
+          localStorage.setItem("fotion-focus-daily-stats", JSON.stringify({ date: todayStr, count: 0 }));
+        }
+      }
+
       const saved = localStorage.getItem("fotion-focus-session-state");
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -295,7 +328,13 @@ export function FocusSessionOverlay({
             playFinishChime(); // Fire soothing meditation chime
 
             if (mode === "work") {
-              switchMode("short-break");
+              const newCount = completedTodayRef.current + 1;
+              updateCompletedToday(newCount);
+              if (newCount % 4 === 0) {
+                switchMode("long-break");
+              } else {
+                switchMode("short-break");
+              }
             } else {
               switchMode("work");
             }
@@ -394,6 +433,87 @@ export function FocusSessionOverlay({
         {/* Timer Section */}
         <div className="flex flex-col justify-center items-center w-full md:flex-1 shrink-0 min-h-[60vh] md:min-h-0 md:h-full p-6 sm:p-8">
           
+          {/* Aesthetic Daily Tracker & 4-Session Cycle Progress */}
+          <div className="w-full max-w-sm sm:max-w-md mb-6 sm:mb-8 p-3.5 sm:p-4 rounded-2xl bg-white/80 dark:bg-[#1a1a1a]/80 border border-[var(--border)] shadow-sm backdrop-blur-md transition-all">
+            <div className="flex items-center justify-between mb-3 px-0.5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center text-orange-500">
+                  <Flame className="w-4 h-4 fill-orange-500" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block leading-none">
+                    Daily Progress
+                  </span>
+                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">
+                    Long break after 4 sessions
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-[var(--border)]">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-bold text-[var(--foreground)]">
+                  {completedToday} {completedToday === 1 ? "Session" : "Sessions"} Today
+                </span>
+              </div>
+            </div>
+
+            {/* 4 Segment Indicators */}
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, 4].map((step) => {
+                const isLongBreakJustCompleted = mode === "long-break" && completedToday > 0 && completedToday % 4 === 0;
+                const completedInCycle = isLongBreakJustCompleted ? 4 : (completedToday % 4);
+                
+                const isCompleted = step <= completedInCycle;
+                const isActive = !isCompleted && mode === "work" && (step === completedInCycle + 1);
+
+                return (
+                  <div
+                    key={step}
+                    className={`relative flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all duration-300 ${
+                      isCompleted
+                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                        : isActive
+                        ? "bg-amber-500/10 border-amber-500/50 text-amber-600 dark:text-amber-400 ring-2 ring-amber-500/20 animate-pulse"
+                        : "bg-zinc-100/60 dark:bg-zinc-800/40 border-zinc-200/80 dark:border-zinc-800 text-zinc-400 dark:text-zinc-600"
+                    }`}
+                  >
+                    <div className="flex items-center justify-center h-5 w-5 mb-1">
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                      ) : isActive ? (
+                        <Target className="w-4 h-4" />
+                      ) : step === 4 ? (
+                        <Moon className="w-3.5 h-3.5 opacity-60" />
+                      ) : (
+                        <span className="text-xs font-bold opacity-60">{step}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-semibold tracking-tight uppercase truncate max-w-full">
+                      {step === 4 ? "Long Break" : `Session ${step}`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Cycle Status Subtext */}
+            <div className="mt-2.5 text-center text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+              {mode === "long-break" && completedToday > 0 && completedToday % 4 === 0 ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-1">
+                  🎉 Cycle Complete! 4 sessions done. Enjoy your long break!
+                </span>
+              ) : mode === "short-break" ? (
+                <span>
+                  Short break time • {4 - (completedToday % 4)} focus {4 - (completedToday % 4) === 1 ? "session" : "sessions"} until long break
+                </span>
+              ) : (
+                <span>
+                  Session {(completedToday % 4) + 1} of 4 • {4 - ((completedToday % 4) + 1) === 0 ? "Long break after this session!" : `${4 - ((completedToday % 4) + 1)} more to long break`}
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Mode Selector */}
           <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 rounded-full p-1 mb-6 sm:mb-8 shadow-inner border border-[var(--border)] max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden">
             <button onClick={() => switchMode("work")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "work" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'}`}>
