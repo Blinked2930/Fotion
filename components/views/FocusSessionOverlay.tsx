@@ -457,7 +457,7 @@ export function FocusSessionOverlay({
               })}
             </div>
 
-            <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+            <span className="w-px h-3 bg-zinc-300 dark:bg-zinc-700" />
 
             <span className="tracking-wide">
               <strong className="text-[var(--foreground)] font-bold">{completedToday}</strong> {completedToday === 1 ? "session" : "sessions"} today
