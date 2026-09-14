@@ -14,6 +14,7 @@ import { getProjectColor, getListColor } from "./NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession"; 
 import { useOfflineQuery, useOfflineSyncMutation } from "@/hooks/useOfflineMutation";
 import { RepeatDropdown } from "@/components/ui/RepeatDropdown";
+import { openTaskDetails } from "./TaskDetailsPane";
 
 type SortConfig = { key: string, direction: 'asc' | 'desc' }[];
 
@@ -318,7 +319,7 @@ export function RawDataView() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            router.push(`/?taskId=${task._id}`);
+                            openTaskDetails(task._id);
                           }}
                           className="flex-shrink-0 p-1.5 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-sm rounded text-zinc-500 hover:text-[var(--foreground)] sm:opacity-0 sm:group-hover/title:opacity-100 transition-all"
                           title="Open Task Details"

@@ -162,10 +162,48 @@ export const EditorToolbar = ({ editor, isSorting, onToggleSort, disabled }: { e
   );
 };
 
+export function openTaskDetails(taskId: string) {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  params.set("taskId", taskId);
+  const newSearch = params.toString();
+  const newUrl = `${window.location.pathname}?${newSearch}`;
+  window.history.pushState({}, "", newUrl);
+  window.dispatchEvent(new Event("popstate"));
+}
+
+export function closeTaskDetails() {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  params.delete("taskId");
+  const newSearch = params.toString();
+  const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`;
+  window.history.replaceState({}, "", newUrl);
+  window.dispatchEvent(new Event("popstate"));
+}
+
 function PaneContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const taskId = searchParams.get("taskId") as Id<"tasks"> | null;
+  
+  const [localTaskId, setLocalTaskId] = useState<Id<"tasks"> | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("taskId") as Id<"tasks"> | null;
+  });
+
+  useEffect(() => {
+    const handleUrlChange = () => {
+      if (typeof window === "undefined") return;
+      const tid = new URLSearchParams(window.location.search).get("taskId") as Id<"tasks"> | null;
+      setLocalTaskId(tid);
+    };
+
+    handleUrlChange();
+    window.addEventListener("popstate", handleUrlChange);
+    return () => window.removeEventListener("popstate", handleUrlChange);
+  }, [searchParams]);
+
+  const taskId = localTaskId || (searchParams.get("taskId") as Id<"tasks"> | null);
 
   const { isSignedIn } = useAuth(); 
   const guestSessionId = useGuestSession(); 
@@ -287,10 +325,7 @@ function PaneContent() {
   }, [editor, needsToAccept]);
 
   const closePane = () => {
-    const params = new URLSearchParams(window.location.search);
-    params.delete("taskId");
-    const newSearch = params.toString();
-    router.replace(`${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`, { scroll: false });
+    closeTaskDetails();
   };
 
   useEffect(() => {

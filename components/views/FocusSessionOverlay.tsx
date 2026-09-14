@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useGuestSession } from "@/hooks/useGuestSession";
+import { openTaskDetails } from "./TaskDetailsPane";
 
 import {
   DndContext, 
@@ -91,11 +92,23 @@ function SortableTaskItem({
         } hover:border-pink-400 dark:hover:border-pink-400 hover:bg-pink-400/20`}
       />
       
-      <span className={`text-[14px] sm:text-[15px] font-medium leading-snug truncate ${
+      <span className={`text-[14px] sm:text-[15px] font-medium leading-snug truncate flex-1 ${
         isActive ? 'text-[var(--foreground)]' : 'text-zinc-600 dark:text-zinc-300'
       }`}>
         {task.title}
       </span>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          openTaskDetails(task._id);
+        }}
+        title="View details"
+        className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-[var(--foreground)] rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all shrink-0"
+      >
+        <FileText className="w-4 h-4" />
+      </button>
     </div>
   );
 }
@@ -362,7 +375,7 @@ export function FocusSessionOverlay({
                   <Check className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" /> Mark as Complete
                 </button>
                 <button 
-                  onClick={() => router.push(`/?taskId=${activeTask._id}`)} 
+                  onClick={() => openTaskDetails(activeTask._id)} 
                   className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 bg-zinc-100 dark:bg-zinc-800 text-[var(--foreground)] hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full font-bold shadow-sm active:scale-95 text-sm sm:text-base border border-[var(--border)] transition-colors"
                 >
                   <FileText className="w-4 h-4 sm:w-5 sm:h-5" /> Details

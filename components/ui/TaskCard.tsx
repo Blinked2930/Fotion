@@ -9,6 +9,7 @@ import { getListColor, getProjectColor } from "../views/NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation"; 
 import { useAuth } from "@clerk/nextjs";
+import { openTaskDetails } from "../views/TaskDetailsPane";
 
 function PillDropdown({ 
   currentValue, 
@@ -197,7 +198,7 @@ export function TaskCard({
   if (isDone) {
     return (
       <div 
-        onClick={() => router.push(`/?taskId=${task._id}`)}
+        onClick={() => openTaskDetails(task._id)}
         className="flex items-start gap-3 p-3 sm:p-4 bg-zinc-50 dark:bg-[#151515] border border-[var(--border)] rounded-xl cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors w-full"
       >
         <button 
@@ -215,7 +216,7 @@ export function TaskCard({
 
   return (
     <div 
-      onClick={() => router.push(`/?taskId=${task._id}`)}
+      onClick={() => openTaskDetails(task._id)}
       className={`group flex flex-col p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass} w-full`}
     >
       <div className="flex items-start gap-3 w-full">
