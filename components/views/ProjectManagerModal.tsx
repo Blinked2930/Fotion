@@ -45,7 +45,7 @@ export function ProjectManagerModal({ isOpen, onClose }: { isOpen: boolean; onCl
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-lg border border-[var(--border)] flex flex-col max-h-[80vh] overflow-hidden relative" onClick={e => e.stopPropagation()}>
         
         <div className="flex items-center justify-between p-5 border-b border-[var(--border)]">

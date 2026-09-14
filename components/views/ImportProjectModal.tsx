@@ -60,7 +60,7 @@ export function ImportProjectModal({ isOpen, onClose }: ImportModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
       <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-5xl border border-[var(--border)] flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
         
         <div className="flex items-center justify-between p-6 border-b border-[var(--border)]">

@@ -90,7 +90,7 @@ export function PushPromptModal() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[300] flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-[#1c1c1c] p-6 sm:p-8 rounded-3xl shadow-2xl w-full max-w-sm animate-in zoom-in-95 duration-200 border border-[var(--border)] text-center">
         
         <div className="mx-auto w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-5">
