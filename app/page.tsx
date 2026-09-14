@@ -242,7 +242,18 @@ function HomeContent() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
-  const [isFocusSessionOpen, setIsFocusSessionOpen] = useState(false);
+  const [isFocusSessionOpen, setIsFocusSessionOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("fotion-focus-session-state");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return !!parsed.isOpen;
+        }
+      } catch (e) {}
+    }
+    return false;
+  });
   const [isNearFocusButton, setIsNearFocusButton] = useState(false);
 
   const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");

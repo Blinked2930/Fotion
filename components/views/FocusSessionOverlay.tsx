@@ -136,10 +136,66 @@ export function FocusSessionOverlay({
 
   const expectedEndTimeRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const hasRestoredRef = useRef(false);
 
   useEffect(() => {
     setLocalQueue(initialTasks);
   }, [initialTasks]);
+
+  // Restore saved focus timer state on initial mount
+  useEffect(() => {
+    if (typeof window === "undefined" || hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+    try {
+      const saved = localStorage.getItem("fotion-focus-session-state");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.mode && MODE_TIMES[parsed.mode as FocusMode]) {
+          setMode(parsed.mode as FocusMode);
+        }
+        if (parsed.activeTaskId) {
+          setActiveTaskId(parsed.activeTaskId);
+        }
+        if (parsed.isRunning && parsed.expectedEndTime) {
+          const now = Date.now();
+          const remaining = Math.round((parsed.expectedEndTime - now) / 1000);
+          if (remaining > 0) {
+            setTimeLeft(remaining);
+            setIsRunning(true);
+            expectedEndTimeRef.current = parsed.expectedEndTime;
+          } else {
+            setTimeLeft(0);
+            setIsRunning(false);
+            expectedEndTimeRef.current = null;
+          }
+        } else if (typeof parsed.timeLeft === "number") {
+          setTimeLeft(parsed.timeLeft);
+          setIsRunning(false);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to restore focus timer state", e);
+    }
+  }, []);
+
+  // Save current focus timer state on changes
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasRestoredRef.current) return;
+    try {
+      const stateToSave = {
+        isOpen,
+        mode,
+        timeLeft,
+        isRunning,
+        expectedEndTime: expectedEndTimeRef.current,
+        activeTaskId,
+        updatedAt: Date.now(),
+      };
+      localStorage.setItem("fotion-focus-session-state", JSON.stringify(stateToSave));
+    } catch (e) {
+      console.error("Failed to save focus timer state", e);
+    }
+  }, [isOpen, mode, timeLeft, isRunning, activeTaskId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
