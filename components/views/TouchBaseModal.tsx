@@ -6,7 +6,7 @@ import { useOfflineQuery, useOfflineSyncMutation } from "@/hooks/useOfflineMutat
 import { api } from "@/convex/_generated/api";
 import { 
   X, Check, Clock, Send, CheckCircle2, ArrowRight, 
-  Trash2, RefreshCw, Calendar, Folder, Target, ChevronRight, ChevronLeft, Sparkles, CheckCheck
+  Trash2, RefreshCw, Calendar, Folder, Target, ChevronRight, ChevronLeft, CheckCheck
 } from "lucide-react";
 import { getProjectColor } from "./NewTaskForm";
 import { openTaskDetails } from "./TaskDetailsPane";
@@ -38,6 +38,7 @@ export function TouchBaseModal({
   const projects = useOfflineQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined }, "getProjects");
 
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
+  const touchBaseTasks = useOfflineSyncMutation(api.tasks.touchBaseTasks, "touchBaseTasks");
   const deleteTask = useOfflineSyncMutation(api.tasks.deleteTask, "deleteTask");
 
   const [activeTab, setActiveTab] = useState<"Waiting For" | "Someday Maybe">("Waiting For");
@@ -45,7 +46,7 @@ export function TouchBaseModal({
   const [sessionQueue, setSessionQueue] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Track which task IDs have been touched in the current view session to avoid duplicate updates
+  // Track which task IDs have been touched in the current view session
   const touchedSetRef = useRef<Set<string>>(new Set());
 
   // Capture a stable queue snapshot when modal opens or tab/filter changes
@@ -77,7 +78,7 @@ export function TouchBaseModal({
 
   const now = Date.now();
 
-  // Dynamic stale counts for tab badges & top header
+  // Dynamic stale lists for tab badges & batch clearing
   const staleWaitingTasks = tasks?.filter((t: any) => {
     if (t.status === "done" || t.listCategory !== "Waiting For") return false;
     const lastTime = t.lastContactedAt || t._creationTime;
@@ -89,6 +90,8 @@ export function TouchBaseModal({
     const lastTime = t.lastContactedAt || t._creationTime;
     return (now - lastTime) >= SOMEDAY_THRESHOLD_MS;
   }) || [];
+
+  const allStaleTasks = [...staleWaitingTasks, ...staleSomedayTasks];
 
   const currentTask = sessionQueue[currentIndex] || null;
 
@@ -150,15 +153,12 @@ export function TouchBaseModal({
     handleNext();
   };
 
-  const handleMarkAllReviewed = () => {
-    const listToClear = activeTab === "Waiting For" ? staleWaitingTasks : staleSomedayTasks;
-    const nowTime = Date.now();
-    for (const task of listToClear) {
-      updateTask({
-        id: task._id as any,
-        lastContactedAt: nowTime
-      });
-    }
+  const handleClearAllStaleBadges = async () => {
+    if (allStaleTasks.length === 0) return;
+    const idsToClear = allStaleTasks.map(t => t._id);
+    await touchBaseTasks({ taskIds: idsToClear as any });
+    setSessionQueue([]);
+    setCurrentIndex(0);
   };
 
   const getDaysAgo = (timestamp?: number) => {
@@ -246,15 +246,15 @@ export function TouchBaseModal({
             </button>
           </div>
 
-          {/* Stale vs All Filter */}
+          {/* Action & Filter Controls */}
           <div className="flex items-center justify-end gap-1.5 text-xs">
-            {(activeTab === "Waiting For" ? staleWaitingTasks.length > 0 : staleSomedayTasks.length > 0) && (
+            {allStaleTasks.length > 0 && (
               <button
-                onClick={handleMarkAllReviewed}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/30 border border-amber-300/60 dark:border-amber-800/60 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors mr-1"
-                title="Mark all pending review tasks in this tab as reviewed today"
+                onClick={handleClearAllStaleBadges}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors shadow-xs active:scale-95 cursor-pointer"
+                title="Mark all pending review tasks in both tabs as reviewed today"
               >
-                <CheckCheck className="w-3.5 h-3.5" /> Clear Badge
+                <CheckCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Clear Badge ({allStaleTasks.length})
               </button>
             )}
 
@@ -266,7 +266,7 @@ export function TouchBaseModal({
                   : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
               }`}
             >
-              Due for Review
+              Due
             </button>
             <button
               onClick={() => setFilterMode("all")}
@@ -276,7 +276,7 @@ export function TouchBaseModal({
                   : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
               }`}
             >
-              All ({sessionQueue.length})
+              All
             </button>
           </div>
 
@@ -357,7 +357,7 @@ export function TouchBaseModal({
 
                 {/* Clean, Elegant Notes Snippet */}
                 {notesText && (
-                  <div className="bg-zinc-100/80 dark:bg-[#1a1a1a] border-l-2 border-amber-400 dark:border-amber-500 rounded-r-xl p-3 text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed font-normal whitespace-pre-line max-h-32 overflow-y-auto font-sans shadow-inner">
+                  <div className="bg-zinc-100/80 dark:bg-[#1a1a1a] border-l-2 border-amber-400 dark:border-amber-500 rounded-r-xl p-3.5 text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed font-normal whitespace-pre-line max-h-36 overflow-y-auto font-sans shadow-inner">
                     {notesText}
                   </div>
                 )}

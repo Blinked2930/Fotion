@@ -202,6 +202,19 @@ export const updateTask = mutation({
   },
 });
 
+export const touchBaseTasks = mutation({
+  args: {
+    taskIds: v.array(v.id("tasks")),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    for (const id of args.taskIds) {
+      await ctx.db.patch(id, { lastContactedAt: now });
+    }
+    return args.taskIds.length;
+  },
+});
+
 export const deleteTask = mutation({
   args: { id: v.id("tasks") },
   handler: async (ctx, args) => {

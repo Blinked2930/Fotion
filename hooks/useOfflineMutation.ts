@@ -61,7 +61,13 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
       localStorage.setItem(cacheKey, JSON.stringify([optimisticTask, ...existingCache]));
       window.dispatchEvent(new Event("offline_cache_updated"));
     } else if (mutationName === "updateTask") {
-      existingCache = existingCache.map((task: any) => task._id === args.id ? { ...task, ...args } : task);
+      existingCache = existingCache.map((task: any) => task._id === args.id ? { ...task, ...args, _id: task._id } : task);
+      localStorage.setItem(cacheKey, JSON.stringify(existingCache));
+      window.dispatchEvent(new Event("offline_cache_updated"));
+    } else if (mutationName === "touchBaseTasks") {
+      const idSet = new Set(args.taskIds || []);
+      const nowTime = Date.now();
+      existingCache = existingCache.map((task: any) => idSet.has(task._id) ? { ...task, lastContactedAt: nowTime } : task);
       localStorage.setItem(cacheKey, JSON.stringify(existingCache));
       window.dispatchEvent(new Event("offline_cache_updated"));
     } else if (mutationName === "deleteTask") {
