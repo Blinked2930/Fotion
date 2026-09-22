@@ -36,14 +36,30 @@ export function PipelinesView() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
-        {columns.map((col: any) => (
-          <div key={col.id} className="w-full sm:w-1/3 bg-zinc-50/50 dark:bg-[#151515] rounded-2xl p-3 border border-[var(--border)]">
-            <div className="flex items-center justify-between mb-4 px-1">
-              <h3 className="font-semibold text-[var(--foreground)] text-sm">{col.label}</h3>
-              <span className="text-xs font-medium text-zinc-500 bg-white dark:bg-[#252525] px-2 py-0.5 rounded-full border border-[var(--border)] shadow-sm">
-                {col.tasks.length}
-              </span>
-            </div>
+        {columns.map((col: any) => {
+          const now = Date.now();
+          let staleCount = 0;
+          if (col.id === "Waiting For") {
+            staleCount = col.tasks.filter((t: any) => (now - (t.lastContactedAt || t._creationTime)) >= (48 * 60 * 60 * 1000)).length;
+          } else if (col.id === "Someday Maybe") {
+            staleCount = col.tasks.filter((t: any) => (now - (t.lastContactedAt || t._creationTime)) >= (7 * 24 * 60 * 60 * 1000)).length;
+          }
+
+          return (
+            <div key={col.id} className="w-full sm:w-1/3 bg-zinc-50/50 dark:bg-[#151515] rounded-2xl p-3 border border-[var(--border)]">
+              <div className="flex items-center justify-between mb-4 px-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-[var(--foreground)] text-sm">{col.label}</h3>
+                  {staleCount > 0 && (
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-800">
+                      {staleCount} due review
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs font-medium text-zinc-500 bg-white dark:bg-[#252525] px-2 py-0.5 rounded-full border border-[var(--border)] shadow-sm">
+                  {col.tasks.length}
+                </span>
+              </div>
             
             <div className="space-y-2">
               {col.tasks.map((task: any) => (
@@ -62,7 +78,8 @@ export function PipelinesView() {
               )}
             </div>
           </div>
-        ))}
+        );
+      })}
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { 
   X, Calendar, List, AlignLeft, Trash2, 
   Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered,
-  Globe, Link as LinkIcon, ListFilter, UserPlus, Target, Repeat
+  Globe, Link as LinkIcon, ListFilter, UserPlus, Target, Repeat, Clock, Send
 } from "lucide-react";
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -542,6 +542,22 @@ function PaneContent() {
               </PropertyRow>
               <PropertyRow icon={Sigma} label="Matrix Tags" disabled={needsToAccept}><div className="flex flex-wrap gap-2"><button onClick={() => handleUpdate("isUrgent", !task.isUrgent)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Urgent</button><button onClick={() => handleUpdate("isImportant", !task.isImportant)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Important</button><button onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>For Funsies</button></div></PropertyRow>
               <PropertyRow icon={List} label="Pipelines" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{['Current', 'Waiting For', 'Someday Maybe'].map(listName => (<button key={listName} onClick={() => handleUpdate("listCategory", listName)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>{listName}</button>))}</div></PropertyRow>
+              {task.listCategory && task.listCategory !== "Current" && (
+                <PropertyRow icon={Clock} label="Touch Base" disabled={needsToAccept}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                      {task.lastContactedAt ? `Reviewed ${new Date(task.lastContactedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : "Not reviewed yet"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdate("lastContactedAt", Date.now())}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-amber-950 transition-colors shadow-xs flex items-center gap-1"
+                    >
+                      <Send className="w-3 h-3" /> Touch Base Today
+                    </button>
+                  </div>
+                </PropertyRow>
+              )}
               <PropertyRow icon={Folder} label="Project" disabled={needsToAccept}><ProjectSelect value={task.projectId} onChange={(val) => handleUpdate("projectId", val)} /></PropertyRow>
             </div>
 

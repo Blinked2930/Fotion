@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Check, Calendar, List, AlignLeft, Folder } from "lucide-react";
+import { Check, Calendar, List, AlignLeft, Folder, Clock, Send } from "lucide-react";
 import { getListColor, getProjectColor } from "../views/NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { openTaskDetails } from "./TaskDetailsPane";
@@ -234,6 +234,43 @@ export function TaskCard({
             onSelect={(val) => handleInlineUpdate("listCategory", val)}
             renderPill={(val) => <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${getListColor(val)}`}><List className="w-3 h-3 shrink-0" /><span className="truncate max-w-[80px]">{val}</span></span>}
           />
+        )}
+        {task.listCategory === "Waiting For" && !isDone && (
+          <>
+            {(() => {
+              const daysWaiting = Math.floor((Date.now() - (task.lastContactedAt || task._creationTime)) / (24 * 60 * 60 * 1000));
+              const isStale = daysWaiting >= 2;
+              return (
+                <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${isStale ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'}`}>
+                  <Clock className="w-3 h-3 shrink-0" />
+                  {daysWaiting === 0 ? "Waiting today" : `Waiting ${daysWaiting}d`}
+                </span>
+              );
+            })()}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleInlineUpdate("lastContactedAt", Date.now());
+              }}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-amber-950 transition-colors shadow-xs"
+              title="Mark as followed up today"
+            >
+              <Send className="w-3 h-3 shrink-0" /> Followed Up
+            </button>
+          </>
+        )}
+        {task.listCategory === "Someday Maybe" && !isDone && (
+          (() => {
+            const daysSomeday = Math.floor((Date.now() - (task.lastContactedAt || task._creationTime)) / (24 * 60 * 60 * 1000));
+            const isStale = daysSomeday >= 7;
+            return (
+              <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${isStale ? 'bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'}`}>
+                <Clock className="w-3 h-3 shrink-0" />
+                {daysSomeday === 0 ? "Added today" : `${daysSomeday}d in Someday`}
+              </span>
+            );
+          })()
         )}
         {!hideDoOnDate && task.doOnDate && (
           <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">

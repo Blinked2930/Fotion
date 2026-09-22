@@ -34,6 +34,7 @@ export default defineSchema({
     doByDate: v.optional(v.union(v.number(), v.null())), 
     
     completedAt: v.optional(v.union(v.number(), v.null())),
+    lastContactedAt: v.optional(v.union(v.number(), v.null())),
     
     projectId: v.optional(v.union(v.id("projects"), v.null())),
 

@@ -12,10 +12,11 @@ import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay";
+import { TouchBaseModal } from "@/components/views/TouchBaseModal";
 import { InstallScreen } from "@/components/views/InstallScreen"; 
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff } from "lucide-react";
+import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff, Clock } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
@@ -241,6 +242,7 @@ function HomeContent() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isTouchBaseOpen, setIsTouchBaseOpen] = useState(false);
   
   const [isFocusSessionOpen, setIsFocusSessionOpen] = useState(() => {
     if (typeof window !== "undefined") {
@@ -295,6 +297,17 @@ function HomeContent() {
     if (isOwner) return t.isFocused;
     return t.focusedSessions && t.focusedSessions.includes(actualSessionId);
   }) || [];
+
+  const nowMs = Date.now();
+  const staleWaitingCount = allTasks?.filter((t: any) => 
+    t.status !== "done" && t.listCategory === "Waiting For" && (nowMs - (t.lastContactedAt || t._creationTime)) >= (48 * 60 * 60 * 1000)
+  ).length || 0;
+
+  const staleSomedayCount = allTasks?.filter((t: any) => 
+    t.status !== "done" && t.listCategory === "Someday Maybe" && (nowMs - (t.lastContactedAt || t._creationTime)) >= (7 * 24 * 60 * 60 * 1000)
+  ).length || 0;
+
+  const totalTouchBaseCount = staleWaitingCount + staleSomedayCount;
 
   const hasAutoOpenedVip = useRef(false);
 
@@ -550,6 +563,24 @@ function HomeContent() {
 
             <ExportButton />
             
+            <button 
+              onClick={() => setIsTouchBaseOpen(true)} 
+              className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium transition-colors px-2 py-1 rounded-md border ${
+                totalTouchBaseCount > 0 
+                  ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800 font-bold' 
+                  : 'text-zinc-500 hover:text-[var(--foreground)] border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              }`}
+              title="Touch base with Waiting For & Someday tasks"
+            >
+              <Clock className="w-4 h-4 text-amber-500" />
+              <span className="hidden sm:inline">Touch Base</span>
+              {totalTouchBaseCount > 0 && (
+                <span className="bg-amber-500 text-amber-950 font-extrabold text-[10px] px-1.5 py-0.5 rounded-full">
+                  {totalTouchBaseCount}
+                </span>
+              )}
+            </button>
+
             <button onClick={() => setIsProjectModalOpen(true)} className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-[var(--foreground)] transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
               <Folder className="w-4 h-4" /> Projects
             </button>
@@ -596,6 +627,7 @@ function HomeContent() {
         <GlobalSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
         <ImportProjectModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
         <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
+        <TouchBaseModal isOpen={isTouchBaseOpen} onClose={() => setIsTouchBaseOpen(false)} />
         <PushPromptModal />
       </main>
 

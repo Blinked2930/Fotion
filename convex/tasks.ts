@@ -51,6 +51,7 @@ export const createTask = mutation({
     doByDate: v.optional(v.union(v.number(), v.null())),
     projectId: v.optional(v.union(v.id("projects"), v.null())),
     completedAt: v.optional(v.union(v.number(), v.null())),
+    lastContactedAt: v.optional(v.union(v.number(), v.null())),
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
     sessionId: v.optional(v.string()),
@@ -63,12 +64,16 @@ export const createTask = mutation({
     const { actualSessionId } = parseSessionId(args.sessionId);
     const taskSessionId = identity ? undefined : actualSessionId;
 
+    const initialCategory = args.listCategory ?? "Current";
+    const initialLastContacted = args.lastContactedAt ?? (initialCategory !== "Current" ? Date.now() : undefined);
+
     return await ctx.db.insert("tasks", {
       ...args,
       isFocused: args.isFocused ?? false,
       status: args.status ?? "todo",
-      listCategory: args.listCategory ?? "Current",
+      listCategory: initialCategory,
       isToday: args.isToday ?? false,
+      lastContactedAt: initialLastContacted,
       sessionId: taskSessionId, 
       order: args.order,
     });
@@ -91,6 +96,7 @@ export const updateTask = mutation({
     doByDate: v.optional(v.union(v.number(), v.null())),
     projectId: v.optional(v.union(v.id("projects"), v.null())),
     completedAt: v.optional(v.union(v.number(), v.null())),
+    lastContactedAt: v.optional(v.union(v.number(), v.null())),
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
     sharedWithSessions: v.optional(v.array(v.string())),
@@ -102,6 +108,11 @@ export const updateTask = mutation({
   },
   handler: async (ctx, args) => {
     const { id, sessionId, ...fields } = args;
+    
+    // Automatically set lastContactedAt when switching pipeline to Waiting For or Someday Maybe
+    if (fields.listCategory && fields.listCategory !== "Current" && fields.lastContactedAt === undefined) {
+      fields.lastContactedAt = Date.now();
+    }
     
     // Spawn next recurring task or sequential task if marked done
     if (fields.status === "done") {
@@ -281,6 +292,7 @@ export const createManyTasks = mutation({
         doByDate: v.union(v.number(), v.null()),
         projectId: v.union(v.id("projects"), v.null()),
         completedAt: v.optional(v.union(v.number(), v.null())),
+        lastContactedAt: v.optional(v.union(v.number(), v.null())),
         isPublic: v.optional(v.boolean()),
         shareToken: v.optional(v.string()),
         sessionId: v.optional(v.string()),
@@ -295,9 +307,11 @@ export const createManyTasks = mutation({
       const { actualSessionId } = parseSessionId(task.sessionId);
       const taskSessionId = identity ? undefined : actualSessionId;
       
+      const initialContact = task.lastContactedAt ?? (task.listCategory !== "Current" ? Date.now() : undefined);
       const id = await ctx.db.insert("tasks", {
         ...task,
         isFocused: task.isFocused ?? false,
+        lastContactedAt: initialContact,
         sessionId: taskSessionId
       });
       taskIds.push(id);
