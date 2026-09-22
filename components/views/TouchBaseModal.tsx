@@ -29,61 +29,63 @@ export function TouchBaseModal({
   const deleteTask = useOfflineSyncMutation(api.tasks.deleteTask, "deleteTask");
 
   const [activeTab, setActiveTab] = useState<"Waiting For" | "Someday Maybe">("Waiting For");
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [filterMode, setFilterMode] = useState<"stale" | "all">("stale");
-  const [touchedIds, setTouchedIds] = useState<Set<string>>(new Set());
+  const [sessionQueue, setSessionQueue] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Reset indices and touched set when opening or switching tabs
+  // Capture a stable queue snapshot when modal opens or tab/filter changes
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && tasks) {
+      const now = Date.now();
+      const allW = tasks.filter((t: any) => t.status !== "done" && t.listCategory === "Waiting For");
+      const allS = tasks.filter((t: any) => t.status !== "done" && t.listCategory === "Someday Maybe");
+
+      const staleW = allW.filter((t: any) => {
+        const lastTime = t.lastContactedAt || t._creationTime;
+        return (now - lastTime) >= WAITING_THRESHOLD_MS;
+      });
+
+      const staleS = allS.filter((t: any) => {
+        const lastTime = t.lastContactedAt || t._creationTime;
+        return (now - lastTime) >= SOMEDAY_THRESHOLD_MS;
+      });
+
+      const targetList = activeTab === "Waiting For"
+        ? (filterMode === "stale" ? staleW : allW)
+        : (filterMode === "stale" ? staleS : allS);
+
+      setSessionQueue(targetList);
       setCurrentIndex(0);
-    } else {
-      setTouchedIds(new Set());
     }
-  }, [isOpen, activeTab, filterMode]);
+  }, [isOpen, activeTab, filterMode, tasks === undefined]);
 
   if (!isOpen) return null;
 
   const now = Date.now();
 
-  const allWaitingFor = tasks?.filter((t: any) => t.status !== "done" && t.listCategory === "Waiting For") || [];
-  const allSomeday = tasks?.filter((t: any) => t.status !== "done" && t.listCategory === "Someday Maybe") || [];
-
-  const staleWaitingFor = allWaitingFor.filter((t: any) => {
+  // Dynamic stale counts for tab badges
+  const staleWaitingCount = tasks?.filter((t: any) => {
+    if (t.status === "done" || t.listCategory !== "Waiting For") return false;
     const lastTime = t.lastContactedAt || t._creationTime;
     return (now - lastTime) >= WAITING_THRESHOLD_MS;
-  });
+  }).length || 0;
 
-  const staleSomeday = allSomeday.filter((t: any) => {
+  const staleSomedayCount = tasks?.filter((t: any) => {
+    if (t.status === "done" || t.listCategory !== "Someday Maybe") return false;
     const lastTime = t.lastContactedAt || t._creationTime;
     return (now - lastTime) >= SOMEDAY_THRESHOLD_MS;
-  });
+  }).length || 0;
 
-  const activeList = activeTab === "Waiting For"
-    ? (filterMode === "stale" ? staleWaitingFor : allWaitingFor)
-    : (filterMode === "stale" ? staleSomeday : allSomeday);
+  const currentTask = sessionQueue[currentIndex] || null;
 
-  const currentTask = activeList[currentIndex] || null;
-
-  // AUTO-TOUCHPOINT: Automatically mark a task as reviewed the moment it's displayed in the modal
-  useEffect(() => {
-    if (isOpen && currentTask && currentTask._id) {
-      if (!touchedIds.has(currentTask._id)) {
-        setTouchedIds(prev => new Set(prev).add(currentTask._id));
-        updateTask({
-          id: currentTask._id as any,
-          lastContactedAt: Date.now()
-        });
-      }
+  const handleNext = (markTouchpoint = true) => {
+    if (currentTask && markTouchpoint) {
+      updateTask({
+        id: currentTask._id as any,
+        lastContactedAt: Date.now()
+      });
     }
-  }, [isOpen, currentTask?._id, touchedIds, updateTask]);
-
-  const handleNext = () => {
-    if (currentIndex < activeList.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-    } else {
-      setCurrentIndex(activeList.length > 1 ? activeList.length - 1 : 0);
-    }
+    setCurrentIndex(prev => prev + 1);
   };
 
   const handleSentFollowUp = (taskId: string) => {
@@ -91,7 +93,7 @@ export function TouchBaseModal({
       id: taskId as any,
       lastContactedAt: Date.now()
     });
-    handleNext();
+    handleNext(false);
   };
 
   const handleMoveToCurrent = (taskId: string) => {
@@ -100,7 +102,7 @@ export function TouchBaseModal({
       listCategory: "Current",
       lastContactedAt: Date.now()
     });
-    handleNext();
+    handleNext(false);
   };
 
   const handleMarkDone = (taskId: string) => {
@@ -109,7 +111,7 @@ export function TouchBaseModal({
       status: "done",
       completedAt: Date.now()
     });
-    handleNext();
+    handleNext(false);
   };
 
   const handleKeepInSomeday = (taskId: string) => {
@@ -117,12 +119,12 @@ export function TouchBaseModal({
       id: taskId as any,
       lastContactedAt: Date.now()
     });
-    handleNext();
+    handleNext(false);
   };
 
   const handleDelete = (taskId: string) => {
     deleteTask({ id: taskId as any });
-    handleNext();
+    handleNext(false);
   };
 
   const getDaysAgo = (timestamp?: number) => {
@@ -176,7 +178,7 @@ export function TouchBaseModal({
           {/* Main Category Tabs */}
           <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 rounded-xl p-1 border border-[var(--border)]">
             <button
-              onClick={() => { setActiveTab("Waiting For"); setCurrentIndex(0); }}
+              onClick={() => { setActiveTab("Waiting For"); }}
               className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeTab === "Waiting For"
                   ? "bg-white dark:bg-[#252525] text-amber-700 dark:text-amber-400 shadow-sm border border-[var(--border)]"
@@ -184,15 +186,15 @@ export function TouchBaseModal({
               }`}
             >
               <span>Waiting For</span>
-              {staleWaitingFor.length > 0 && (
+              {staleWaitingCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-amber-950 font-extrabold text-[10px]">
-                  {staleWaitingFor.length}
+                  {staleWaitingCount}
                 </span>
               )}
             </button>
 
             <button
-              onClick={() => { setActiveTab("Someday Maybe"); setCurrentIndex(0); }}
+              onClick={() => { setActiveTab("Someday Maybe"); }}
               className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeTab === "Someday Maybe"
                   ? "bg-white dark:bg-[#252525] text-purple-700 dark:text-purple-400 shadow-sm border border-[var(--border)]"
@@ -200,9 +202,9 @@ export function TouchBaseModal({
               }`}
             >
               <span>Someday / Maybe</span>
-              {staleSomeday.length > 0 && (
+              {staleSomedayCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full bg-purple-500 text-white font-extrabold text-[10px]">
-                  {staleSomeday.length}
+                  {staleSomedayCount}
                 </span>
               )}
             </button>
@@ -228,7 +230,7 @@ export function TouchBaseModal({
                   : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
               }`}
             >
-              All ({activeTab === "Waiting For" ? allWaitingFor.length : allSomeday.length})
+              All Queue ({sessionQueue.length})
             </button>
           </div>
 
@@ -237,7 +239,7 @@ export function TouchBaseModal({
         {/* Card Review Body */}
         <div className="p-5 sm:p-6 overflow-y-auto flex-1 flex flex-col justify-between min-h-[300px]">
           
-          {activeList.length === 0 ? (
+          {sessionQueue.length === 0 || currentIndex >= sessionQueue.length ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-12 px-4 space-y-4">
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 flex items-center justify-center shadow-inner">
                 <CheckCircle2 className="w-8 h-8" />
@@ -250,12 +252,12 @@ export function TouchBaseModal({
                     : `You don't have any tasks saved under ${activeTab}.`}
                 </p>
               </div>
-              {filterMode === "stale" && (activeTab === "Waiting For" ? allWaitingFor.length > 0 : allSomeday.length > 0) && (
+              {filterMode === "stale" && (
                 <button
                   onClick={() => setFilterMode("all")}
                   className="text-xs font-semibold text-blue-500 hover:underline pt-2"
                 >
-                  Review all {activeTab === "Waiting For" ? allWaitingFor.length : allSomeday.length} items anyway
+                  Review all items anyway
                 </button>
               )}
             </div>
@@ -266,7 +268,7 @@ export function TouchBaseModal({
               <div className="flex items-center justify-between text-xs text-zinc-400 font-medium">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  Item {currentIndex + 1} of {activeList.length}
+                  Item {currentIndex + 1} of {sessionQueue.length}
                 </span>
                 <div className="flex items-center gap-1">
                   <button 
@@ -277,10 +279,9 @@ export function TouchBaseModal({
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <button 
-                    disabled={currentIndex >= activeList.length - 1}
-                    onClick={handleNext}
+                    onClick={() => handleNext(true)}
                     className="p-1 text-zinc-400 hover:text-[var(--foreground)] disabled:opacity-30"
-                    title="Next item"
+                    title="Next item (Marks current item reviewed)"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
