@@ -1,18 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineQuery, useOfflineSyncMutation } from "@/hooks/useOfflineMutation";
 import { api } from "@/convex/_generated/api";
 import { 
   X, Check, Clock, Send, CheckCircle2, ArrowRight, 
-  Trash2, RefreshCw, Calendar, Folder, Target, ChevronRight, ChevronLeft
+  Trash2, RefreshCw, Calendar, Folder, Target, ChevronRight, ChevronLeft, Sparkles, CheckCheck
 } from "lucide-react";
 import { getProjectColor } from "./NewTaskForm";
 import { openTaskDetails } from "./TaskDetailsPane";
 
 const WAITING_THRESHOLD_MS = 48 * 60 * 60 * 1000; // 48 hours
 const SOMEDAY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+const stripHtml = (html?: string) => {
+  if (!html || html === "<p></p>") return "";
+  return html
+    .replace(/<\/(p|div|h[1-6])>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li>/gi, '• ')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+};
 
 export function TouchBaseModal({ 
   isOpen, 
@@ -32,6 +44,9 @@ export function TouchBaseModal({
   const [filterMode, setFilterMode] = useState<"stale" | "all">("stale");
   const [sessionQueue, setSessionQueue] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Track which task IDs have been touched in the current view session to avoid duplicate updates
+  const touchedSetRef = useRef<Set<string>>(new Set());
 
   // Capture a stable queue snapshot when modal opens or tab/filter changes
   useEffect(() => {
@@ -56,35 +71,43 @@ export function TouchBaseModal({
 
       setSessionQueue(targetList);
       setCurrentIndex(0);
+      touchedSetRef.current.clear();
     }
   }, [isOpen, activeTab, filterMode, tasks === undefined]);
 
-  if (!isOpen) return null;
-
   const now = Date.now();
 
-  // Dynamic stale counts for tab badges
-  const staleWaitingCount = tasks?.filter((t: any) => {
+  // Dynamic stale counts for tab badges & top header
+  const staleWaitingTasks = tasks?.filter((t: any) => {
     if (t.status === "done" || t.listCategory !== "Waiting For") return false;
     const lastTime = t.lastContactedAt || t._creationTime;
     return (now - lastTime) >= WAITING_THRESHOLD_MS;
-  }).length || 0;
+  }) || [];
 
-  const staleSomedayCount = tasks?.filter((t: any) => {
+  const staleSomedayTasks = tasks?.filter((t: any) => {
     if (t.status === "done" || t.listCategory !== "Someday Maybe") return false;
     const lastTime = t.lastContactedAt || t._creationTime;
     return (now - lastTime) >= SOMEDAY_THRESHOLD_MS;
-  }).length || 0;
+  }) || [];
 
   const currentTask = sessionQueue[currentIndex] || null;
 
-  const handleNext = (markTouchpoint = true) => {
-    if (currentTask && markTouchpoint) {
-      updateTask({
-        id: currentTask._id as any,
-        lastContactedAt: Date.now()
-      });
+  // AUTO-TOUCHPOINT ON VIEW: Automatically mark current task as touched base when shown
+  useEffect(() => {
+    if (isOpen && currentTask && currentTask._id) {
+      if (!touchedSetRef.current.has(currentTask._id)) {
+        touchedSetRef.current.add(currentTask._id);
+        updateTask({
+          id: currentTask._id as any,
+          lastContactedAt: Date.now()
+        });
+      }
     }
+  }, [isOpen, currentTask?._id, updateTask]);
+
+  if (!isOpen) return null;
+
+  const handleNext = () => {
     setCurrentIndex(prev => prev + 1);
   };
 
@@ -93,7 +116,7 @@ export function TouchBaseModal({
       id: taskId as any,
       lastContactedAt: Date.now()
     });
-    handleNext(false);
+    handleNext();
   };
 
   const handleMoveToCurrent = (taskId: string) => {
@@ -102,7 +125,7 @@ export function TouchBaseModal({
       listCategory: "Current",
       lastContactedAt: Date.now()
     });
-    handleNext(false);
+    handleNext();
   };
 
   const handleMarkDone = (taskId: string) => {
@@ -111,7 +134,7 @@ export function TouchBaseModal({
       status: "done",
       completedAt: Date.now()
     });
-    handleNext(false);
+    handleNext();
   };
 
   const handleKeepInSomeday = (taskId: string) => {
@@ -119,12 +142,23 @@ export function TouchBaseModal({
       id: taskId as any,
       lastContactedAt: Date.now()
     });
-    handleNext(false);
+    handleNext();
   };
 
   const handleDelete = (taskId: string) => {
     deleteTask({ id: taskId as any });
-    handleNext(false);
+    handleNext();
+  };
+
+  const handleMarkAllReviewed = () => {
+    const listToClear = activeTab === "Waiting For" ? staleWaitingTasks : staleSomedayTasks;
+    const nowTime = Date.now();
+    for (const task of listToClear) {
+      updateTask({
+        id: task._id as any,
+        lastContactedAt: nowTime
+      });
+    }
   };
 
   const getDaysAgo = (timestamp?: number) => {
@@ -141,6 +175,8 @@ export function TouchBaseModal({
     if (days === 1) return "Yesterday (1 day ago)";
     return `${days} days ago`;
   };
+
+  const notesText = currentTask ? stripHtml(currentTask.description) : "";
 
   return (
     <div 
@@ -186,9 +222,9 @@ export function TouchBaseModal({
               }`}
             >
               <span>Waiting For</span>
-              {staleWaitingCount > 0 && (
+              {staleWaitingTasks.length > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-amber-950 font-extrabold text-[10px]">
-                  {staleWaitingCount}
+                  {staleWaitingTasks.length}
                 </span>
               )}
             </button>
@@ -202,16 +238,26 @@ export function TouchBaseModal({
               }`}
             >
               <span>Someday / Maybe</span>
-              {staleSomedayCount > 0 && (
+              {staleSomedayTasks.length > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full bg-purple-500 text-white font-extrabold text-[10px]">
-                  {staleSomedayCount}
+                  {staleSomedayTasks.length}
                 </span>
               )}
             </button>
           </div>
 
           {/* Stale vs All Filter */}
-          <div className="flex items-center justify-end gap-1 text-xs">
+          <div className="flex items-center justify-end gap-1.5 text-xs">
+            {(activeTab === "Waiting For" ? staleWaitingTasks.length > 0 : staleSomedayTasks.length > 0) && (
+              <button
+                onClick={handleMarkAllReviewed}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/30 border border-amber-300/60 dark:border-amber-800/60 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors mr-1"
+                title="Mark all pending review tasks in this tab as reviewed today"
+              >
+                <CheckCheck className="w-3.5 h-3.5" /> Clear Badge
+              </button>
+            )}
+
             <button
               onClick={() => setFilterMode("stale")}
               className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
@@ -230,7 +276,7 @@ export function TouchBaseModal({
                   : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
               }`}
             >
-              All Queue ({sessionQueue.length})
+              All ({sessionQueue.length})
             </button>
           </div>
 
@@ -248,7 +294,7 @@ export function TouchBaseModal({
                 <h3 className="text-lg font-bold text-[var(--foreground)]">All Caught Up!</h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                   {filterMode === "stale" 
-                    ? `No ${activeTab} items need urgent touch base right now.` 
+                    ? `You've touched base with all ${activeTab} items for now.` 
                     : `You don't have any tasks saved under ${activeTab}.`}
                 </p>
               </div>
@@ -279,9 +325,9 @@ export function TouchBaseModal({
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={() => handleNext(true)}
+                    onClick={handleNext}
                     className="p-1 text-zinc-400 hover:text-[var(--foreground)] disabled:opacity-30"
-                    title="Next item (Marks current item reviewed)"
+                    title="Next item"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -309,12 +355,11 @@ export function TouchBaseModal({
                   </span>
                 </div>
 
-                {/* Description Snippet */}
-                {currentTask.description && currentTask.description !== "<p></p>" && (
-                  <div 
-                    className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-3 bg-white dark:bg-[#202020] p-3 rounded-xl border border-[var(--border)] max-h-24 overflow-hidden"
-                    dangerouslySetInnerHTML={{ __html: currentTask.description }}
-                  />
+                {/* Clean, Elegant Notes Snippet */}
+                {notesText && (
+                  <div className="bg-zinc-100/80 dark:bg-[#1a1a1a] border-l-2 border-amber-400 dark:border-amber-500 rounded-r-xl p-3 text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed font-normal whitespace-pre-line max-h-32 overflow-y-auto font-sans shadow-inner">
+                    {notesText}
+                  </div>
                 )}
 
                 {/* Project & Tag Metadata */}
