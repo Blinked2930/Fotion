@@ -253,7 +253,7 @@ export function TaskCard({
                 e.stopPropagation();
                 handleInlineUpdate("lastContactedAt", Date.now());
               }}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-amber-950 transition-colors shadow-xs"
+              className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500 hover:bg-amber-600 active:scale-95 text-amber-950 transition-all shadow-xs cursor-pointer"
               title="Mark as followed up today"
             >
               <Send className="w-3 h-3 shrink-0" /> Followed Up

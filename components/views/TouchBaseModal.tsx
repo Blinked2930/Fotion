@@ -6,7 +6,7 @@ import { useOfflineQuery, useOfflineSyncMutation } from "@/hooks/useOfflineMutat
 import { api } from "@/convex/_generated/api";
 import { 
   X, Check, Clock, Send, CheckCircle2, ArrowRight, 
-  Trash2, RefreshCw, Calendar, Folder, Target, ChevronRight, ChevronLeft, Eye
+  Trash2, RefreshCw, Calendar, Folder, Target, ChevronRight, ChevronLeft
 } from "lucide-react";
 import { getProjectColor } from "./NewTaskForm";
 import { openTaskDetails } from "./TaskDetailsPane";
@@ -31,10 +31,14 @@ export function TouchBaseModal({
   const [activeTab, setActiveTab] = useState<"Waiting For" | "Someday Maybe">("Waiting For");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filterMode, setFilterMode] = useState<"stale" | "all">("stale");
+  const [touchedIds, setTouchedIds] = useState<Set<string>>(new Set());
 
+  // Reset indices and touched set when opening or switching tabs
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(0);
+    } else {
+      setTouchedIds(new Set());
     }
   }, [isOpen, activeTab, filterMode]);
 
@@ -61,26 +65,25 @@ export function TouchBaseModal({
 
   const currentTask = activeList[currentIndex] || null;
 
-  const handleNext = (markTouchpoint = false) => {
-    if (markTouchpoint && currentTask?._id) {
-      updateTask({
-        id: currentTask._id as any,
-        lastContactedAt: Date.now()
-      });
+  // AUTO-TOUCHPOINT: Automatically mark a task as reviewed the moment it's displayed in the modal
+  useEffect(() => {
+    if (isOpen && currentTask && currentTask._id) {
+      if (!touchedIds.has(currentTask._id)) {
+        setTouchedIds(prev => new Set(prev).add(currentTask._id));
+        updateTask({
+          id: currentTask._id as any,
+          lastContactedAt: Date.now()
+        });
+      }
     }
+  }, [isOpen, currentTask?._id, touchedIds, updateTask]);
+
+  const handleNext = () => {
     if (currentIndex < activeList.length - 1) {
       setCurrentIndex(prev => prev + 1);
     } else {
       setCurrentIndex(activeList.length > 1 ? activeList.length - 1 : 0);
     }
-  };
-
-  const handleMarkReviewed = (taskId: string) => {
-    updateTask({
-      id: taskId as any,
-      lastContactedAt: Date.now()
-    });
-    handleNext();
   };
 
   const handleSentFollowUp = (taskId: string) => {
@@ -143,7 +146,7 @@ export function TouchBaseModal({
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-xl bg-white dark:bg-[#1c1c1c] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+        className="w-full max-w-xl bg-white dark:bg-[#1c1c1c] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh] animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -275,9 +278,9 @@ export function TouchBaseModal({
                   </button>
                   <button 
                     disabled={currentIndex >= activeList.length - 1}
-                    onClick={() => handleNext(true)}
+                    onClick={handleNext}
                     className="p-1 text-zinc-400 hover:text-[var(--foreground)] disabled:opacity-30"
-                    title="Next item (Marks current item reviewed)"
+                    title="Next item"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -337,35 +340,27 @@ export function TouchBaseModal({
                 <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Touch Base Action</div>
                 
                 {activeTab === "Waiting For" ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <button
                       onClick={() => handleSentFollowUp(currentTask._id)}
-                      className="flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-amber-950 px-2.5 py-2.5 rounded-xl font-bold text-xs transition-all shadow-sm"
+                      className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-amber-950 px-3 py-2.5 rounded-xl font-bold text-xs transition-all shadow-sm"
                       title="Sent a follow up message or email"
                     >
-                      <Send className="w-3.5 h-3.5" /> Followed Up
-                    </button>
-
-                    <button
-                      onClick={() => handleMarkReviewed(currentTask._id)}
-                      className="flex items-center justify-center gap-1.5 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-[var(--foreground)] px-2.5 py-2.5 rounded-xl font-bold text-xs transition-all border border-[var(--border)]"
-                      title="Mark as reviewed today without sending a message"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-zinc-500" /> Reviewed
+                      <Send className="w-4 h-4" /> Followed Up
                     </button>
                     
                     <button
                       onClick={() => handleMoveToCurrent(currentTask._id)}
-                      className="flex items-center justify-center gap-1.5 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 px-2.5 py-2.5 rounded-xl font-bold text-xs transition-all border border-emerald-200 dark:border-emerald-800"
+                      className="flex items-center justify-center gap-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 px-3 py-2.5 rounded-xl font-bold text-xs transition-all border border-emerald-200 dark:border-emerald-800"
                     >
-                      <Target className="w-3.5 h-3.5" /> Got Response
+                      <Target className="w-4 h-4" /> Got Response
                     </button>
 
                     <button
                       onClick={() => handleMarkDone(currentTask._id)}
-                      className="flex items-center justify-center gap-1.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-[var(--foreground)] px-2.5 py-2.5 rounded-xl font-bold text-xs transition-all border border-[var(--border)]"
+                      className="flex items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[var(--foreground)] px-3 py-2.5 rounded-xl font-bold text-xs transition-all border border-[var(--border)]"
                     >
-                      <Check className="w-3.5 h-3.5" /> Done
+                      <Check className="w-4 h-4" /> Mark Done
                     </button>
                   </div>
                 ) : (
@@ -381,7 +376,7 @@ export function TouchBaseModal({
                       onClick={() => handleKeepInSomeday(currentTask._id)}
                       className="flex items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[var(--foreground)] px-3 py-2.5 rounded-xl font-bold text-xs transition-all border border-[var(--border)]"
                     >
-                      <RefreshCw className="w-4 h-4" /> Keep Dreaming (Reviewed)
+                      <RefreshCw className="w-4 h-4" /> Keep Dreaming
                     </button>
 
                     <button
