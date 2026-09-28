@@ -216,8 +216,8 @@ export function TouchBaseModal({
             <button
               onClick={() => { setActiveTab("Waiting For"); }}
               className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "Waiting For"
-                  ? "bg-white dark:bg-[#252525] text-amber-700 dark:text-amber-400 shadow-sm border border-[var(--border)]"
-                  : "text-zinc-500 hover:text-[var(--foreground)]"
+                ? "bg-white dark:bg-[#252525] text-amber-700 dark:text-amber-400 shadow-sm border border-[var(--border)]"
+                : "text-zinc-500 hover:text-[var(--foreground)]"
                 }`}
             >
               <span>Waiting For</span>
@@ -231,8 +231,8 @@ export function TouchBaseModal({
             <button
               onClick={() => { setActiveTab("Someday Maybe"); }}
               className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "Someday Maybe"
-                  ? "bg-white dark:bg-[#252525] text-purple-700 dark:text-purple-400 shadow-sm border border-[var(--border)]"
-                  : "text-zinc-500 hover:text-[var(--foreground)]"
+                ? "bg-white dark:bg-[#252525] text-purple-700 dark:text-purple-400 shadow-sm border border-[var(--border)]"
+                : "text-zinc-500 hover:text-[var(--foreground)]"
                 }`}
             >
               <span>Someday / Maybe</span>
@@ -259,8 +259,8 @@ export function TouchBaseModal({
             <button
               onClick={() => setFilterMode("stale")}
               className={`px-2.5 py-1 rounded-md font-medium transition-colors ${filterMode === "stale"
-                  ? "bg-zinc-200 dark:bg-zinc-800 text-[var(--foreground)] font-bold"
-                  : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                ? "bg-zinc-200 dark:bg-zinc-800 text-[var(--foreground)] font-bold"
+                : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                 }`}
             >
               Due
@@ -268,8 +268,8 @@ export function TouchBaseModal({
             <button
               onClick={() => setFilterMode("all")}
               className={`px-2.5 py-1 rounded-md font-medium transition-colors ${filterMode === "all"
-                  ? "bg-zinc-200 dark:bg-zinc-800 text-[var(--foreground)] font-bold"
-                  : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                ? "bg-zinc-200 dark:bg-zinc-800 text-[var(--foreground)] font-bold"
+                : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                 }`}
             >
               All
@@ -342,8 +342,8 @@ export function TouchBaseModal({
 
                   {/* Age Pill Badge */}
                   <span className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1 ${activeTab === "Waiting For"
-                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/50"
-                      : "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-900/50"
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/50"
+                    : "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-900/50"
                     }`}>
                     <Clock className="w-3 h-3" />
                     {formatDaysAgoText(currentTask)}
@@ -387,7 +387,7 @@ export function TouchBaseModal({
                       className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-amber-950 px-3 py-2.5 rounded-xl font-bold text-xs transition-all shadow-sm"
                       title="Sent a follow up message or email"
                     >
-                      <Send className="w-4 h-4" /> Followed Up
+                      <Send className="w-4 h-4" /> Still Waiting
                     </button>
 
                     <button
