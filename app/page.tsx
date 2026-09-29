@@ -12,6 +12,7 @@ import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay";
+import { FloatingFocusWidget } from "@/components/views/FloatingFocusWidget";
 import { TouchBaseModal } from "@/components/views/TouchBaseModal";
 import { InstallScreen } from "@/components/views/InstallScreen"; 
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
@@ -258,6 +259,48 @@ function HomeContent() {
   });
   const [isNearFocusButton, setIsNearFocusButton] = useState(false);
 
+  // Active Session State for Floating Widget
+  const [activeFocusSession, setActiveFocusSession] = useState<{
+    isRunning: boolean;
+    timeLeft: number;
+    mode: "work" | "short-break" | "long-break";
+    activeTaskId?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const checkState = () => {
+      try {
+        const saved = localStorage.getItem("fotion-focus-session-state");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.isRunning && parsed.expectedEndTime) {
+            const remaining = Math.max(0, Math.round((parsed.expectedEndTime - Date.now()) / 1000));
+            setActiveFocusSession({
+              isRunning: true,
+              timeLeft: remaining,
+              mode: parsed.mode || "work",
+              activeTaskId: parsed.activeTaskId,
+            });
+            return;
+          } else if (typeof parsed.timeLeft === "number" && (parsed.isRunning || parsed.timeLeft < 25 * 60)) {
+            setActiveFocusSession({
+              isRunning: false,
+              timeLeft: parsed.timeLeft,
+              mode: parsed.mode || "work",
+              activeTaskId: parsed.activeTaskId,
+            });
+            return;
+          }
+        }
+      } catch (e) {}
+      setActiveFocusSession(null);
+    };
+
+    checkState();
+    const interval = setInterval(checkState, 1000);
+    return () => clearInterval(interval);
+  }, [isFocusSessionOpen]);
+
   const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");
   const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
   const seedDemoData = useMutation(api.demo.seedDemoData);
@@ -291,12 +334,12 @@ function HomeContent() {
   const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks");
 
   const actualSessionId = guestSessionId?.split("||vip_")[0];
-  const focusedTasks = allTasks?.filter((t: any) => {
+  const focusedTasks = (allTasks?.filter((t: any) => {
     if (t.status === "done") return false;
     const isOwner = !!(isSignedIn || (t.sessionId && t.sessionId === actualSessionId));
     if (isOwner) return t.isFocused;
     return t.focusedSessions && t.focusedSessions.includes(actualSessionId);
-  }) || [];
+  }) || []).sort((a: any, b: any) => (a.order ?? 999999) - (b.order ?? 999999));
 
   const nowMs = Date.now();
   const staleWaitingCount = allTasks?.filter((t: any) => 
@@ -529,6 +572,9 @@ function HomeContent() {
     );
   }
 
+  // Active Task Title for Floating Widget
+  const activeTaskObj = activeFocusSession?.activeTaskId ? allTasks?.find((t: any) => t._id === activeFocusSession.activeTaskId) : undefined;
+
   // 4. Main App Interface
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col relative">
@@ -631,13 +677,45 @@ function HomeContent() {
         <PushPromptModal />
       </main>
 
-      {!isFocusSessionOpen && (
+      {!isFocusSessionOpen && !activeFocusSession?.isRunning && (
         <button 
           onClick={() => setIsFocusSessionOpen(true)}
           className={`fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-[50] flex items-center gap-2 bg-white dark:bg-[#252525] border border-[var(--border)] text-[var(--foreground)] font-bold px-6 py-3.5 rounded-full shadow-2xl shadow-black/5 transition-all duration-300 active:scale-95 ${isNearFocusButton ? 'sm:opacity-100 sm:translate-y-0' : 'sm:opacity-20 sm:translate-y-2'}`}
         >
           <Target className="w-5 h-5 text-zinc-500" /> Start Focus {focusedTasks.length > 0 ? `(${focusedTasks.length})` : ""}
         </button>
+      )}
+
+      {/* FLOATING TIMER WIDGET (when overlay is minimized while focus session is running/active) */}
+      {!isFocusSessionOpen && activeFocusSession && activeFocusSession.isRunning && (
+        <FloatingFocusWidget
+          mode={activeFocusSession.mode}
+          timeLeft={activeFocusSession.timeLeft}
+          isRunning={activeFocusSession.isRunning}
+          activeTaskTitle={activeTaskObj?.title}
+          onToggleTimer={() => {
+            try {
+              const saved = localStorage.getItem("fotion-focus-session-state");
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                parsed.isRunning = !parsed.isRunning;
+                if (parsed.isRunning) {
+                  parsed.expectedEndTime = Date.now() + parsed.timeLeft * 1000;
+                } else {
+                  parsed.expectedEndTime = null;
+                }
+                localStorage.setItem("fotion-focus-session-state", JSON.stringify(parsed));
+              }
+            } catch (e) {}
+          }}
+          onExpand={() => setIsFocusSessionOpen(true)}
+          onCloseSession={() => {
+            try {
+              localStorage.removeItem("fotion-focus-session-state");
+            } catch (e) {}
+            setActiveFocusSession(null);
+          }}
+        />
       )}
 
       <FocusSessionOverlay 
@@ -649,6 +727,7 @@ function HomeContent() {
     </div>
   );
 }
+
 
 export default function Home() {
   return (

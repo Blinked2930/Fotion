@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
-  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText
+  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText, Wind, Eye, Zap, Sliders
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -29,13 +29,12 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-type FocusMode = "work" | "short-break" | "long-break";
+import { loadFocusSettings, saveFocusSettings, FocusSettings, DEFAULT_FOCUS_SETTINGS } from "@/lib/focusSettings";
+import { GuidedBreathingModal } from "./GuidedBreathingModal";
+import { VisualFocusModal } from "./VisualFocusModal";
+import { FocusSettingsModal } from "./FocusSettingsModal";
 
-const MODE_TIMES = {
-  "work": 25 * 60,
-  "short-break": 5 * 60,
-  "long-break": 15 * 60,
-};
+type FocusMode = "work" | "short-break" | "long-break";
 
 const getTodayDateString = () => {
   const d = new Date();
@@ -132,24 +131,62 @@ export function FocusSessionOverlay({
 }) {
   const updateTask = useMutation(api.tasks.updateTask);
   const createTask = useMutation(api.tasks.createTask);
+  const reorderTasksMutation = useMutation(api.tasks.reorderTasks);
+
   const router = useRouter();
   const guestSessionId = useGuestSession();
   
-  const [localQueue, setLocalQueue] = useState<any[]>(initialTasks);
+  // Loaded Settings
+  const [focusSettings, setFocusSettings] = useState<FocusSettings>(DEFAULT_FOCUS_SETTINGS);
+  
+  // Modals state for Huberman tools
+  const [isBreathingOpen, setIsBreathingOpen] = useState(false);
+  const [isVisualFocusOpen, setIsVisualFocusOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Sorted Queue state
+  const [localQueue, setLocalQueue] = useState<any[]>([]);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [mode, setMode] = useState<FocusMode>("work");
-  const [timeLeft, setTimeLeft] = useState(MODE_TIMES["work"]);
+  
+  // Timer State
+  const [timeLeft, setTimeLeft] = useState<number>(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [completedToday, setCompletedToday] = useState<number>(0);
+
+  // Microbreaks Engine State
+  const [isMicrobreakActive, setIsMicrobreakActive] = useState(false);
+  const [microbreakTimeLeft, setMicrobreakTimeLeft] = useState(10);
+  const nextMicrobreakTimeRef = useRef<number | null>(null);
 
   const expectedEndTimeRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const hasRestoredRef = useRef(false);
   const completedTodayRef = useRef<number>(0);
 
+  // Load custom settings on mount
   useEffect(() => {
-    setLocalQueue(initialTasks);
+    const loaded = loadFocusSettings();
+    setFocusSettings(loaded);
+  }, []);
+
+  // Mode durations dictionary calculated from settings
+  const getModeDuration = (targetMode: FocusMode, settings = focusSettings) => {
+    switch (targetMode) {
+      case "work":
+        return settings.workDurationMin * 60;
+      case "short-break":
+        return settings.shortBreakDurationMin * 60;
+      case "long-break":
+        return settings.longBreakDurationMin * 60;
+    }
+  };
+
+  // Keep localQueue sorted by `order` when initialTasks updates
+  useEffect(() => {
+    const sorted = [...initialTasks].sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
+    setLocalQueue(sorted);
   }, [initialTasks]);
 
   const updateCompletedToday = (newCount: number) => {
@@ -183,7 +220,7 @@ export function FocusSessionOverlay({
       const saved = localStorage.getItem("fotion-focus-session-state");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.mode && MODE_TIMES[parsed.mode as FocusMode]) {
+        if (parsed.mode && (parsed.mode === "work" || parsed.mode === "short-break" || parsed.mode === "long-break")) {
           setMode(parsed.mode as FocusMode);
         }
         if (parsed.activeTaskId) {
@@ -205,6 +242,8 @@ export function FocusSessionOverlay({
           setTimeLeft(parsed.timeLeft);
           setIsRunning(false);
         }
+      } else {
+        setTimeLeft(getModeDuration("work", loadFocusSettings()));
       }
     } catch (e) {
       console.error("Failed to restore focus timer state", e);
@@ -262,7 +301,6 @@ export function FocusSessionOverlay({
     osc.stop(ctx.currentTime + 0.01);
   };
 
-  // Helper to play a single soothing bell tone
   const playNote = (ctx: AudioContext, freq: number, startTimeOffset: number, duration: number, maxVolume: number) => {
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();
@@ -270,13 +308,13 @@ export function FocusSessionOverlay({
     osc.connect(gainNode);
     gainNode.connect(ctx.destination);
     
-    osc.type = "sine"; // Purest, softest acoustic wave
+    osc.type = "sine";
     osc.frequency.value = freq;
     
     const startTime = ctx.currentTime + startTimeOffset;
     gainNode.gain.setValueAtTime(0, startTime);
-    gainNode.gain.linearRampToValueAtTime(maxVolume, startTime + 0.05); // Soft tap attack
-    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration); // Long, echoing fade
+    gainNode.gain.linearRampToValueAtTime(maxVolume, startTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
     
     osc.start(startTime);
     osc.stop(startTime + duration);
@@ -287,13 +325,9 @@ export function FocusSessionOverlay({
       if (!audioCtxRef.current) initAudio();
       const ctx = audioCtxRef.current!;
       if (ctx.state === "suspended") ctx.resume();
-
-      // Soft ascending perfect fourth
-      playNote(ctx, 523.25, 0.0, 1.5, 0.2); // C5
-      playNote(ctx, 698.46, 0.15, 1.5, 0.2); // F5
-    } catch (error) {
-      console.log("Start audio playback failed.", error);
-    }
+      playNote(ctx, 523.25, 0.0, 1.5, 0.2);
+      playNote(ctx, 698.46, 0.15, 1.5, 0.2);
+    } catch (error) {}
   };
 
   const playFinishChime = () => {
@@ -301,21 +335,46 @@ export function FocusSessionOverlay({
       if (!audioCtxRef.current) initAudio();
       const ctx = audioCtxRef.current!;
       if (ctx.state === "suspended") ctx.resume();
-
-      // Soothing Major 7th Chord Arpeggio (Zen Bell vibe)
-      playNote(ctx, 523.25, 0.0, 3.0, 0.3);  // Root (C5)
-      playNote(ctx, 659.25, 0.15, 3.0, 0.3); // Major 3rd (E5)
-      playNote(ctx, 783.99, 0.3, 3.0, 0.3);  // Perfect 5th (G5)
-      playNote(ctx, 987.77, 0.45, 4.0, 0.4); // Major 7th (B5) - Lingers the longest
-    } catch (error) {
-      console.log("Finish audio playback failed.", error);
-    }
+      playNote(ctx, 523.25, 0.0, 3.0, 0.3);
+      playNote(ctx, 659.25, 0.15, 3.0, 0.3);
+      playNote(ctx, 783.99, 0.3, 3.0, 0.3);
+      playNote(ctx, 987.77, 0.45, 4.0, 0.4);
+    } catch (error) {}
   };
 
+  const playMicrobreakChime = () => {
+    try {
+      if (!audioCtxRef.current) initAudio();
+      const ctx = audioCtxRef.current!;
+      if (ctx.state === "suspended") ctx.resume();
+      playNote(ctx, 880.00, 0.0, 1.0, 0.25); // Soft A5 alert
+    } catch (error) {}
+  };
+
+  // Schedule Next Random Microbreak Trigger
+  const scheduleNextMicrobreak = (currentRemainingSeconds: number) => {
+    if (!focusSettings.microbreaksEnabled || mode !== "work") {
+      nextMicrobreakTimeRef.current = null;
+      return;
+    }
+    const maxSec = focusSettings.microbreakMaxIntervalMin * 60;
+    const minSec = 60; // minimum 1 minute
+    if (currentRemainingSeconds <= minSec + 15) return;
+
+    // Pick a random interval between 60s and maxSec
+    const randomOffset = Math.floor(Math.random() * (maxSec - minSec)) + minSec;
+    nextMicrobreakTimeRef.current = currentRemainingSeconds - randomOffset;
+  };
+
+  // Main Timer Interval Loop with Microbreak Triggering
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (isRunning) {
+      if (mode === "work" && focusSettings.microbreaksEnabled && nextMicrobreakTimeRef.current === null) {
+        scheduleNextMicrobreak(timeLeft);
+      }
+
       interval = setInterval(() => {
         if (expectedEndTimeRef.current) {
           const now = Date.now();
@@ -325,12 +384,13 @@ export function FocusSessionOverlay({
             setTimeLeft(0);
             setIsRunning(false);
             expectedEndTimeRef.current = null;
-            playFinishChime(); // Fire soothing meditation chime
+            setIsMicrobreakActive(false);
+            playFinishChime();
 
             if (mode === "work") {
               const newCount = completedTodayRef.current + 1;
               updateCompletedToday(newCount);
-              if (newCount % 4 === 0) {
+              if (newCount % focusSettings.longBreakInterval === 0) {
                 switchMode("long-break");
               } else {
                 switchMode("short-break");
@@ -340,13 +400,47 @@ export function FocusSessionOverlay({
             }
           } else {
             setTimeLeft(remainingSeconds);
+
+            // Check if Microbreak should trigger
+            if (
+              mode === "work" &&
+              focusSettings.microbreaksEnabled &&
+              !isMicrobreakActive &&
+              nextMicrobreakTimeRef.current !== null &&
+              remainingSeconds <= nextMicrobreakTimeRef.current
+            ) {
+              // Trigger Microbreak!
+              setIsMicrobreakActive(true);
+              setMicrobreakTimeLeft(focusSettings.microbreakDurationSec);
+              playMicrobreakChime();
+            }
           }
         }
       }, 500); 
     }
 
     return () => clearInterval(interval);
-  }, [isRunning, mode]);
+  }, [isRunning, mode, focusSettings, isMicrobreakActive]);
+
+  // Microbreak active countdown loop
+  useEffect(() => {
+    let interval: any;
+    if (isMicrobreakActive && microbreakTimeLeft > 0) {
+      interval = setInterval(() => {
+        setMicrobreakTimeLeft((prev) => {
+          if (prev <= 1) {
+            setIsMicrobreakActive(false);
+            playMicrobreakChime();
+            // Schedule next microbreak
+            scheduleNextMicrobreak(timeLeft);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isMicrobreakActive, microbreakTimeLeft, timeLeft]);
 
   const toggleTimer = () => {
     initAudio(); 
@@ -354,23 +448,29 @@ export function FocusSessionOverlay({
       playStartChime(); 
       expectedEndTimeRef.current = Date.now() + timeLeft * 1000;
       setIsRunning(true);
+      if (mode === "work" && focusSettings.microbreaksEnabled) {
+        scheduleNextMicrobreak(timeLeft);
+      }
     } else {
       setIsRunning(false);
       expectedEndTimeRef.current = null; 
+      setIsMicrobreakActive(false);
     }
   };
 
   const resetTimer = () => {
     setIsRunning(false);
     expectedEndTimeRef.current = null;
-    setTimeLeft(MODE_TIMES[mode]);
+    setIsMicrobreakActive(false);
+    setTimeLeft(getModeDuration(mode));
   };
 
   const switchMode = (newMode: FocusMode) => {
     setMode(newMode);
     setIsRunning(false);
     expectedEndTimeRef.current = null;
-    setTimeLeft(MODE_TIMES[newMode]);
+    setIsMicrobreakActive(false);
+    setTimeLeft(getModeDuration(newMode));
   };
 
   const handleMarkDone = (task: any) => {
@@ -378,13 +478,25 @@ export function FocusSessionOverlay({
     if (activeTaskId === task._id) setActiveTaskId(null);
   };
 
+  // Re-ordering logic that saves index order into database
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setLocalQueue((items) => {
         const oldIndex = items.findIndex((i) => i._id === active.id);
         const newIndex = items.findIndex((i) => i._id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
+        const newQueue = arrayMove(items, oldIndex, newIndex);
+
+        // PERSIST ORDER TO CONVEX BACKEND!
+        try {
+          reorderTasksMutation({
+            tasks: newQueue.map((t, idx) => ({ id: t._id, order: idx })),
+          });
+        } catch (e) {
+          console.error("Failed to save reordered tasks", e);
+        }
+
+        return newQueue;
       });
     }
   };
@@ -400,10 +512,20 @@ export function FocusSessionOverlay({
         isForFunsies: false,
         isFocused: true,
         sessionId: guestSessionId ?? undefined,
+        order: localQueue.length,
       });
       setNewTaskTitle("");
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleSaveSettings = (newSettings: FocusSettings) => {
+    setFocusSettings(newSettings);
+    saveFocusSettings(newSettings);
+    // If timer is not running, update current mode duration
+    if (!isRunning) {
+      setTimeLeft(getModeDuration(mode, newSettings));
     }
   };
 
@@ -418,159 +540,266 @@ export function FocusSessionOverlay({
   const activeTask = localQueue.find(t => t._id === activeTaskId);
 
   return (
-    <div className="fixed inset-0 z-[200] bg-[var(--background)]/95 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col">
-      <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border)] md:border-none">
-        <div className="flex items-center gap-2 text-[var(--foreground)] font-bold tracking-widest uppercase text-xs sm:text-sm">
-          <Target className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-500" /> Focus Session
-        </div>
-        <button onClick={onClose} className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full text-zinc-500 transition-colors">
-          <X className="w-4 h-4 sm:w-5 sm:h-5" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row max-w-6xl w-full mx-auto">
+    <>
+      <div className="fixed inset-0 z-[200] bg-[var(--background)]/95 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col">
         
-        {/* Timer Section */}
-        <div className="flex flex-col justify-center items-center w-full md:flex-1 shrink-0 min-h-[60vh] md:min-h-0 md:h-full p-6 sm:p-8">
-          
-          {/* Minimal Monochrome Daily Progress Indicator */}
-          <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 px-4 py-1.5 rounded-full bg-zinc-100/80 dark:bg-zinc-900/80 border border-[var(--border)] text-xs font-medium text-zinc-500 dark:text-zinc-400 backdrop-blur-sm">
-            <div className="flex items-center gap-1.5" title="4-session cycle to long break">
-              {[1, 2, 3, 4].map((step) => {
-                const isLongBreakJustCompleted = mode === "long-break" && completedToday > 0 && completedToday % 4 === 0;
-                const completedInCycle = isLongBreakJustCompleted ? 4 : (completedToday % 4);
-                const isCompleted = step <= completedInCycle;
-                const isActive = !isCompleted && mode === "work" && (step === completedInCycle + 1);
-
-                return (
-                  <span
-                    key={step}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      isCompleted
-                        ? "w-5 bg-[var(--foreground)]"
-                        : isActive
-                        ? "w-5 bg-zinc-400 dark:bg-zinc-500 animate-pulse"
-                        : "w-2 bg-zinc-300 dark:bg-zinc-700"
-                    }`}
-                  />
-                );
-              })}
-            </div>
-
-            <span className="w-px h-3 bg-zinc-300 dark:bg-zinc-700" />
-
-            <span className="tracking-wide">
-              <strong className="text-[var(--foreground)] font-bold">{completedToday}</strong> {completedToday === 1 ? "session" : "sessions"} today
-            </span>
+        {/* Top Bar with Focus Protocols Toolbar */}
+        <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border)] md:border-none">
+          <div className="flex items-center gap-2 text-[var(--foreground)] font-bold tracking-widest uppercase text-xs sm:text-sm">
+            <Target className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-500" /> Focus Session
           </div>
 
-          {/* Mode Selector */}
-          <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 rounded-full p-1 mb-6 sm:mb-8 shadow-inner border border-[var(--border)] max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden">
-            <button onClick={() => switchMode("work")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "work" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'}`}>
-              <Target className="w-3 h-3 sm:w-4 sm:h-4" /> Deep Work
+          {/* Andrew Huberman Focus Protocols Toolbar */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Wim Hof Guided Breathing */}
+            <button
+              onClick={() => setIsBreathingOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all active:scale-95"
+              title="Launch Wim Hof Guided Breathing"
+            >
+              <Wind className="w-3.5 h-3.5 text-cyan-500" />
+              <span className="hidden sm:inline">Breathing</span>
             </button>
-            <button onClick={() => switchMode("short-break")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "short-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'}`}>
-              <Coffee className="w-3 h-3 sm:w-4 sm:h-4" /> Short Break
+
+            {/* Visual Focus Fixation Exercise */}
+            <button
+              onClick={() => setIsVisualFocusOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all active:scale-95"
+              title="Launch Visual Focus Fixation Exercise"
+            >
+              <Eye className="w-3.5 h-3.5 text-indigo-500" />
+              <span className="hidden sm:inline">Visual Focus</span>
             </button>
-            <button onClick={() => switchMode("long-break")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "long-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'}`}>
-              <Moon className="w-3 h-3 sm:w-4 sm:h-4" /> Long Break
+
+            {/* Microbreaks Quick Toggle */}
+            <button
+              onClick={() => {
+                const updated = { ...focusSettings, microbreaksEnabled: !focusSettings.microbreaksEnabled };
+                handleSaveSettings(updated);
+              }}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all active:scale-95 ${
+                focusSettings.microbreaksEnabled
+                  ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800"
+                  : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border-[var(--border)]"
+              }`}
+              title="Toggle Microbreaks Protocol"
+            >
+              <Zap className={`w-3.5 h-3.5 ${focusSettings.microbreaksEnabled ? "text-amber-500" : "text-zinc-400"}`} />
+              <span className="hidden sm:inline">Microbreaks</span>
+              <span className="text-[10px] uppercase">{focusSettings.microbreaksEnabled ? "ON" : "OFF"}</span>
+            </button>
+
+            {/* Custom Timers Settings */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full text-zinc-500 hover:text-[var(--foreground)] transition-colors ml-1"
+              title="Custom Timers & Preferences"
+            >
+              <Sliders className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+
+            {/* Close Overlay (Minimizes into floating widget when timer is going!) */}
+            <button 
+              onClick={onClose} 
+              className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full text-zinc-500 hover:text-[var(--foreground)] transition-colors"
+              title="Minimize overlay"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
-
-          <div className="text-[5rem] sm:text-[7rem] md:text-[9rem] font-black tracking-tighter tabular-nums leading-none text-[var(--foreground)] mb-6 sm:mb-8">
-            {formatTime(timeLeft)}
-          </div>
-
-          <div className="flex items-center gap-3 sm:gap-4 mb-8 sm:mb-16">
-            <button onClick={toggleTimer} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-transform active:scale-95 shadow-xl ${isRunning ? 'bg-zinc-200 dark:bg-zinc-800 text-[var(--foreground)]' : 'bg-[var(--foreground)] text-[var(--background)]'}`}>
-              {isRunning ? <Pause className="w-6 h-6 sm:w-8 sm:h-8 fill-current" /> : <Play className="w-6 h-6 sm:w-8 sm:h-8 fill-current ml-1" />}
-            </button>
-            <button onClick={resetTimer} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-[var(--foreground)]">
-              <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-          </div>
-
-          {activeTask ? (
-            <div className="flex flex-col items-center text-center px-4 animate-in slide-in-from-bottom-4 fade-in">
-              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2 sm:mb-3">Currently Focused On</span>
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--foreground)] mb-4 sm:mb-6 max-w-xl leading-tight">
-                {activeTask.title}
-              </h2>
-              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
-                <button onClick={() => handleMarkDone(activeTask)} className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 rounded-full font-bold shadow-lg active:scale-95 text-sm sm:text-base">
-                  <Check className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" /> Mark as Complete
-                </button>
-                <button 
-                  onClick={() => openTaskDetails(activeTask._id)} 
-                  className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 bg-zinc-100 dark:bg-zinc-800 text-[var(--foreground)] hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full font-bold shadow-sm active:scale-95 text-sm sm:text-base border border-[var(--border)] transition-colors"
-                >
-                  <FileText className="w-4 h-4 sm:w-5 sm:h-5" /> Details
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-zinc-500 font-medium flex flex-col items-center gap-2 text-sm sm:text-base">
-              <CheckSquare className="w-6 h-6 sm:w-8 sm:h-8 opacity-20" />
-              <span>Select a task to begin.</span>
-            </div>
-          )}
         </div>
 
-        {/* Queue Section */}
-        <div className="w-full md:w-[350px] lg:w-[400px] shrink-0 flex flex-col border-t md:border-t-0 md:border-l border-[var(--border)] bg-zinc-50/50 md:bg-transparent">
-          <div className="p-4 sm:p-6 md:p-0 md:pl-8 lg:pl-12 md:pt-8 flex-1 flex flex-col md:h-full">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h3 className="font-bold text-base sm:text-lg text-[var(--foreground)]">Session Queue</h3>
-              <span className="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-[var(--border)] text-[var(--foreground)] rounded-md text-xs font-bold shadow-sm">
-                {localQueue.length} left
+        {/* Microbreak Active Banner Alert */}
+        {isMicrobreakActive && (
+          <div className="w-full bg-amber-500 text-amber-950 px-4 py-3 text-center flex items-center justify-center gap-3 font-extrabold text-sm sm:text-base shadow-lg animate-in slide-in-from-top duration-300 z-30">
+            <Zap className="w-5 h-5 fill-current animate-bounce" />
+            <span>MICROBREAK ({microbreakTimeLeft}s) — Rest your eyes and do nothing. Memory replay active!</span>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row max-w-6xl w-full mx-auto">
+          
+          {/* Timer Section */}
+          <div className="flex flex-col justify-center items-center w-full md:flex-1 shrink-0 min-h-[60vh] md:min-h-0 md:h-full p-6 sm:p-8">
+            
+            {/* Minimal Daily Progress Indicator */}
+            <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 px-4 py-1.5 rounded-full bg-zinc-100/80 dark:bg-zinc-900/80 border border-[var(--border)] text-xs font-medium text-zinc-500 dark:text-zinc-400 backdrop-blur-sm">
+              <div className="flex items-center gap-1.5" title={`${focusSettings.longBreakInterval}-session cycle to long break`}>
+                {Array.from({ length: focusSettings.longBreakInterval }).map((_, i) => {
+                  const step = i + 1;
+                  const interval = focusSettings.longBreakInterval;
+                  const isLongBreakJustCompleted = mode === "long-break" && completedToday > 0 && completedToday % interval === 0;
+                  const completedInCycle = isLongBreakJustCompleted ? interval : (completedToday % interval);
+                  const isCompleted = step <= completedInCycle;
+                  const isActive = !isCompleted && mode === "work" && (step === completedInCycle + 1);
+
+                  return (
+                    <span
+                      key={step}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        isCompleted
+                          ? "w-5 bg-[var(--foreground)]"
+                          : isActive
+                          ? "w-5 bg-zinc-400 dark:bg-zinc-500 animate-pulse"
+                          : "w-2 bg-zinc-300 dark:bg-zinc-700"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+
+              <span className="w-px h-3 bg-zinc-300 dark:bg-zinc-700" />
+
+              <span className="tracking-wide">
+                <strong className="text-[var(--foreground)] font-bold">{completedToday}</strong> {completedToday === 1 ? "session" : "sessions"} today
               </span>
             </div>
 
-            <div className="flex-1 md:overflow-y-auto space-y-2 sm:space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-12 md:pb-24 md:pr-4">
-              {localQueue.length === 0 ? (
-                <div className="text-zinc-500 text-sm text-center py-8 sm:py-10 bg-white dark:bg-[#1a1a1a] rounded-xl border border-dashed border-[var(--border)]">
-                  Queue empty.
-                </div>
-              ) : (
-                <DndContext 
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext 
-                    items={localQueue.map(t => t._id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {localQueue.map(task => (
-                      <SortableTaskItem 
-                        key={task._id}
-                        task={task}
-                        isActive={activeTaskId === task._id}
-                        onSelect={() => setActiveTaskId(task._id)}
-                        onDone={handleMarkDone}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-              )}
+            {/* Mode Selector */}
+            <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 rounded-full p-1 mb-6 sm:mb-8 shadow-inner border border-[var(--border)] max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              <button 
+                onClick={() => switchMode("work")} 
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${
+                  mode === "work" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
+                }`}
+              >
+                <Target className="w-3 h-3 sm:w-4 sm:h-4" /> Deep Work ({focusSettings.workDurationMin}m)
+              </button>
+              <button 
+                onClick={() => switchMode("short-break")} 
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${
+                  mode === "short-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
+                }`}
+              >
+                <Coffee className="w-3 h-3 sm:w-4 sm:h-4" /> Short Break ({focusSettings.shortBreakDurationMin}m)
+              </button>
+              <button 
+                onClick={() => switchMode("long-break")} 
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${
+                  mode === "long-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
+                }`}
+              >
+                <Moon className="w-3 h-3 sm:w-4 sm:h-4" /> Long Break ({focusSettings.longBreakDurationMin}m)
+              </button>
             </div>
 
-            <div className="mt-4 pt-4 pb-6 sm:pb-8 md:pb-8 border-t border-[var(--border)] shrink-0">
-              <form onSubmit={handleQuickAdd} className="flex items-center gap-2 bg-white dark:bg-[#1a1a1a] p-2 rounded-xl border border-[var(--border)] focus-within:ring-2 focus-within:ring-zinc-200 dark:focus-within:ring-zinc-800 transition-shadow">
-                <Plus className="w-5 h-5 text-zinc-400 shrink-0 ml-1" />
-                <input 
-                  type="text" 
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Quick add to session..."
-                  className="w-full bg-transparent outline-none text-sm font-medium text-[var(--foreground)] placeholder:text-zinc-500"
-                />
-              </form>
+            <div className="text-[5rem] sm:text-[7rem] md:text-[9rem] font-black tracking-tighter tabular-nums leading-none text-[var(--foreground)] mb-6 sm:mb-8">
+              {formatTime(timeLeft)}
+            </div>
+
+            <div className="flex items-center gap-3 sm:gap-4 mb-8 sm:mb-16">
+              <button onClick={toggleTimer} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-transform active:scale-95 shadow-xl ${isRunning ? 'bg-zinc-200 dark:bg-zinc-800 text-[var(--foreground)]' : 'bg-[var(--foreground)] text-[var(--background)]'}`}>
+                {isRunning ? <Pause className="w-6 h-6 sm:w-8 sm:h-8 fill-current" /> : <Play className="w-6 h-6 sm:w-8 sm:h-8 fill-current ml-1" />}
+              </button>
+              <button onClick={resetTimer} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-[var(--foreground)]">
+                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
+
+            {activeTask ? (
+              <div className="flex flex-col items-center text-center px-4 animate-in slide-in-from-bottom-4 fade-in">
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2 sm:mb-3">Currently Focused On</span>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--foreground)] mb-4 sm:mb-6 max-w-xl leading-tight">
+                  {activeTask.title}
+                </h2>
+                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
+                  <button onClick={() => handleMarkDone(activeTask)} className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 rounded-full font-bold shadow-lg active:scale-95 text-sm sm:text-base">
+                    <Check className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" /> Mark as Complete
+                  </button>
+                  <button 
+                    onClick={() => openTaskDetails(activeTask._id)} 
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 bg-zinc-100 dark:bg-zinc-800 text-[var(--foreground)] hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full font-bold shadow-sm active:scale-95 text-sm sm:text-base border border-[var(--border)] transition-colors"
+                  >
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5" /> Details
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-zinc-500 font-medium flex flex-col items-center gap-2 text-sm sm:text-base">
+                <CheckSquare className="w-6 h-6 sm:w-8 sm:h-8 opacity-20" />
+                <span>Select a task to begin.</span>
+              </div>
+            )}
+          </div>
+
+          {/* Queue Section with Persisted Drag & Drop Sorting */}
+          <div className="w-full md:w-[350px] lg:w-[400px] shrink-0 flex flex-col border-t md:border-t-0 md:border-l border-[var(--border)] bg-zinc-50/50 md:bg-transparent">
+            <div className="p-4 sm:p-6 md:p-0 md:pl-8 lg:pl-12 md:pt-8 flex-1 flex flex-col md:h-full">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="font-bold text-base sm:text-lg text-[var(--foreground)]">Session Queue</h3>
+                <span className="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-[var(--border)] text-[var(--foreground)] rounded-md text-xs font-bold shadow-sm">
+                  {localQueue.length} left
+                </span>
+              </div>
+
+              <div className="flex-1 md:overflow-y-auto space-y-2 sm:space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-12 md:pb-24 md:pr-4">
+                {localQueue.length === 0 ? (
+                  <div className="text-zinc-500 text-sm text-center py-8 sm:py-10 bg-white dark:bg-[#1a1a1a] rounded-xl border border-dashed border-[var(--border)]">
+                    Queue empty.
+                  </div>
+                ) : (
+                  <DndContext 
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext 
+                      items={localQueue.map(t => t._id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {localQueue.map(task => (
+                        <SortableTaskItem 
+                          key={task._id}
+                          task={task}
+                          isActive={activeTaskId === task._id}
+                          onSelect={() => setActiveTaskId(task._id)}
+                          onDone={handleMarkDone}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                )}
+              </div>
+
+              <div className="mt-4 pt-4 pb-6 sm:pb-8 md:pb-8 border-t border-[var(--border)] shrink-0">
+                <form onSubmit={handleQuickAdd} className="flex items-center gap-2 bg-white dark:bg-[#1a1a1a] p-2 rounded-xl border border-[var(--border)] focus-within:ring-2 focus-within:ring-zinc-200 dark:focus-within:ring-zinc-800 transition-shadow">
+                  <Plus className="w-5 h-5 text-zinc-400 shrink-0 ml-1" />
+                  <input 
+                    type="text" 
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    placeholder="Quick add to session..."
+                    className="w-full bg-transparent outline-none text-sm font-medium text-[var(--foreground)] placeholder:text-zinc-500"
+                  />
+                </form>
+              </div>
             </div>
           </div>
-        </div>
 
+        </div>
       </div>
-    </div>
+
+      {/* Huberman Focus Protocols Modals */}
+      <GuidedBreathingModal
+        isOpen={isBreathingOpen}
+        onClose={() => setIsBreathingOpen(false)}
+        settings={focusSettings}
+        onUpdateSettings={handleSaveSettings}
+      />
+
+      <VisualFocusModal
+        isOpen={isVisualFocusOpen}
+        onClose={() => setIsVisualFocusOpen(false)}
+        settings={focusSettings}
+        onUpdateSettings={handleSaveSettings}
+      />
+
+      <FocusSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={focusSettings}
+        onSave={handleSaveSettings}
+      />
+    </>
   );
 }
