@@ -157,7 +157,7 @@ export function FocusSessionOverlay({
 
   // Microbreaks Engine State
   const [isMicrobreakActive, setIsMicrobreakActive] = useState(false);
-  const [microbreakTimeLeft, setMicrobreakTimeLeft] = useState(10);
+  const [microbreakTimeLeft, setMicrobreakTimeLeft] = useState(focusSettings.microbreakDurationSec || 5);
   const nextMicrobreakTimeRef = useRef<number | null>(null);
 
   const expectedEndTimeRef = useRef<number | null>(null);
@@ -169,6 +169,7 @@ export function FocusSessionOverlay({
   useEffect(() => {
     const loaded = loadFocusSettings();
     setFocusSettings(loaded);
+    setMicrobreakTimeLeft(loaded.microbreakDurationSec || 5);
   }, []);
 
   // Mode durations dictionary calculated from settings
@@ -226,6 +227,16 @@ export function FocusSessionOverlay({
         if (parsed.activeTaskId) {
           setActiveTaskId(parsed.activeTaskId);
         }
+        if (typeof parsed.nextMicrobreakTime === "number") {
+          nextMicrobreakTimeRef.current = parsed.nextMicrobreakTime;
+        }
+        if (typeof parsed.isMicrobreakActive === "boolean") {
+          setIsMicrobreakActive(parsed.isMicrobreakActive);
+        }
+        if (typeof parsed.microbreakTimeLeft === "number") {
+          setMicrobreakTimeLeft(parsed.microbreakTimeLeft);
+        }
+
         if (parsed.isRunning && parsed.expectedEndTime) {
           const now = Date.now();
           const remaining = Math.round((parsed.expectedEndTime - now) / 1000);
@@ -250,7 +261,7 @@ export function FocusSessionOverlay({
     }
   }, []);
 
-  // Save current focus timer state on changes
+  // Save current focus timer state and microbreak schedule on changes
   useEffect(() => {
     if (typeof window === "undefined" || !hasRestoredRef.current) return;
     try {
@@ -260,6 +271,9 @@ export function FocusSessionOverlay({
         timeLeft,
         isRunning,
         expectedEndTime: expectedEndTimeRef.current,
+        nextMicrobreakTime: nextMicrobreakTimeRef.current,
+        isMicrobreakActive,
+        microbreakTimeLeft,
         activeTaskId,
         updatedAt: Date.now(),
       };
@@ -267,7 +281,7 @@ export function FocusSessionOverlay({
     } catch (e) {
       console.error("Failed to save focus timer state", e);
     }
-  }, [isOpen, mode, timeLeft, isRunning, activeTaskId]);
+  }, [isOpen, mode, timeLeft, isRunning, isMicrobreakActive, microbreakTimeLeft, activeTaskId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -477,24 +491,24 @@ export function FocusSessionOverlay({
 
   // Microbreak active countdown loop with start/pulse/end auditory cues
   useEffect(() => {
-    let interval: any;
-    if (isMicrobreakActive && microbreakTimeLeft > 0) {
-      interval = setInterval(() => {
-        setMicrobreakTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsMicrobreakActive(false);
-            playMicrobreakSound("end");
-            // Schedule next microbreak
-            scheduleNextMicrobreak(timeLeft);
-            return 0;
-          }
-          playMicrobreakSound("pulse");
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    if (!isMicrobreakActive) return;
+
+    const interval = setInterval(() => {
+      setMicrobreakTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsMicrobreakActive(false);
+          playMicrobreakSound("end");
+          scheduleNextMicrobreak(timeLeft);
+          return 0;
+        }
+        playMicrobreakSound("pulse");
+        return prev - 1;
+      });
+    }, 1000);
+
     return () => clearInterval(interval);
-  }, [isMicrobreakActive, microbreakTimeLeft, timeLeft, focusSettings.microbreakSound]);
+  }, [isMicrobreakActive]);
 
   const toggleTimer = () => {
     initAudio(); 

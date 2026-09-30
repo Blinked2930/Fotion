@@ -209,11 +209,43 @@ export function GuidedBreathingModal({
     setShowSettings(false);
   };
 
+  // Save breath hold record to localStorage
+  const saveRetentionLog = (holdSecs: number) => {
+    if (holdSecs <= 0) return;
+    try {
+      const raw = localStorage.getItem("fotion-breathing-retention-history");
+      const list = raw ? JSON.parse(raw) : [];
+      const newEntry = {
+        timestamp: Date.now(),
+        seconds: holdSecs,
+      };
+      const updated = [newEntry, ...list].slice(0, 50);
+      localStorage.setItem("fotion-breathing-retention-history", JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save retention log", e);
+    }
+  };
+
+  // Helper to fetch personal best hold time from localStorage
+  const getBestHoldSeconds = (): number => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const raw = localStorage.getItem("fotion-breathing-retention-history");
+      if (!raw) return 0;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list) || list.length === 0) return 0;
+      return Math.max(...list.map((item: any) => item.seconds || 0));
+    } catch (e) {
+      return 0;
+    }
+  };
+
   // Determine circle scale and animation duration based on phase
   let circleScale = "scale-75 opacity-40";
   let transitionDuration = `${(inhaleMs / 1000).toFixed(2)}s`;
-  let statusText = "Wim Hof Breathing";
-  let subText = `${breathCount} Breaths`;
+  let statusText = "Guided Breathing";
+  let bestHoldSec = getBestHoldSeconds();
+  let subText = bestHoldSec > 0 ? `Best Hold: ${Math.floor(bestHoldSec / 60)}m ${bestHoldSec % 60}s` : `${breathCount} Breaths`;
 
   if (phase === "inhale") {
     circleScale = "scale-125 opacity-100 shadow-2xl";
@@ -229,7 +261,7 @@ export function GuidedBreathingModal({
     circleScale = "scale-90 opacity-60 animate-pulse";
     transitionDuration = "2s";
     statusText = "Exhale Hold";
-    subText = retentionSeconds >= 60 ? `${Math.floor(retentionSeconds / 60)}m ${retentionSeconds % 60}s` : `${retentionSeconds}s`;
+    subText = "Hold empty lungs • Relax mind & body";
   } else if (phase === "recovery") {
     circleScale = "scale-110 opacity-90";
     transitionDuration = "1s";
@@ -460,6 +492,7 @@ export function GuidedBreathingModal({
             {phase === "retention" && (
               <button
                 onClick={() => {
+                  saveRetentionLog(retentionSeconds);
                   setPhase("recovery");
                   setRecoverySeconds(15);
                 }}
