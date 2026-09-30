@@ -186,7 +186,7 @@ export function FocusSettingsModal({
                 {/* Microbreak Length */}
                 <div>
                   <div className="flex justify-between items-center text-xs font-semibold mb-1">
-                    <span className="text-[var(--foreground)]">Microbreak Duration (5s to 30s)</span>
+                    <span className="text-[var(--foreground)]">Microbreak Duration</span>
                     <span className="text-amber-600 dark:text-amber-400 font-bold">{microbreakSec} seconds</span>
                   </div>
                   <input
@@ -203,7 +203,7 @@ export function FocusSettingsModal({
                 {/* Max Time Between Breaks */}
                 <div>
                   <div className="flex justify-between items-center text-xs font-semibold mb-1">
-                    <span className="text-[var(--foreground)]">Max Interval Between Breaks (2m to 15m)</span>
+                    <span className="text-[var(--foreground)]">Max Interval Between Breaks</span>
                     <span className="text-amber-600 dark:text-amber-400 font-bold">{microbreakIntervalMin} minutes</span>
                   </div>
                   <input
@@ -215,9 +215,47 @@ export function FocusSettingsModal({
                     onChange={(e) => setMicrobreakIntervalMin(Number(e.target.value))}
                     className="w-full accent-amber-500 cursor-pointer"
                   />
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
-                    Microbreaks trigger at randomized times between 1 minute and the maximum interval to maximize neural replay.
-                  </p>
+                </div>
+
+                {/* Microbreak Sound Selection */}
+                <div>
+                  <label className="text-xs font-semibold text-[var(--foreground)] block mb-1.5">
+                    Microbreak Audio Cue Sound
+                  </label>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[
+                      { id: "chime", label: "Chime" },
+                      { id: "bell", label: "Bowl" },
+                      { id: "beep", label: "Beep" },
+                      { id: "wood", label: "Wood" },
+                      { id: "nature", label: "Water" },
+                    ].map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() =>
+                          onSave({
+                            ...settings,
+                            workDurationMin: workMin,
+                            shortBreakDurationMin: shortBreakMin,
+                            longBreakDurationMin: longBreakMin,
+                            longBreakInterval: longBreakInterval,
+                            microbreaksEnabled: microbreaksEnabled,
+                            microbreakDurationSec: microbreakSec,
+                            microbreakMaxIntervalMin: microbreakIntervalMin,
+                            microbreakSound: s.id as any,
+                          })
+                        }
+                        className={`py-1.5 text-center text-xs font-bold rounded-xl border transition-all ${
+                          (settings.microbreakSound || "chime") === s.id
+                            ? "bg-amber-500 text-amber-950 border-amber-400 font-extrabold shadow-sm"
+                            : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-[var(--border)] hover:border-amber-300"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

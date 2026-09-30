@@ -29,7 +29,7 @@ export function VisualFocusModal({
 
   // Position state for movement animation
   const [pos, setPos] = useState({ x: 50, y: 50 });
-  const velRef = useRef({ vx: 0.4, vy: 0.3 });
+  const velRef = useRef({ vx: 0.35, vy: 0.28 });
   const floatTimeRef = useRef(0);
   const animFrameRef = useRef<number | null>(null);
 
@@ -95,25 +95,25 @@ export function VisualFocusModal({
     const updatePosition = () => {
       if (movementMode === "bouncing") {
         setPos((prev) => {
-          let newX = prev.x + velRef.current.vx * 0.45;
-          let newY = prev.y + velRef.current.vy * 0.45;
+          let newX = prev.x + velRef.current.vx;
+          let newY = prev.y + velRef.current.vy;
 
-          if (newX <= 15 || newX >= 85) {
+          if (newX <= 18 || newX >= 82) {
             velRef.current.vx *= -1;
-            newX = Math.max(15, Math.min(85, newX));
+            newX = Math.max(18, Math.min(82, newX));
           }
-          if (newY <= 20 || newY >= 80) {
+          if (newY <= 22 || newY >= 78) {
             velRef.current.vy *= -1;
-            newY = Math.max(20, Math.min(80, newY));
+            newY = Math.max(22, Math.min(78, newY));
           }
 
           return { x: newX, y: newY };
         });
       } else if (movementMode === "subtle") {
-        floatTimeRef.current += 0.012;
+        floatTimeRef.current += 0.015;
         const t = floatTimeRef.current;
-        const newX = 50 + Math.sin(t) * 22 + Math.cos(t * 0.6) * 7;
-        const newY = 50 + Math.cos(t * 0.8) * 16 + Math.sin(t * 1.3) * 6;
+        const newX = 50 + Math.sin(t * 0.9) * 20 + Math.cos(t * 1.8) * 6;
+        const newY = 50 + Math.cos(t * 0.7) * 15 + Math.sin(t * 1.4) * 5;
         setPos({ x: newX, y: newY });
       }
 
@@ -169,7 +169,6 @@ export function VisualFocusModal({
 
   const TICK_LABELS = [
     { value: 10, label: "10s" },
-    { value: 15, label: "15s" },
     { value: 30, label: "30s" },
     { value: 60, label: "60s" },
     { value: 90, label: "90s" },
@@ -277,29 +276,11 @@ export function VisualFocusModal({
               </div>
             </div>
 
-            {/* Duration Slider with Perfectly Aligned Ticks */}
+            {/* Duration Slider with Clean Ticks */}
             <div>
               <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
                 <span>Fixation Duration</span>
                 <span className="text-indigo-400 font-extrabold text-sm">{durationSec} seconds</span>
-              </div>
-
-              {/* Preset Buttons */}
-              <div className="flex gap-1.5 mb-3">
-                {[10, 15, 30, 60, 120].map((sec) => (
-                  <button
-                    key={sec}
-                    type="button"
-                    onClick={() => setDurationSec(sec)}
-                    className={`flex-1 py-1 rounded-lg text-xs font-bold border transition-all ${
-                      durationSec === sec
-                        ? "bg-indigo-600 text-white border-indigo-400 shadow-sm"
-                        : "bg-zinc-800/60 border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                    }`}
-                  >
-                    {sec}s
-                  </button>
-                ))}
               </div>
 
               <input
@@ -313,7 +294,7 @@ export function VisualFocusModal({
               />
 
               {/* Mathematical Tick Marks positioned at exact percentages */}
-              <div className="relative w-full h-6 mt-1 text-[10px] font-bold text-zinc-500">
+              <div className="relative w-full h-6 mt-1 text-[11px] font-bold text-zinc-500">
                 {TICK_LABELS.map((tick) => {
                   const pct = ((tick.value - 10) / (120 - 10)) * 100;
                   const isSelected = durationSec === tick.value;
@@ -343,9 +324,9 @@ export function VisualFocusModal({
           </div>
         ) : (
           <>
-            {/* The Moving / Stationary Target Icon */}
+            {/* The Moving / Stationary Target Icon (No CSS transition latency drag!) */}
             <div
-              className="absolute transition-all ease-linear duration-75 flex items-center justify-center p-4 rounded-full bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl"
+              className="absolute flex items-center justify-center p-4 rounded-full bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl"
               style={{
                 left: `${pos.x}%`,
                 top: `${pos.y}%`,
@@ -406,4 +387,5 @@ export function VisualFocusModal({
     </div>
   );
 }
+
 

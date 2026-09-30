@@ -342,13 +342,66 @@ export function FocusSessionOverlay({
     } catch (error) {}
   };
 
-  const playMicrobreakChime = () => {
+  const playMicrobreakSound = (type: "start" | "pulse" | "end") => {
     try {
       if (!audioCtxRef.current) initAudio();
       const ctx = audioCtxRef.current!;
       if (ctx.state === "suspended") ctx.resume();
-      playNote(ctx, 880.00, 0.0, 1.0, 0.25); // Soft A5 alert
-    } catch (error) {}
+
+      const soundType = focusSettings.microbreakSound || "chime";
+
+      if (soundType === "chime") {
+        if (type === "start") {
+          playNote(ctx, 659.25, 0.0, 1.2, 0.2); // E5
+          playNote(ctx, 880.00, 0.1, 1.5, 0.25); // A5
+        } else if (type === "pulse") {
+          playNote(ctx, 432.00, 0.0, 0.4, 0.06); // Subtle 432Hz ambient pulse
+        } else if (type === "end") {
+          playNote(ctx, 523.25, 0.0, 1.5, 0.2); // C5
+          playNote(ctx, 659.25, 0.12, 1.5, 0.2); // E5
+          playNote(ctx, 783.99, 0.24, 2.5, 0.25); // G5
+        }
+      } else if (soundType === "bell") {
+        if (type === "start") {
+          playNote(ctx, 216.00, 0.0, 2.5, 0.3); // Deep bowl sound
+          playNote(ctx, 432.00, 0.05, 2.5, 0.15);
+        } else if (type === "pulse") {
+          playNote(ctx, 216.00, 0.0, 0.5, 0.04);
+        } else if (type === "end") {
+          playNote(ctx, 324.00, 0.0, 3.0, 0.3);
+        }
+      } else if (soundType === "beep") {
+        if (type === "start") {
+          playNote(ctx, 1046.5, 0.0, 0.15, 0.15);
+          playNote(ctx, 1318.5, 0.15, 0.25, 0.15);
+        } else if (type === "pulse") {
+          playNote(ctx, 880.0, 0.0, 0.08, 0.04);
+        } else if (type === "end") {
+          playNote(ctx, 1318.5, 0.0, 0.15, 0.15);
+          playNote(ctx, 1567.98, 0.15, 0.3, 0.2);
+        }
+      } else if (soundType === "wood") {
+        if (type === "start") {
+          playNote(ctx, 300.0, 0.0, 0.1, 0.3);
+          playNote(ctx, 450.0, 0.1, 0.15, 0.3);
+        } else if (type === "pulse") {
+          playNote(ctx, 350.0, 0.0, 0.06, 0.05);
+        } else if (type === "end") {
+          playNote(ctx, 450.0, 0.0, 0.1, 0.3);
+          playNote(ctx, 600.0, 0.1, 0.25, 0.35);
+        }
+      } else if (soundType === "nature") {
+        if (type === "start") {
+          playNote(ctx, 800.0, 0.0, 0.3, 0.2);
+          playNote(ctx, 1200.0, 0.08, 0.4, 0.2);
+        } else if (type === "pulse") {
+          playNote(ctx, 700.0, 0.0, 0.1, 0.04);
+        } else if (type === "end") {
+          playNote(ctx, 1200.0, 0.0, 0.3, 0.2);
+          playNote(ctx, 1600.0, 0.1, 0.5, 0.25);
+        }
+      }
+    } catch (e) {}
   };
 
   // Schedule Next Random Microbreak Trigger
@@ -412,7 +465,7 @@ export function FocusSessionOverlay({
               // Trigger Microbreak!
               setIsMicrobreakActive(true);
               setMicrobreakTimeLeft(focusSettings.microbreakDurationSec);
-              playMicrobreakChime();
+              playMicrobreakSound("start");
             }
           }
         }
@@ -422,7 +475,7 @@ export function FocusSessionOverlay({
     return () => clearInterval(interval);
   }, [isRunning, mode, focusSettings, isMicrobreakActive]);
 
-  // Microbreak active countdown loop
+  // Microbreak active countdown loop with start/pulse/end auditory cues
   useEffect(() => {
     let interval: any;
     if (isMicrobreakActive && microbreakTimeLeft > 0) {
@@ -430,17 +483,18 @@ export function FocusSessionOverlay({
         setMicrobreakTimeLeft((prev) => {
           if (prev <= 1) {
             setIsMicrobreakActive(false);
-            playMicrobreakChime();
+            playMicrobreakSound("end");
             // Schedule next microbreak
             scheduleNextMicrobreak(timeLeft);
             return 0;
           }
+          playMicrobreakSound("pulse");
           return prev - 1;
         });
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isMicrobreakActive, microbreakTimeLeft, timeLeft]);
+  }, [isMicrobreakActive, microbreakTimeLeft, timeLeft, focusSettings.microbreakSound]);
 
   const toggleTimer = () => {
     initAudio(); 

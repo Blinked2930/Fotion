@@ -9,6 +9,7 @@ export interface FocusSettings {
   microbreaksEnabled: boolean;
   microbreakDurationSec: number;
   microbreakMaxIntervalMin: number;
+  microbreakSound: "chime" | "bell" | "beep" | "wood" | "nature";
 
   breathingColor: string;
   breathingCount: number;
@@ -32,6 +33,7 @@ export const DEFAULT_FOCUS_SETTINGS: FocusSettings = {
   microbreaksEnabled: true,
   microbreakDurationSec: 5,
   microbreakMaxIntervalMin: 5,
+  microbreakSound: "chime",
 
   breathingColor: "#06b6d4", // Cyan
   breathingCount: 30,

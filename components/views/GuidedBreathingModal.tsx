@@ -370,8 +370,8 @@ export function GuidedBreathingModal({
               </div>
               <input
                 type="range"
-                min="10"
-                max="50"
+                min="5"
+                max="60"
                 step="5"
                 value={breathCount}
                 onChange={(e) => setBreathCount(Number(e.target.value))}
@@ -388,7 +388,7 @@ export function GuidedBreathingModal({
               <input
                 type="range"
                 min="2.0"
-                max="6.0"
+                max="15.0"
                 step="0.5"
                 value={breathSpeed}
                 onChange={(e) => setBreathSpeed(Number(e.target.value))}
@@ -488,7 +488,7 @@ export function GuidedBreathingModal({
             onClick={handleStart}
             className="flex-1 py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-lg rounded-full shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-2"
           >
-            <Play className="w-6 h-6 fill-current" /> Begin Wim Hof Session
+            <Play className="w-6 h-6 fill-current" /> Begin Breathing Session
           </button>
         ) : (
           <>
