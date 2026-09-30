@@ -15,25 +15,30 @@ export function VisualFocusModal({
   settings: FocusSettings;
   onUpdateSettings: (newSettings: FocusSettings) => void;
 }) {
-  const [durationSec, setDurationSec] = useState(settings.visualFocusDurationSec || 15);
+  const [durationSec, setDurationSec] = useState(settings.visualFocusDurationSec || 60);
   const [shape, setShape] = useState<"target" | "dot" | "cat" | "sparkles">(settings.visualFocusShape || "target");
-  const [movementMode, setMovementMode] = useState<"bouncing" | "subtle" | "stationary">("bouncing");
+  const [movementMode, setMovementMode] = useState<"bouncing" | "subtle" | "stationary">(
+    settings.visualFocusMovementMode || "bouncing"
+  );
+  const [soundEnabled, setSoundEnabled] = useState(settings.visualFocusAudioEnabled ?? true);
 
   const [timeLeft, setTimeLeft] = useState(durationSec);
   const [isRunning, setIsRunning] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Position state for bouncing movement
+  // Position state for movement animation
   const [pos, setPos] = useState({ x: 50, y: 50 });
   const velRef = useRef({ vx: 0.4, vy: 0.3 });
+  const floatTimeRef = useRef(0);
   const animFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setDurationSec(settings.visualFocusDurationSec || 15);
+    setDurationSec(settings.visualFocusDurationSec || 60);
     setShape(settings.visualFocusShape || "target");
-    setTimeLeft(settings.visualFocusDurationSec || 15);
+    setMovementMode(settings.visualFocusMovementMode || "bouncing");
+    setSoundEnabled(settings.visualFocusAudioEnabled ?? true);
+    setTimeLeft(settings.visualFocusDurationSec || 60);
   }, [settings]);
 
   // Audio finish chime
@@ -75,31 +80,42 @@ export function VisualFocusModal({
     return () => clearInterval(interval);
   }, [isRunning, timeLeft]);
 
-  // Bouncing Target Animation Loop
+  // Animation Loop for Bouncing, Subtle Float, and Stationary Modes
   useEffect(() => {
-    if (!isOpen || movementMode === "stationary") {
+    if (!isOpen) {
       setPos({ x: 50, y: 50 });
       return;
     }
 
-    const speedMultiplier = movementMode === "bouncing" ? 0.35 : 0.12;
+    if (movementMode === "stationary") {
+      setPos({ x: 50, y: 50 });
+      return;
+    }
 
     const updatePosition = () => {
-      setPos((prev) => {
-        let newX = prev.x + velRef.current.vx * speedMultiplier;
-        let newY = prev.y + velRef.current.vy * speedMultiplier;
+      if (movementMode === "bouncing") {
+        setPos((prev) => {
+          let newX = prev.x + velRef.current.vx * 0.45;
+          let newY = prev.y + velRef.current.vy * 0.45;
 
-        if (newX <= 15 || newX >= 85) {
-          velRef.current.vx *= -1;
-          newX = Math.max(15, Math.min(85, newX));
-        }
-        if (newY <= 20 || newY >= 80) {
-          velRef.current.vy *= -1;
-          newY = Math.max(20, Math.min(80, newY));
-        }
+          if (newX <= 15 || newX >= 85) {
+            velRef.current.vx *= -1;
+            newX = Math.max(15, Math.min(85, newX));
+          }
+          if (newY <= 20 || newY >= 80) {
+            velRef.current.vy *= -1;
+            newY = Math.max(20, Math.min(80, newY));
+          }
 
-        return { x: newX, y: newY };
-      });
+          return { x: newX, y: newY };
+        });
+      } else if (movementMode === "subtle") {
+        floatTimeRef.current += 0.012;
+        const t = floatTimeRef.current;
+        const newX = 50 + Math.sin(t) * 22 + Math.cos(t * 0.6) * 7;
+        const newY = 50 + Math.cos(t * 0.8) * 16 + Math.sin(t * 1.3) * 6;
+        setPos({ x: newX, y: newY });
+      }
 
       animFrameRef.current = requestAnimationFrame(updatePosition);
     };
@@ -130,6 +146,8 @@ export function VisualFocusModal({
       ...settings,
       visualFocusDurationSec: durationSec,
       visualFocusShape: shape,
+      visualFocusMovementMode: movementMode,
+      visualFocusAudioEnabled: soundEnabled,
     });
     setTimeLeft(durationSec);
     setShowSettings(false);
@@ -149,6 +167,15 @@ export function VisualFocusModal({
     }
   };
 
+  const TICK_LABELS = [
+    { value: 10, label: "10s" },
+    { value: 15, label: "15s" },
+    { value: 30, label: "30s" },
+    { value: 60, label: "60s" },
+    { value: 90, label: "90s" },
+    { value: 120, label: "120s" },
+  ];
+
   return (
     <div className="fixed inset-0 z-[250] bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col justify-between p-6 select-none overflow-hidden">
       {/* Top Header */}
@@ -158,14 +185,20 @@ export function VisualFocusModal({
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              onUpdateSettings({ ...settings, visualFocusAudioEnabled: next });
+            }}
             className="p-2.5 rounded-full bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors"
+            title={soundEnabled ? "Mute finish chime" : "Enable finish chime"}
           >
             {soundEnabled ? <Volume2 className="w-5 h-5 text-indigo-400" /> : <VolumeX className="w-5 h-5 text-zinc-500" />}
           </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
             className="p-2.5 rounded-full bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors"
+            title="Exercise settings"
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -244,12 +277,31 @@ export function VisualFocusModal({
               </div>
             </div>
 
-            {/* Duration Slider */}
+            {/* Duration Slider with Perfectly Aligned Ticks */}
             <div>
-              <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
+              <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
                 <span>Fixation Duration</span>
                 <span className="text-indigo-400 font-extrabold text-sm">{durationSec} seconds</span>
               </div>
+
+              {/* Preset Buttons */}
+              <div className="flex gap-1.5 mb-3">
+                {[10, 15, 30, 60, 120].map((sec) => (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => setDurationSec(sec)}
+                    className={`flex-1 py-1 rounded-lg text-xs font-bold border transition-all ${
+                      durationSec === sec
+                        ? "bg-indigo-600 text-white border-indigo-400 shadow-sm"
+                        : "bg-zinc-800/60 border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                    }`}
+                  >
+                    {sec}s
+                  </button>
+                ))}
+              </div>
+
               <input
                 type="range"
                 min="10"
@@ -259,11 +311,26 @@ export function VisualFocusModal({
                 onChange={(e) => setDurationSec(Number(e.target.value))}
                 className="w-full accent-indigo-400 cursor-pointer"
               />
-              <div className="flex justify-between text-[11px] text-zinc-500 mt-1">
-                <span>10s (Quick)</span>
-                <span>15s (Default)</span>
-                <span>60s (Deep)</span>
-                <span>120s (Max)</span>
+
+              {/* Mathematical Tick Marks positioned at exact percentages */}
+              <div className="relative w-full h-6 mt-1 text-[10px] font-bold text-zinc-500">
+                {TICK_LABELS.map((tick) => {
+                  const pct = ((tick.value - 10) / (120 - 10)) * 100;
+                  const isSelected = durationSec === tick.value;
+                  return (
+                    <button
+                      key={tick.value}
+                      type="button"
+                      onClick={() => setDurationSec(tick.value)}
+                      className={`absolute -translate-x-1/2 transition-colors ${
+                        isSelected ? "text-indigo-400 font-black" : "hover:text-zinc-300"
+                      }`}
+                      style={{ left: `${pct}%` }}
+                    >
+                      {tick.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -276,7 +343,7 @@ export function VisualFocusModal({
           </div>
         ) : (
           <>
-            {/* The Bouncing Target Icon */}
+            {/* The Moving / Stationary Target Icon */}
             <div
               className="absolute transition-all ease-linear duration-75 flex items-center justify-center p-4 rounded-full bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl"
               style={{
@@ -308,8 +375,8 @@ export function VisualFocusModal({
                   <div className="text-6xl sm:text-7xl font-black text-white tracking-tighter tabular-nums mb-3">
                     {timeLeft}s
                   </div>
-                  <p className="text-sm font-semibold uppercase tracking-widest text-zinc-400">
-                    {isRunning ? "Fixate your gaze on the moving target without blinking" : "Press Start to begin fixation exercise"}
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-zinc-400">
+                    {isRunning ? "Fixate your gaze on the target without blinking" : "Press Start to begin fixation exercise"}
                   </p>
                 </>
               )}
@@ -339,3 +406,4 @@ export function VisualFocusModal({
     </div>
   );
 }
+

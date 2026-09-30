@@ -14,9 +14,13 @@ export interface FocusSettings {
   breathingCount: number;
   breathingSpeedSec: number;
   breathingRetentionSec: number;
+  breathingAudioEnabled: boolean;
+  breathingRatio: "1:1" | "1:1.5" | "1:2" | "1.5:1";
 
   visualFocusDurationSec: number;
   visualFocusShape: "target" | "dot" | "cat" | "sparkles";
+  visualFocusMovementMode: "bouncing" | "subtle" | "stationary";
+  visualFocusAudioEnabled: boolean;
 }
 
 export const DEFAULT_FOCUS_SETTINGS: FocusSettings = {
@@ -26,16 +30,20 @@ export const DEFAULT_FOCUS_SETTINGS: FocusSettings = {
   longBreakInterval: 4,
 
   microbreaksEnabled: true,
-  microbreakDurationSec: 10,
+  microbreakDurationSec: 5,
   microbreakMaxIntervalMin: 5,
 
   breathingColor: "#06b6d4", // Cyan
   breathingCount: 30,
   breathingSpeedSec: 3.5,
   breathingRetentionSec: 60,
+  breathingAudioEnabled: true,
+  breathingRatio: "1:1",
 
-  visualFocusDurationSec: 15,
+  visualFocusDurationSec: 60,
   visualFocusShape: "target",
+  visualFocusMovementMode: "bouncing",
+  visualFocusAudioEnabled: true,
 };
 
 const STORAGE_KEY = "fotion-focus-custom-settings-v1";
@@ -60,3 +68,4 @@ export function saveFocusSettings(settings: FocusSettings): void {
     console.error("Failed to save focus settings", e);
   }
 }
+

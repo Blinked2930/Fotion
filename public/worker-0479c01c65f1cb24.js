@@ -1,0 +1,1 @@
+self.addEventListener("push",function(t){if(t.data){let i=t.data.json(),n={body:i.body,vibrate:[100,50,100],data:{dateOfArrival:Date.now()}};t.waitUntil(self.registration.showNotification(i.title,n))}}),self.addEventListener("notificationclick",function(t){t.notification.close(),t.waitUntil(clients.openWindow("/"))});

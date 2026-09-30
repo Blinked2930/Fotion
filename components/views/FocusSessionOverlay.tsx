@@ -611,9 +611,18 @@ export function FocusSessionOverlay({
 
         {/* Microbreak Active Banner Alert */}
         {isMicrobreakActive && (
-          <div className="w-full bg-amber-500 text-amber-950 px-4 py-3 text-center flex items-center justify-center gap-3 font-extrabold text-sm sm:text-base shadow-lg animate-in slide-in-from-top duration-300 z-30">
-            <Zap className="w-5 h-5 fill-current animate-bounce" />
-            <span>MICROBREAK ({microbreakTimeLeft}s) — Rest your eyes and do nothing. Memory replay active!</span>
+          <div className="w-full bg-amber-500 text-amber-950 px-4 py-2.5 text-center flex items-center justify-between font-bold text-xs sm:text-sm shadow-lg animate-in slide-in-from-top duration-300 z-30">
+            <div className="flex items-center gap-2 mx-auto">
+              <Zap className="w-4 h-4 fill-current animate-bounce" />
+              <span>MICROBREAK ({microbreakTimeLeft}s) — Rest your eyes and relax gaze.</span>
+            </div>
+            <button
+              onClick={() => setIsMicrobreakActive(false)}
+              className="p-1 rounded-full hover:bg-amber-600/30 text-amber-950 transition-colors"
+              title="Dismiss microbreak"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
 
@@ -663,7 +672,7 @@ export function FocusSessionOverlay({
                   mode === "work" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
                 }`}
               >
-                <Target className="w-3 h-3 sm:w-4 sm:h-4" /> Deep Work ({focusSettings.workDurationMin}m)
+                <Target className="w-3 h-3 sm:w-4 sm:h-4" /> Deep Work
               </button>
               <button 
                 onClick={() => switchMode("short-break")} 
@@ -671,7 +680,7 @@ export function FocusSessionOverlay({
                   mode === "short-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
                 }`}
               >
-                <Coffee className="w-3 h-3 sm:w-4 sm:h-4" /> Short Break ({focusSettings.shortBreakDurationMin}m)
+                <Coffee className="w-3 h-3 sm:w-4 sm:h-4" /> Short Break
               </button>
               <button 
                 onClick={() => switchMode("long-break")} 
@@ -679,7 +688,7 @@ export function FocusSessionOverlay({
                   mode === "long-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
                 }`}
               >
-                <Moon className="w-3 h-3 sm:w-4 sm:h-4" /> Long Break ({focusSettings.longBreakDurationMin}m)
+                <Moon className="w-3 h-3 sm:w-4 sm:h-4" /> Long Break
               </button>
             </div>
 

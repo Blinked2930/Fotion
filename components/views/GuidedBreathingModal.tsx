@@ -31,13 +31,16 @@ export function GuidedBreathingModal({
   const [retentionSeconds, setRetentionSeconds] = useState(0);
   const [recoverySeconds, setRecoverySeconds] = useState(15);
   const [roundsCompleted, setRoundsCompleted] = useState(0);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(settings.breathingAudioEnabled ?? true);
   const [showSettings, setShowSettings] = useState(false);
 
   // Local settings editable in settings pane
   const [cueColor, setCueColor] = useState(settings.breathingColor || "#06b6d4");
   const [breathCount, setBreathCount] = useState(settings.breathingCount || 30);
   const [breathSpeed, setBreathSpeed] = useState(settings.breathingSpeedSec || 3.5);
+  const [breathingRatio, setBreathingRatio] = useState<"1:1" | "1:1.5" | "1:2" | "1.5:1">(
+    settings.breathingRatio || "1:1"
+  );
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const animationTimerRef = useRef<any>(null);
@@ -46,6 +49,8 @@ export function GuidedBreathingModal({
     setCueColor(settings.breathingColor || "#06b6d4");
     setBreathCount(settings.breathingCount || 30);
     setBreathSpeed(settings.breathingSpeedSec || 3.5);
+    setBreathingRatio(settings.breathingRatio || "1:1");
+    setSoundEnabled(settings.breathingAudioEnabled ?? true);
   }, [settings]);
 
   const initAudio = () => {
@@ -58,27 +63,58 @@ export function GuidedBreathingModal({
     }
   };
 
-  const playTone = (freq: number, duration: number, type: OscillatorType = "sine") => {
+  // Calm Tibetan-style 528Hz Solfeggio Chime for Retention minute marks
+  const playRetentionMinuteChime = () => {
     if (!soundEnabled) return;
     try {
       initAudio();
       const ctx = audioCtxRef.current;
       if (!ctx) return;
-      const osc = ctx.createOscillator();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      gain.gain.setValueAtTime(0.01, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-      osc.connect(gain);
+
+      osc1.type = "sine";
+      osc2.type = "sine";
+
+      // 528Hz (Transformation/Miracle tone) + 1056Hz harmonic
+      osc1.frequency.setValueAtTime(528, ctx.currentTime);
+      osc2.frequency.setValueAtTime(1056, ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.2);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
       gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + duration);
+
+      osc1.start();
+      osc2.start();
+      osc1.stop(ctx.currentTime + 3.2);
+      osc2.stop(ctx.currentTime + 3.2);
     } catch (e) {
       console.log("Audio play error", e);
     }
   };
+
+  const getRatioFractions = (ratioStr: string) => {
+    switch (ratioStr) {
+      case "1:1.5":
+        return { inFrac: 1 / 2.5, exFrac: 1.5 / 2.5 };
+      case "1:2":
+        return { inFrac: 1 / 3, exFrac: 2 / 3 };
+      case "1.5:1":
+        return { inFrac: 1.5 / 2.5, exFrac: 1 / 2.5 };
+      case "1:1":
+      default:
+        return { inFrac: 0.5, exFrac: 0.5 };
+    }
+  };
+
+  const { inFrac, exFrac } = getRatioFractions(breathingRatio);
+  const inhaleMs = breathSpeed * 1000 * inFrac;
+  const exhaleMs = breathSpeed * 1000 * exFrac;
 
   // Main Wim Hof Breathing Cycle Loop
   useEffect(() => {
@@ -87,43 +123,44 @@ export function GuidedBreathingModal({
       return;
     }
 
-    const halfCycleMs = (breathSpeed * 1000) / 2;
-
     if (phase === "inhale") {
-      playTone(440, 1.2); // Soft A4 on Inhale
       animationTimerRef.current = setTimeout(() => {
         setPhase("exhale");
-      }, halfCycleMs);
+      }, inhaleMs);
     } else if (phase === "exhale") {
-      playTone(329.63, 1.2); // Soft E4 on Exhale
       animationTimerRef.current = setTimeout(() => {
         if (currentBreath < breathCount) {
           setCurrentBreath((prev) => prev + 1);
           setPhase("inhale");
         } else {
           // Finished power breaths -> Enter Exhale Retention!
-          playTone(523.25, 2.0); // C5 chime
           setPhase("retention");
           setRetentionSeconds(0);
         }
-      }, halfCycleMs);
+      }, exhaleMs);
     }
 
     return () => {
       if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
     };
-  }, [phase, currentBreath, breathCount, breathSpeed, isOpen]);
+  }, [phase, currentBreath, breathCount, inhaleMs, exhaleMs, isOpen]);
 
-  // Retention timer
+  // Retention timer - triggers calm chime ONLY on each minute (60s, 120s, 180s...)
   useEffect(() => {
     let interval: any;
     if (phase === "retention") {
       interval = setInterval(() => {
-        setRetentionSeconds((prev) => prev + 1);
+        setRetentionSeconds((prev) => {
+          const next = prev + 1;
+          if (next > 0 && next % 60 === 0) {
+            playRetentionMinuteChime();
+          }
+          return next;
+        });
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [phase]);
+  }, [phase, soundEnabled]);
 
   // Recovery hold timer
   useEffect(() => {
@@ -135,7 +172,6 @@ export function GuidedBreathingModal({
             clearInterval(interval);
             setPhase("complete");
             setRoundsCompleted((r) => r + 1);
-            playTone(659.25, 2.5); // E5 Chime
             return 15;
           }
           return prev - 1;
@@ -167,38 +203,42 @@ export function GuidedBreathingModal({
       breathingColor: cueColor,
       breathingCount: breathCount,
       breathingSpeedSec: breathSpeed,
+      breathingAudioEnabled: soundEnabled,
+      breathingRatio: breathingRatio,
     });
     setShowSettings(false);
   };
 
   // Determine circle scale and animation duration based on phase
   let circleScale = "scale-75 opacity-40";
-  let transitionDuration = `${(breathSpeed / 2).toFixed(2)}s`;
-  let statusText = "Ready to start Wim Hof Breathing";
-  let subText = `${breathCount} Power Breaths • Exhale Hold • 15s Recovery`;
+  let transitionDuration = `${(inhaleMs / 1000).toFixed(2)}s`;
+  let statusText = "Wim Hof Breathing";
+  let subText = `${breathCount} Breaths`;
 
   if (phase === "inhale") {
     circleScale = "scale-125 opacity-100 shadow-2xl";
-    statusText = "INHALE DEEP";
-    subText = `Breath ${currentBreath} of ${breathCount} • Fill belly and chest`;
+    transitionDuration = `${(inhaleMs / 1000).toFixed(2)}s`;
+    statusText = "Inhale";
+    subText = `${currentBreath} / ${breathCount}`;
   } else if (phase === "exhale") {
     circleScale = "scale-75 opacity-50";
-    statusText = "LET GO";
-    subText = `Breath ${currentBreath} of ${breathCount} • Relax exhale`;
+    transitionDuration = `${(exhaleMs / 1000).toFixed(2)}s`;
+    statusText = "Exhale";
+    subText = `${currentBreath} / ${breathCount}`;
   } else if (phase === "retention") {
     circleScale = "scale-90 opacity-60 animate-pulse";
     transitionDuration = "2s";
-    statusText = "EXHALE HOLD (RETENTION)";
-    subText = "Hold empty lungs. Relax your shoulders and mind.";
+    statusText = "Exhale Hold";
+    subText = retentionSeconds >= 60 ? `${Math.floor(retentionSeconds / 60)}m ${retentionSeconds % 60}s` : `${retentionSeconds}s`;
   } else if (phase === "recovery") {
     circleScale = "scale-110 opacity-90";
     transitionDuration = "1s";
-    statusText = "RECOVERY INHALE";
-    subText = "Take deep breath in and hold for 15 seconds";
+    statusText = "Recovery Inhale";
+    subText = `${recoverySeconds}s hold`;
   } else if (phase === "complete") {
     circleScale = "scale-100 opacity-80";
-    statusText = "ROUND COMPLETE!";
-    subText = `Great work! You completed ${roundsCompleted} ${roundsCompleted === 1 ? "round" : "rounds"}.`;
+    statusText = "Round Complete";
+    subText = `${roundsCompleted} ${roundsCompleted === 1 ? "round" : "rounds"} completed`;
   }
 
   const formatRetention = (secs: number) => {
@@ -208,17 +248,21 @@ export function GuidedBreathingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[250] bg-black/90 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col justify-between p-6 overflow-hidden">
+    <div className="fixed inset-0 z-[250] bg-black/90 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col justify-between p-6 overflow-hidden select-none">
       {/* Top Header */}
       <div className="flex items-center justify-between max-w-4xl w-full mx-auto">
         <div className="flex items-center gap-2 text-white font-bold tracking-wider uppercase text-xs sm:text-sm">
-          <Wind className="w-5 h-5 text-cyan-400" /> Wim Hof Guided Breathing
+          <Wind className="w-5 h-5 text-cyan-400" /> Guided Breathing
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              onUpdateSettings({ ...settings, breathingAudioEnabled: next });
+            }}
             className="p-2.5 rounded-full bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors"
-            title={soundEnabled ? "Mute audio" : "Enable audio"}
+            title={soundEnabled ? "Audio cues active (Minute chime on retention)" : "Audio cues muted"}
           >
             {soundEnabled ? <Volume2 className="w-5 h-5 text-cyan-400" /> : <VolumeX className="w-5 h-5 text-zinc-500" />}
           </button>
@@ -242,15 +286,15 @@ export function GuidedBreathingModal({
       <div className="flex-1 flex flex-col items-center justify-center relative my-4 max-w-xl w-full mx-auto text-center">
         {showSettings ? (
           /* Inline Settings Screen */
-          <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 text-left space-y-6 animate-in zoom-in-95 duration-200">
+          <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 text-left space-y-5 animate-in zoom-in-95 duration-200">
             <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <Settings className="w-5 h-5 text-cyan-400" /> Breathing Visual & Protocol
+              <Settings className="w-5 h-5 text-cyan-400" /> Breathing Protocol Settings
             </h3>
 
             {/* Cue Color */}
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 block mb-2">
-                Visual Cue Color
+                Visual Indicator Color
               </label>
               <div className="flex items-center gap-3">
                 {CUE_COLORS.map((c) => (
@@ -264,6 +308,55 @@ export function GuidedBreathingModal({
                     title={c.name}
                   >
                     {cueColor === c.value && <Check className="w-4 h-4 text-white stroke-[3]" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Audio Cues Toggle */}
+            <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-2xl border border-zinc-700">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                Audio Minute Chime
+              </span>
+              <button
+                type="button"
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${
+                  soundEnabled ? "bg-cyan-500" : "bg-zinc-700"
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    soundEnabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Inhale vs Exhale Ratio */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 block mb-2">
+                Inhale vs Exhale Ratio
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { id: "1:1", label: "1 : 1", desc: "Equal" },
+                  { id: "1:1.5", label: "1 : 1.5", desc: "Relaxing" },
+                  { id: "1:2", label: "1 : 2", desc: "Calming" },
+                  { id: "1.5:1", label: "1.5 : 1", desc: "Energizing" },
+                ].map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setBreathingRatio(r.id as any)}
+                    className={`py-2 px-1 rounded-xl text-center border transition-all ${
+                      breathingRatio === r.id
+                        ? "bg-cyan-500 text-black border-cyan-400 font-extrabold"
+                        : "bg-zinc-800/60 border-zinc-700 text-zinc-400 hover:bg-zinc-800"
+                    }`}
+                  >
+                    <div className="text-xs font-bold">{r.label}</div>
+                    <div className="text-[10px] opacity-75">{r.desc}</div>
                   </button>
                 ))}
               </div>
@@ -295,17 +388,12 @@ export function GuidedBreathingModal({
               <input
                 type="range"
                 min="2.0"
-                max="5.0"
+                max="6.0"
                 step="0.5"
                 value={breathSpeed}
                 onChange={(e) => setBreathSpeed(Number(e.target.value))}
                 className="w-full accent-cyan-400 cursor-pointer"
               />
-              <div className="flex justify-between text-[11px] text-zinc-500 mt-1">
-                <span>Fast (2.0s)</span>
-                <span>Normal (3.5s)</span>
-                <span>Relaxed (5.0s)</span>
-              </div>
             </div>
 
             <button
@@ -318,7 +406,7 @@ export function GuidedBreathingModal({
         ) : (
           <>
             {/* Visual Expanding / Contracting Circle */}
-            <div className="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80 my-6">
+            <div className="relative flex items-center justify-center w-64 h-64 sm:w-72 sm:h-72 my-4">
               {/* Outer Glowing Ring */}
               <div
                 className="absolute inset-0 rounded-full transition-all ease-in-out blur-xl"
@@ -332,7 +420,7 @@ export function GuidedBreathingModal({
 
               {/* Main Visual Circle */}
               <div
-                className={`w-48 h-48 sm:w-60 sm:h-60 rounded-full transition-all ease-in-out shadow-2xl flex flex-col items-center justify-center border-4 border-white/20 ${circleScale}`}
+                className={`w-48 h-48 sm:w-56 sm:h-56 rounded-full transition-all ease-in-out shadow-2xl flex flex-col items-center justify-center border-4 border-white/20 ${circleScale}`}
                 style={{
                   backgroundColor: cueColor,
                   transitionDuration: transitionDuration,
@@ -343,24 +431,28 @@ export function GuidedBreathingModal({
                     <span className="text-4xl sm:text-5xl font-black tabular-nums">
                       {formatRetention(retentionSeconds)}
                     </span>
-                    <span className="block text-xs uppercase font-bold text-white/80 mt-1">Hold Exhale</span>
+                    <span className="block text-[11px] uppercase tracking-wider font-bold text-white/80 mt-1">
+                      Exhale Hold
+                    </span>
                   </div>
                 ) : phase === "recovery" ? (
                   <div className="text-white">
                     <span className="text-5xl sm:text-6xl font-black tabular-nums">{recoverySeconds}</span>
-                    <span className="block text-xs uppercase font-bold text-white/80 mt-1">Hold Inhale</span>
+                    <span className="block text-[11px] uppercase tracking-wider font-bold text-white/80 mt-1">
+                      Inhale Hold
+                    </span>
                   </div>
                 ) : (
-                  <Wind className="w-12 h-12 text-white/90 animate-pulse" />
+                  <Wind className="w-12 h-12 text-white/90" />
                 )}
               </div>
             </div>
 
-            {/* Dynamic Status Titles */}
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight mb-2">
+            {/* Clean Minimal Status Text */}
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-1">
               {statusText}
             </h2>
-            <p className="text-sm sm:text-base text-zinc-400 font-medium max-w-md">
+            <p className="text-sm font-semibold tracking-widest text-zinc-400 uppercase">
               {subText}
             </p>
 
@@ -368,7 +460,6 @@ export function GuidedBreathingModal({
             {phase === "retention" && (
               <button
                 onClick={() => {
-                  playTone(587.33, 1.5);
                   setPhase("recovery");
                   setRecoverySeconds(15);
                 }}
@@ -429,3 +520,4 @@ export function GuidedBreathingModal({
     </div>
   );
 }
+
