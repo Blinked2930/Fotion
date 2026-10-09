@@ -166,6 +166,7 @@ export function FocusSessionOverlay({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const hasRestoredRef = useRef(false);
   const completedTodayRef = useRef<number>(0);
+  const quickAddInputRef = useRef<HTMLInputElement>(null);
 
   // Load custom settings on mount
   useEffect(() => {
@@ -802,7 +803,14 @@ export function FocusSessionOverlay({
                     <List className="w-5 h-5" />
                  </button>
                  <div className="flex-1" />
-                 <button onClick={() => setIsQueueMinimized(false)} title="Add Task" className="w-8 h-8 flex items-center justify-center bg-[var(--foreground)] text-[var(--background)] rounded-full shadow-lg active:scale-95 transition-all">
+                 <button 
+                   onClick={() => {
+                     setIsQueueMinimized(false);
+                     setTimeout(() => quickAddInputRef.current?.focus(), 100);
+                   }} 
+                   title="Add Task" 
+                   className="w-8 h-8 flex items-center justify-center bg-[var(--foreground)] text-[var(--background)] rounded-full shadow-lg active:scale-95 transition-all"
+                 >
                     <Plus className="w-4 h-4" />
                  </button>
               </div>
@@ -848,6 +856,7 @@ export function FocusSessionOverlay({
                 <form onSubmit={handleQuickAdd} className="flex items-center gap-2 bg-white dark:bg-[#1a1a1a] p-2 rounded-xl border border-[var(--border)] focus-within:ring-2 focus-within:ring-zinc-200 dark:focus-within:ring-zinc-800 transition-shadow">
                   <Plus className="w-5 h-5 text-zinc-400 shrink-0 ml-1" />
                   <input 
+                    ref={quickAddInputRef}
                     type="text" 
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
