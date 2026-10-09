@@ -141,6 +141,7 @@ export function FocusSessionOverlay({
   
   // Modals state for Huberman tools
   const [isBreathingOpen, setIsBreathingOpen] = useState(false);
+  const [isVisualFocusOpen, setIsVisualFocusOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQueueMinimized, setIsQueueMinimized] = useState(initialTasks.length === 0);
   const prevQueueLengthRef = useRef(initialTasks.length);
