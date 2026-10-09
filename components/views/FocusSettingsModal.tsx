@@ -222,13 +222,11 @@ export function FocusSettingsModal({
                   <label className="text-xs font-semibold text-[var(--foreground)] block mb-1.5">
                     Microbreak Audio Cue Sound
                   </label>
-                  <div className="grid grid-cols-5 gap-1.5">
+                  <div className="grid grid-cols-3 gap-1.5">
                     {[
                       { id: "chime", label: "Chime" },
                       { id: "bell", label: "Bowl" },
                       { id: "beep", label: "Beep" },
-                      { id: "wood", label: "Wood" },
-                      { id: "nature", label: "Water" },
                     ].map((s) => (
                       <button
                         key={s.id}

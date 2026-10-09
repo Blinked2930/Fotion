@@ -9,7 +9,7 @@ export interface FocusSettings {
   microbreaksEnabled: boolean;
   microbreakDurationSec: number;
   microbreakMaxIntervalMin: number;
-  microbreakSound: "chime" | "bell" | "beep" | "wood" | "nature";
+  microbreakSound: "chime" | "bell" | "beep";
 
   breathingColor: string;
   breathingCount: number;

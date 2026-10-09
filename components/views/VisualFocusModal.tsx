@@ -113,7 +113,7 @@ export function VisualFocusModal({
         floatTimeRef.current += 0.015;
         const t = floatTimeRef.current;
         const newX = 50;
-        const newY = 50 - Math.abs(Math.sin(t * 2)) * 8;
+        const newY = 50 - Math.abs(Math.sin(t * 1.5)) * 4;
         setPos({ x: newX, y: newY });
       }
 

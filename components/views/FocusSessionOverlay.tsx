@@ -141,9 +141,9 @@ export function FocusSessionOverlay({
   
   // Modals state for Huberman tools
   const [isBreathingOpen, setIsBreathingOpen] = useState(false);
-  const [isVisualFocusOpen, setIsVisualFocusOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isQueueMinimized, setIsQueueMinimized] = useState(false);
+  const [isQueueMinimized, setIsQueueMinimized] = useState(initialTasks.length === 0);
+  const prevQueueLengthRef = useRef(initialTasks.length);
 
   // Sorted Queue state
   const [localQueue, setLocalQueue] = useState<any[]>([]);
@@ -189,9 +189,10 @@ export function FocusSessionOverlay({
   useEffect(() => {
     const sorted = [...initialTasks].sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
     setLocalQueue(sorted);
-    if (sorted.length === 0) {
+    if (prevQueueLengthRef.current > 0 && sorted.length === 0) {
       setIsQueueMinimized(true);
     }
+    prevQueueLengthRef.current = sorted.length;
   }, [initialTasks]);
 
   const updateCompletedToday = (newCount: number) => {
@@ -397,26 +398,6 @@ export function FocusSessionOverlay({
         } else if (type === "end") {
           playNote(ctx, 1318.5, 0.0, 0.15, 0.15);
           playNote(ctx, 1567.98, 0.15, 0.3, 0.2);
-        }
-      } else if (soundType === "wood") {
-        if (type === "start") {
-          playNote(ctx, 300.0, 0.0, 0.1, 0.3);
-          playNote(ctx, 450.0, 0.1, 0.15, 0.3);
-        } else if (type === "pulse") {
-          playNote(ctx, 350.0, 0.0, 0.06, 0.05);
-        } else if (type === "end") {
-          playNote(ctx, 450.0, 0.0, 0.1, 0.3);
-          playNote(ctx, 600.0, 0.1, 0.25, 0.35);
-        }
-      } else if (soundType === "nature") {
-        if (type === "start") {
-          playNote(ctx, 800.0, 0.0, 0.3, 0.2);
-          playNote(ctx, 1200.0, 0.08, 0.4, 0.2);
-        } else if (type === "pulse") {
-          playNote(ctx, 700.0, 0.0, 0.1, 0.04);
-        } else if (type === "end") {
-          playNote(ctx, 1200.0, 0.0, 0.3, 0.2);
-          playNote(ctx, 1600.0, 0.1, 0.5, 0.25);
         }
       }
     } catch (e) {}
