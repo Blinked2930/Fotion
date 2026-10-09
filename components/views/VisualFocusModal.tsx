@@ -112,8 +112,8 @@ export function VisualFocusModal({
       } else if (movementMode === "subtle") {
         floatTimeRef.current += 0.015;
         const t = floatTimeRef.current;
-        const newX = 50 + Math.sin(t * 0.9) * 20 + Math.cos(t * 1.8) * 6;
-        const newY = 50 + Math.cos(t * 0.7) * 15 + Math.sin(t * 1.4) * 5;
+        const newX = 50;
+        const newY = 50 - Math.abs(Math.sin(t * 2)) * 8;
         setPos({ x: newX, y: newY });
       }
 

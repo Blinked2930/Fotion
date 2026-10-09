@@ -407,17 +407,17 @@ export function TouchBaseModal({
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <button
-                      onClick={() => handleMoveToCurrent(currentTask._id)}
-                      className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white px-3 py-2.5 rounded-xl font-bold text-xs transition-all shadow-sm"
-                    >
-                      <ArrowRight className="w-4 h-4" /> Promote to Matrix
-                    </button>
-
-                    <button
                       onClick={() => handleKeepInSomeday(currentTask._id)}
                       className="flex items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[var(--foreground)] px-3 py-2.5 rounded-xl font-bold text-xs transition-all border border-[var(--border)]"
                     >
                       <RefreshCw className="w-4 h-4" /> Keep Dreaming
+                    </button>
+
+                    <button
+                      onClick={() => handleMoveToCurrent(currentTask._id)}
+                      className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white px-3 py-2.5 rounded-xl font-bold text-xs transition-all shadow-sm"
+                    >
+                      <ArrowRight className="w-4 h-4" /> Promote to Matrix
                     </button>
 
                     <button

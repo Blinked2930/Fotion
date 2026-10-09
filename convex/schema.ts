@@ -73,4 +73,14 @@ export default defineSchema({
       auth: v.string(),
     }),
   }).index("by_user", ["userId"]),
+
+  breathingLogs: defineTable({
+    sessionId: v.optional(v.string()),
+    retentionSec: v.number(),
+    breathCount: v.optional(v.number()),
+    completedAt: v.number(),
+    dateStr: v.string(),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_dateStr", ["dateStr"]),
 });

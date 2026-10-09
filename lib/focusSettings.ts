@@ -16,6 +16,7 @@ export interface FocusSettings {
   breathingSpeedSec: number;
   breathingRetentionSec: number;
   breathingAudioEnabled: boolean;
+  breathingPaceAudioEnabled: boolean;
   breathingRatio: "1:1" | "1:1.5" | "1:2" | "1.5:1";
 
   visualFocusDurationSec: number;
@@ -40,6 +41,7 @@ export const DEFAULT_FOCUS_SETTINGS: FocusSettings = {
   breathingSpeedSec: 3.5,
   breathingRetentionSec: 60,
   breathingAudioEnabled: true,
+  breathingPaceAudioEnabled: true,
   breathingRatio: "1:1",
 
   visualFocusDurationSec: 60,

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { 
-  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText, Wind, Eye, Zap, Sliders
+  X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText, Wind, Eye, Zap, Sliders, ChevronRight, ChevronLeft, List
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -143,6 +143,7 @@ export function FocusSessionOverlay({
   const [isBreathingOpen, setIsBreathingOpen] = useState(false);
   const [isVisualFocusOpen, setIsVisualFocusOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isQueueMinimized, setIsQueueMinimized] = useState(false);
 
   // Sorted Queue state
   const [localQueue, setLocalQueue] = useState<any[]>([]);
@@ -188,6 +189,9 @@ export function FocusSessionOverlay({
   useEffect(() => {
     const sorted = [...initialTasks].sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
     setLocalQueue(sorted);
+    if (sorted.length === 0) {
+      setIsQueueMinimized(true);
+    }
   }, [initialTasks]);
 
   const updateCompletedToday = (newCount: number) => {
@@ -326,7 +330,7 @@ export function FocusSessionOverlay({
     osc.frequency.value = freq;
     
     const startTime = ctx.currentTime + startTimeOffset;
-    gainNode.gain.setValueAtTime(0, startTime);
+    gainNode.gain.setValueAtTime(0.001, startTime);
     gainNode.gain.linearRampToValueAtTime(maxVolume, startTime + 0.05);
     gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
     
@@ -800,16 +804,36 @@ export function FocusSessionOverlay({
           </div>
 
           {/* Queue Section with Persisted Drag & Drop Sorting */}
-          <div className="w-full md:w-[350px] lg:w-[400px] shrink-0 flex flex-col border-t md:border-t-0 md:border-l border-[var(--border)] bg-zinc-50/50 md:bg-transparent">
-            <div className="p-4 sm:p-6 md:p-0 md:pl-8 lg:pl-12 md:pt-8 flex-1 flex flex-col md:h-full">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h3 className="font-bold text-base sm:text-lg text-[var(--foreground)]">Session Queue</h3>
-                <span className="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-[var(--border)] text-[var(--foreground)] rounded-md text-xs font-bold shadow-sm">
-                  {localQueue.length} left
-                </span>
+          <div className={`w-full ${isQueueMinimized ? 'md:w-16 lg:w-16' : 'md:w-[350px] lg:w-[400px]'} shrink-0 flex flex-col border-t md:border-t-0 md:border-l border-[var(--border)] bg-zinc-50/50 md:bg-transparent transition-all duration-300 relative`}>
+            
+            <button
+              onClick={() => setIsQueueMinimized(!isQueueMinimized)}
+              className="hidden md:flex absolute top-4 -left-3.5 z-10 p-1 bg-white dark:bg-zinc-800 border border-[var(--border)] rounded-full shadow-md text-zinc-500 hover:text-[var(--foreground)] items-center justify-center"
+              title={isQueueMinimized ? "Expand Queue" : "Minimize Queue"}
+            >
+              {isQueueMinimized ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+            
+            {isQueueMinimized ? (
+              <div className="hidden md:flex flex-col items-center h-full p-4 space-y-4 pt-12">
+                 <button onClick={() => setIsQueueMinimized(false)} title="Expand Queue" className="text-zinc-400 hover:text-[var(--foreground)] transition-colors">
+                    <List className="w-5 h-5" />
+                 </button>
+                 <div className="flex-1" />
+                 <button onClick={() => setIsQueueMinimized(false)} title="Add Task" className="w-8 h-8 flex items-center justify-center bg-[var(--foreground)] text-[var(--background)] rounded-full shadow-lg active:scale-95 transition-all">
+                    <Plus className="w-4 h-4" />
+                 </button>
               </div>
-
-              <div className="flex-1 md:overflow-y-auto space-y-2 sm:space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-12 md:pb-24 md:pr-4">
+            ) : (
+              <div className="p-4 sm:p-6 md:p-0 md:pl-8 lg:pl-12 md:pt-8 flex-1 flex flex-col md:h-full w-full">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h3 className="font-bold text-base sm:text-lg text-[var(--foreground)]">Session Queue</h3>
+                  <span className="px-2.5 py-1 bg-white dark:bg-zinc-800 border border-[var(--border)] text-[var(--foreground)] rounded-md text-xs font-bold shadow-sm">
+                    {localQueue.length} left
+                  </span>
+                </div>
+  
+                <div className="flex-1 md:overflow-y-auto space-y-2 sm:space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-12 md:pb-24 md:pr-4">
                 {localQueue.length === 0 ? (
                   <div className="text-zinc-500 text-sm text-center py-8 sm:py-10 bg-white dark:bg-[#1a1a1a] rounded-xl border border-dashed border-[var(--border)]">
                     Queue empty.
@@ -850,7 +874,8 @@ export function FocusSessionOverlay({
                   />
                 </form>
               </div>
-            </div>
+              </div>
+            )}
           </div>
 
         </div>
