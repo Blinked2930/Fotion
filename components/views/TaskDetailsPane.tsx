@@ -709,12 +709,26 @@ function PaneContent() {
                   value={task.recurrenceRule || "none"}
                   onChange={(val) => {
                     if (needsToAccept || !displayTaskId) return;
+
+                    if (val === "none") {
+                      // If this task belongs to a recurring group, delete all uncompleted
+                      // sibling tasks in that group so they can't keep spawning new ones.
+                      if (task.recurringGroupId) {
+                        deleteRecurringTasks({ groupId: task.recurringGroupId });
+                      }
+
+                      // Clear the rule and group on the current task.
+                      updateTask({
+                        id: displayTaskId,
+                        recurrenceRule: null,
+                        recurringGroupId: null,
+                      });
+                      return;
+                    }
+
                     const updates: any = { id: displayTaskId, recurrenceRule: val };
-                    if (val !== "none" && !task.recurringGroupId) {
+                    if (!task.recurringGroupId) {
                       updates.recurringGroupId = crypto.randomUUID();
-                    } else if (val === "none") {
-                      updates.recurringGroupId = null; // Send null to successfully erase from database
-                      updates.recurrenceRule = null;
                     }
                     updateTask(updates);
                   }}
