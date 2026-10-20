@@ -39,72 +39,110 @@ const DoubleSpaceFix = Extension.create({
   },
 });
 
+/**
+ * CustomTaskItem
+ *
+ * Overrides Enter so checked state is always correct, regardless of where the
+ * cursor is inside a task item:
+ *
+ *  - Cursor at the very START of a non-empty item:
+ *      insert a brand-new UNCHECKED item above. The original item (and its
+ *      checked state) is never touched, and the cursor stays inside it.
+ *  - Cursor in the MIDDLE / END of a non-empty item:
+ *      split with TipTap's command, then set `checked` on the upper and lower
+ *      nodes by explicit document position, inside the SAME transaction
+ *      (upper keeps the original state, lower is a new unchecked item).
+ *  - Empty item / range selection:
+ *      default TipTap behaviour (this is what lifts you out of the list).
+ *
+ * No setTimeout, no updateAttributes, no reliance on selection-relative
+ * attribute updates -> stateless and idempotent.
+ */
 const CustomTaskItem = TaskItem.extend({
   addKeyboardShortcuts() {
-    const shortcuts = this.parent?.() || {};
+    const parentShortcuts = this.parent?.() || {};
+    const typeName = this.name;
+
     return {
-      ...shortcuts,
+      ...parentShortcuts,
       Enter: () => {
         const { editor } = this;
-        if (!editor.isActive('taskItem')) return false;
+        const { selection } = editor.state;
+        const { $from } = selection;
 
-        const isChecked = editor.getAttributes('taskItem').checked === true;
-        const { $from } = editor.state.selection;
-
-        let currentPos = -1;
+        // Find the enclosing taskItem
+        let itemDepth = -1;
         for (let d = $from.depth; d > 0; d--) {
-          if ($from.node(d).type.name === 'taskItem') {
-            currentPos = $from.before(d);
+          if ($from.node(d).type.name === typeName) {
+            itemDepth = d;
             break;
           }
         }
+        if (itemDepth === -1) return false; // not in a task item -> let other handlers run
 
-        // 1. Run the native split command synchronously
-        const didSplit = editor.commands.splitListItem('taskItem');
-        if (!didSplit) return false;
+        const item = $from.node(itemDepth);
+        const itemPos = $from.before(itemDepth);
+        const wasChecked = item.attrs.checked === true;
 
-        // 2. If the item was completed, fix the states immediately after the render cycle
-        if (isChecked && currentPos !== -1) {
-          setTimeout(() => {
-            // If the selection is still inside the task list
-            if (!editor.isActive('taskItem')) return;
+        const isEmptyItem =
+          item.childCount === 1 && (item.firstChild?.content.size ?? 0) === 0;
 
-            const { state, view } = editor;
-            const { $from: $newFrom } = state.selection;
-            let newPos = -1;
+        // Default behaviour for empty items (lift out of list) and range selections
+        if (isEmptyItem || !selection.empty) {
+          return editor.commands.splitListItem(typeName);
+        }
 
-            for (let d = $newFrom.depth; d > 0; d--) {
-              if ($newFrom.node(d).type.name === 'taskItem') {
-                newPos = $newFrom.before(d);
+        // Cursor at the very start of the item's first paragraph?
+        const atStart =
+          $from.depth === itemDepth + 1 &&
+          $from.index(itemDepth) === 0 &&
+          $from.parentOffset === 0;
+
+        if (atStart) {
+          // Insert a fresh unchecked item ABOVE. Original item is untouched.
+          return editor
+            .chain()
+            .command(({ tr }) => {
+              const type = editor.schema.nodes[typeName];
+              const blank = type.createAndFill({ checked: false });
+              if (!blank) return false;
+              tr.insert(itemPos, blank);
+              return true;
+            })
+            .run();
+        }
+
+        // Middle / end: split, then explicitly set both nodes by position.
+        return editor
+          .chain()
+          .command(({ tr, commands }) => {
+            if (!commands.splitListItem(typeName)) return false;
+
+            // Upper node still starts at itemPos after the split.
+            const upper = tr.doc.nodeAt(itemPos);
+            if (!upper || upper.type.name !== typeName) return true;
+
+            // Lower node = the task item that now contains the cursor.
+            let lowerPos = -1;
+            const $after = tr.selection.$from;
+            for (let d = $after.depth; d > 0; d--) {
+              if ($after.node(d).type.name === typeName) {
+                lowerPos = $after.before(d);
                 break;
               }
             }
 
-            if (newPos === -1) return;
+            tr.setNodeMarkup(itemPos, undefined, { ...upper.attrs, checked: wasChecked });
 
-            const tr = state.tr;
-
-            // The item we split from was checked. 
-            // TipTap places the new item at `newPos` and pushes the old one down.
-            // We want the item above (newPos) to be checked, and the current one to be unchecked.
-
-            const nodeAbove = state.doc.nodeAt(currentPos);
-            if (nodeAbove && nodeAbove.type.name === 'taskItem') {
-              tr.setNodeMarkup(currentPos, undefined, { ...nodeAbove.attrs, checked: true });
+            if (lowerPos > itemPos) {
+              const lower = tr.doc.nodeAt(lowerPos);
+              if (lower && lower.type.name === typeName) {
+                tr.setNodeMarkup(lowerPos, undefined, { ...lower.attrs, checked: false });
+              }
             }
-
-            const currentNode = state.doc.nodeAt(newPos);
-            if (currentNode && currentNode.type.name === 'taskItem') {
-              tr.setNodeMarkup(newPos, undefined, { ...currentNode.attrs, checked: false });
-            }
-
-            if (tr.docChanged) {
-              view.dispatch(tr);
-            }
-          }, 0);
-        }
-
-        return true;
+            return true;
+          })
+          .run();
       },
     };
   },
@@ -208,7 +246,13 @@ export const EditorToolbar = ({ editor, isSorting, onToggleSort, disabled }: { e
   if (!editor || disabled) return null;
 
   return (
-    <div className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
+    <div
+      // Keep focus in the editor when pressing toolbar buttons. Without this the
+      // editor blurs on every click, which triggers a save + remote echo that
+      // used to wipe freshly-inserted checkboxes.
+      onMouseDown={(e) => e.preventDefault()}
+      className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1"
+    >
       <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Bold className="w-4 h-4" /></button>
       <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><Italic className="w-4 h-4" /></button>
       <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
@@ -367,6 +411,22 @@ function PaneContent() {
     editorStateRef.current = { taskId: displayTaskId, needsToAccept };
   }, [displayTaskId, needsToAccept]);
 
+  // Always-fresh reference to the mutation so editor callbacks never go stale.
+  const updateTaskRef = useRef(updateTask);
+  useEffect(() => {
+    updateTaskRef.current = updateTask;
+  });
+
+  // --- Editor <-> Convex sync bookkeeping ---------------------------------
+  // Which task's content is currently loaded in the editor.
+  const loadedTaskIdRef = useRef<string | null>(null);
+  // Editor has local edits that haven't been saved yet.
+  const dirtyRef = useRef(false);
+  // Last HTML we know matches what's stored on the server.
+  const lastSavedHtmlRef = useRef("");
+  // Number of description saves currently in flight.
+  const pendingSavesRef = useRef(0);
+
   const editor = useEditor({
     extensions: [
       StarterKit, TaskList, CustomTaskItem.configure({ nested: true }), DoubleSpaceFix,
@@ -374,11 +434,24 @@ function PaneContent() {
     ],
     content: "",
     immediatelyRender: false,
+    onUpdate: () => {
+      dirtyRef.current = true;
+    },
     onBlur: ({ editor }) => {
       const { taskId, needsToAccept: isViewOnly } = editorStateRef.current;
-      if (taskId && !isViewOnly) {
-        updateTask({ id: taskId, description: editor.getHTML() });
-      }
+      if (!taskId || isViewOnly) return;
+
+      const html = editor.getHTML();
+      dirtyRef.current = false;
+      if (html === lastSavedHtmlRef.current) return; // nothing changed, don't save
+
+      lastSavedHtmlRef.current = html;
+      pendingSavesRef.current += 1;
+      Promise.resolve(updateTaskRef.current({ id: taskId, description: html }))
+        .catch(() => { })
+        .finally(() => {
+          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+        });
     },
   });
 
@@ -394,14 +467,37 @@ function PaneContent() {
   useEffect(() => {
     if (!editor) return;
 
+    // No task (yet) for the displayed id -> clear the editor.
     if (!task || task._id !== displayTaskId) {
-      if (editor.getHTML() !== "<p></p>") editor.commands.setContent("");
-    } else {
-      const incomingContent = task.description || "";
-      if (editor.getHTML() !== incomingContent) {
-        editor.commands.setContent(incomingContent);
-      }
+      loadedTaskIdRef.current = null;
+      dirtyRef.current = false;
+      lastSavedHtmlRef.current = "";
+      if (editor.getHTML() !== "<p></p>") editor.commands.setContent("", { emitUpdate: false });
+      return;
     }
+
+    const incoming = task.description || "";
+
+    // 1) A different task was opened -> load it fresh.
+    if (loadedTaskIdRef.current !== task._id) {
+      editor.commands.setContent(incoming, { emitUpdate: false });
+      loadedTaskIdRef.current = task._id;
+      dirtyRef.current = false;
+      lastSavedHtmlRef.current = editor.getHTML();
+      return;
+    }
+
+    // 2) Same task, server data changed. Never clobber what the user is doing:
+    //    skip while they're editing, have unsaved changes, or a save is in flight
+    //    (that update is just our own save echoing back).
+    if (dirtyRef.current || editor.isFocused || pendingSavesRef.current > 0) return;
+    if (incoming === lastSavedHtmlRef.current) return;
+
+    // 3) Genuine remote change while the editor is idle -> apply it.
+    if (editor.getHTML() !== incoming) {
+      editor.commands.setContent(incoming, { emitUpdate: false });
+    }
+    lastSavedHtmlRef.current = editor.getHTML();
   }, [task, displayTaskId, editor]);
 
   useEffect(() => {
