@@ -43,20 +43,7 @@ const DoubleSpaceFix = Extension.create({
  * CustomTaskItem
  *
  * Overrides Enter so checked state is always correct, regardless of where the
- * cursor is inside a task item:
- *
- *  - Cursor at the very START of a non-empty item:
- *      insert a brand-new UNCHECKED item above. The original item (and its
- *      checked state) is never touched, and the cursor stays inside it.
- *  - Cursor in the MIDDLE / END of a non-empty item:
- *      split with TipTap's command, then set `checked` on the upper and lower
- *      nodes by explicit document position, inside the SAME transaction
- *      (upper keeps the original state, lower is a new unchecked item).
- *  - Empty item / range selection:
- *      default TipTap behaviour (this is what lifts you out of the list).
- *
- * No setTimeout, no updateAttributes, no reliance on selection-relative
- * attribute updates -> stateless and idempotent.
+ * cursor is inside a task item.
  */
 const CustomTaskItem = TaskItem.extend({
   addKeyboardShortcuts() {
@@ -247,9 +234,6 @@ export const EditorToolbar = ({ editor, isSorting, onToggleSort, disabled }: { e
 
   return (
     <div
-      // Keep focus in the editor when pressing toolbar buttons. Without this the
-      // editor blurs on every click, which triggers a save + remote echo that
-      // used to wipe freshly-inserted checkboxes.
       onMouseDown={(e) => e.preventDefault()}
       className="flex items-center gap-1 mb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1"
     >
@@ -711,13 +695,8 @@ function PaneContent() {
                     if (needsToAccept || !displayTaskId) return;
 
                     if (val === "none") {
-                      // If this task belongs to a recurring group, delete all uncompleted
-                      // sibling tasks in that group so they can't keep spawning new ones.
-                      if (task.recurringGroupId) {
-                        deleteRecurringTasks({ groupId: task.recurringGroupId });
-                      }
-
-                      // Clear the rule and group on the current task.
+                      // Detach this task from the chain. It will no longer spawn
+                      // a new task upon completion, and existing siblings are untouched.
                       updateTask({
                         id: displayTaskId,
                         recurrenceRule: null,
