@@ -525,13 +525,20 @@ export function useFocusSession(focusedTasks: any[]) {
 
     const handleSaveSettings = useCallback(
         (newSettings: FocusSettings) => {
+            // Only reset timeLeft if the CURRENT mode's duration actually changed.
+            // Toggling microbreaks, changing sound, breathing color, etc. should
+            // never touch the running timer.
+            const prevDuration = getModeDuration(mode, focusSettings);
+            const nextDuration = getModeDuration(mode, newSettings);
+
             setFocusSettings(newSettings);
             saveFocusSettings(newSettings);
-            if (!isRunning) {
-                setTimeLeft(getModeDuration(mode, newSettings));
+
+            if (!isRunning && prevDuration !== nextDuration) {
+                setTimeLeft(nextDuration);
             }
         },
-        [getModeDuration, isRunning, mode]
+        [focusSettings, getModeDuration, isRunning, mode]
     );
 
     const expand = useCallback(() => setOverlayVisible(true), []);
