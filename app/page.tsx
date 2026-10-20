@@ -1,4 +1,4 @@
-"use client"; 
+"use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import { EisenhowerMatrix } from "@/components/views/EisenhowerMatrix";
@@ -13,9 +13,12 @@ import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
 import { FocusSessionOverlay } from "@/components/views/FocusSessionOverlay";
 import { FloatingFocusWidget } from "@/components/views/FloatingFocusWidget";
+import { GuidedBreathingModal } from "@/components/views/GuidedBreathingModal";
+import { VisualFocusModal } from "@/components/views/VisualFocusModal";
+import { FocusSettingsModal } from "@/components/views/FocusSettingsModal";
 import { TouchBaseModal } from "@/components/views/TouchBaseModal";
-import { InstallScreen } from "@/components/views/InstallScreen"; 
-import { useAuth, useClerk, SignInButton } from "@clerk/nextjs"; 
+import { InstallScreen } from "@/components/views/InstallScreen";
+import { useAuth, useClerk, SignInButton } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff, Clock } from "lucide-react";
 import { useMutation } from "convex/react";
@@ -24,8 +27,9 @@ import { PushToggle } from "@/components/ui/PushToggle";
 import { PushPromptModal } from "@/components/ui/PushPromptModal";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { useTheme } from "next-themes";
-import { useGuestSession } from "@/hooks/useGuestSession"; 
+import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineQuery } from "@/hooks/useOfflineMutation";
+import { useFocusSession } from "@/hooks/useFocusSession";
 
 function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -61,26 +65,26 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
 
   if (!isOpen) return null;
 
-  const results = tasks?.filter((t: any) => 
+  const results = tasks?.filter((t: any) =>
     query.length > 1 && (
-      t.title.toLowerCase().includes(query.toLowerCase()) || 
+      t.title.toLowerCase().includes(query.toLowerCase()) ||
       (t.description && t.description.toLowerCase().includes(query.toLowerCase()))
     )
   ) || [];
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex flex-col items-center pt-[10vh] px-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
-      <div 
+      <div
         className="w-full max-w-2xl bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[80vh] animate-in slide-in-from-top-4 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        
+
         <div className="flex items-center gap-3 p-4 border-b border-[var(--border)]">
           <Search className="w-5 h-5 text-zinc-400" />
-          <input 
+          <input
             ref={inputRef}
             type="text"
             placeholder="Search all tasks and notes..."
@@ -126,13 +130,13 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
 function ExportButton() {
   const sessionId = useGuestSession();
   const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks");
-  
+
   const handleExport = () => {
     if (!tasks || tasks.length === 0) return;
 
     const headers = [
-      "Task ID", "Created At", "Title", "Status", "Pipelines", 
-      "Project ID", "Is Today", "Is Urgent", "Is Important", 
+      "Task ID", "Created At", "Title", "Status", "Pipelines",
+      "Project ID", "Is Today", "Is Urgent", "Is Important",
       "Is For Funsies", "Do On Date", "Due By Date", "Notes (Plain Text)"
     ];
 
@@ -193,13 +197,13 @@ function CustomUserMenu({ sessionType }: { sessionType: "none" | "demo" | "vip" 
   const handleExitGuest = () => {
     localStorage.removeItem("fotion-session-id");
     localStorage.removeItem("fotion-vip-token");
-    window.location.href = "/"; 
+    window.location.href = "/";
   };
 
   return (
     <div className="relative" ref={ref}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)} 
+      <button
+        onClick={() => setIsOpen(!isOpen)}
         className="p-1.5 text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
       >
         <Settings className="w-4 h-4" />
@@ -244,62 +248,7 @@ function HomeContent() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isTouchBaseOpen, setIsTouchBaseOpen] = useState(false);
-  
-  const [isFocusSessionOpen, setIsFocusSessionOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("fotion-focus-session-state");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          return !!parsed.isOpen;
-        }
-      } catch (e) {}
-    }
-    return false;
-  });
   const [isNearFocusButton, setIsNearFocusButton] = useState(false);
-
-  // Active Session State for Floating Widget
-  const [activeFocusSession, setActiveFocusSession] = useState<{
-    isRunning: boolean;
-    timeLeft: number;
-    mode: "work" | "short-break" | "long-break";
-    activeTaskId?: string;
-  } | null>(null);
-
-  useEffect(() => {
-    const checkState = () => {
-      try {
-        const saved = localStorage.getItem("fotion-focus-session-state");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.isRunning && parsed.expectedEndTime) {
-            const remaining = Math.max(0, Math.round((parsed.expectedEndTime - Date.now()) / 1000));
-            setActiveFocusSession({
-              isRunning: true,
-              timeLeft: remaining,
-              mode: parsed.mode || "work",
-              activeTaskId: parsed.activeTaskId,
-            });
-            return;
-          } else if (typeof parsed.timeLeft === "number" && (parsed.isRunning || parsed.timeLeft < 25 * 60)) {
-            setActiveFocusSession({
-              isRunning: false,
-              timeLeft: parsed.timeLeft,
-              mode: parsed.mode || "work",
-              activeTaskId: parsed.activeTaskId,
-            });
-            return;
-          }
-        }
-      } catch (e) {}
-      setActiveFocusSession(null);
-    };
-
-    checkState();
-    const interval = setInterval(checkState, 1000);
-    return () => clearInterval(interval);
-  }, [isFocusSessionOpen]);
 
   const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");
   const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
@@ -309,9 +258,9 @@ function HomeContent() {
   const guestSessionId = useGuestSession();
 
   const [isOffline, setIsOffline] = useState(false);
-  
+
   // NEW PWA INSTALL STATES
-  const [showInstallScreen, setShowInstallScreen] = useState(false); 
+  const [showInstallScreen, setShowInstallScreen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"demo" | null>(null);
 
   useEffect(() => {
@@ -330,7 +279,7 @@ function HomeContent() {
 
   const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
   const vipTask = useOfflineQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip", "getTaskByShareToken");
-  
+
   const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks");
 
   const actualSessionId = guestSessionId?.split("||vip_")[0];
@@ -342,15 +291,18 @@ function HomeContent() {
   }) || []).sort((a: any, b: any) => (a.order ?? 999999) - (b.order ?? 999999));
 
   const nowMs = Date.now();
-  const staleWaitingCount = allTasks?.filter((t: any) => 
+  const staleWaitingCount = allTasks?.filter((t: any) =>
     t.status !== "done" && t.listCategory === "Waiting For" && (nowMs - (t.lastContactedAt || t._creationTime)) >= (48 * 60 * 60 * 1000)
   ).length || 0;
 
-  const staleSomedayCount = allTasks?.filter((t: any) => 
+  const staleSomedayCount = allTasks?.filter((t: any) =>
     t.status !== "done" && t.listCategory === "Someday Maybe" && (nowMs - (t.lastContactedAt || t._creationTime)) >= (7 * 24 * 60 * 60 * 1000)
   ).length || 0;
 
   const totalTouchBaseCount = staleWaitingCount + staleSomedayCount;
+
+  // Focus session is now a single lifted hook. No polling, no duplicate state.
+  const focusSession = useFocusSession(focusedTasks);
 
   const hasAutoOpenedVip = useRef(false);
 
@@ -388,18 +340,18 @@ function HomeContent() {
   const handleBypassInstall = () => {
     sessionStorage.setItem("fotion-bypassed-install", "true");
     setShowInstallScreen(false);
-    
+
     // Resume interrupted actions
     if (pendingAction === "demo") {
       setPendingAction(null);
-      handleStartDemo(); 
+      handleStartDemo();
     }
   };
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
     if (saved) setActiveView(saved);
-    
+
     const vipParam = searchParams.get("vip");
     const sessionParam = searchParams.get("session");
 
@@ -409,18 +361,18 @@ function HomeContent() {
 
     if (vipParam && !isSignedIn) {
       localStorage.setItem("fotion-vip-token", vipParam);
-    } 
+    }
 
     if (isSignedIn) {
-       setSessionType("none");
-       setIsMounted(true);
-       return;
+      setSessionType("none");
+      setIsMounted(true);
+      return;
     }
-    
+
     const hasVipToken = !!localStorage.getItem("fotion-vip-token");
     let currentSessionId = localStorage.getItem("fotion-session-id");
     const hasSeenLandingPage = !!localStorage.getItem("fotion-seen-landing-id");
-    
+
     if (hasVipToken) {
       if (!currentSessionId) {
         currentSessionId = `vip_guest_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
@@ -455,7 +407,7 @@ function HomeContent() {
     } else {
       setSessionType("none");
     }
-    
+
     setIsMounted(true);
   }, [isSignedIn, searchParams]);
 
@@ -469,7 +421,7 @@ function HomeContent() {
     if (checkNeedsInstall()) {
       setPendingAction("demo");
       setShowInstallScreen(true);
-      return; 
+      return;
     }
 
     setIsGeneratingDemo(true);
@@ -479,10 +431,10 @@ function HomeContent() {
         demoId = `demo_user_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
         localStorage.setItem("fotion-session-id", demoId);
       }
-      
+
       await seedDemoData({ sessionId: demoId });
       localStorage.setItem("fotion-seen-landing-id", demoId);
-      
+
       setSessionType("demo");
     } catch (error: any) {
       alert("Failed to seed demo data: " + error.message);
@@ -509,7 +461,7 @@ function HomeContent() {
   if (!isSignedIn && sessionType === "none" && !isOffline) {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
-        
+
         <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02] pointer-events-none">
           <svg className="absolute top-[15%] left-[10%] w-64 h-64 text-zinc-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="0.5">
             <circle cx="12" cy="12" r="10" />
@@ -541,7 +493,7 @@ function HomeContent() {
           </div>
 
           <div className="pt-2 flex flex-col gap-5">
-            <button 
+            <button
               onClick={handleStartDemo}
               disabled={isGeneratingDemo}
               className="w-full flex items-center justify-center gap-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border dark:border-emerald-800/50 py-3.5 px-4 rounded-xl font-bold transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
@@ -572,13 +524,10 @@ function HomeContent() {
     );
   }
 
-  // Active Task Title for Floating Widget
-  const activeTaskObj = activeFocusSession?.activeTaskId ? allTasks?.find((t: any) => t._id === activeFocusSession.activeTaskId) : undefined;
-
   // 4. Main App Interface
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col relative">
-      
+
       {/* GLOBAL OFFLINE BANNER */}
       {isOffline && (
         <div className="w-full bg-amber-500 text-amber-950 px-4 py-2 text-xs sm:text-sm font-bold text-center flex items-center justify-center gap-2 shadow-md z-[100]">
@@ -601,21 +550,20 @@ function HomeContent() {
               </span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-1 sm:gap-2">
             <button onClick={() => setIsSearchOpen(true)} className="flex items-center justify-center p-1.5 text-zinc-500 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors mr-1">
               <Search className="w-4 h-4" />
             </button>
 
             <ExportButton />
-            
-            <button 
-              onClick={() => setIsTouchBaseOpen(true)} 
-              className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium transition-colors px-2 py-1 rounded-md border ${
-                totalTouchBaseCount > 0 
-                  ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800 font-bold' 
+
+            <button
+              onClick={() => setIsTouchBaseOpen(true)}
+              className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium transition-colors px-2 py-1 rounded-md border ${totalTouchBaseCount > 0
+                  ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800 font-bold'
                   : 'text-zinc-500 hover:text-[var(--foreground)] border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800'
-              }`}
+                }`}
               title="Touch base with Waiting For & Someday tasks"
             >
               <Clock className="w-4 h-4 text-amber-500" />
@@ -630,15 +578,15 @@ function HomeContent() {
             <button onClick={() => setIsProjectModalOpen(true)} className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-[var(--foreground)] transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
               <Folder className="w-4 h-4" /> Projects
             </button>
-            
+
             {isSignedIn && (
               <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors px-2 py-1 rounded-md">
                 <Zap className="w-4 h-4" /> Import
               </button>
             )}
-            
+
             <div className="w-px h-5 bg-[var(--border)] mx-1"></div>
-            
+
             <ThemeToggle />
             <CustomUserMenu sessionType={sessionType} />
           </div>
@@ -651,7 +599,7 @@ function HomeContent() {
           <div className="mb-4">
             <NewTaskForm />
           </div>
-          
+
           <div className="mt-4 flex-1">
             {!isMounted ? (
               <div className="flex items-center justify-center h-64">
@@ -668,7 +616,7 @@ function HomeContent() {
             )}
           </div>
         </div>
-        
+
         <TaskDetailsPane />
         <GlobalSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
         <ImportProjectModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
@@ -677,51 +625,54 @@ function HomeContent() {
         <PushPromptModal />
       </main>
 
-      {!isFocusSessionOpen && !activeFocusSession?.isRunning && (
-        <button 
-          onClick={() => setIsFocusSessionOpen(true)}
+      {/* "Start Focus" pill — shown only when neither the overlay nor the floating widget is visible. */}
+      {!focusSession.overlayVisible && !focusSession.shouldShowFloatingWidget && (
+        <button
+          onClick={focusSession.expand}
           className={`fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-[50] flex items-center gap-2 bg-white dark:bg-[#252525] border border-[var(--border)] text-[var(--foreground)] font-bold px-6 py-3.5 rounded-full shadow-2xl shadow-black/5 transition-all duration-300 active:scale-95 ${isNearFocusButton ? 'sm:opacity-100 sm:translate-y-0' : 'sm:opacity-20 sm:translate-y-2'}`}
         >
           <Target className="w-5 h-5 text-zinc-500" /> Start Focus {focusedTasks.length > 0 ? `(${focusedTasks.length})` : ""}
         </button>
       )}
 
-      {/* FLOATING TIMER WIDGET (when overlay is minimized while focus session is running/active) */}
-      {!isFocusSessionOpen && activeFocusSession && activeFocusSession.isRunning && (
+      {/* Floating timer widget — single source of truth, driven by the hook. */}
+      {focusSession.shouldShowFloatingWidget && (
         <FloatingFocusWidget
-          mode={activeFocusSession.mode}
-          timeLeft={activeFocusSession.timeLeft}
-          isRunning={activeFocusSession.isRunning}
-          activeTaskTitle={activeTaskObj?.title}
-          onToggleTimer={() => {
-            try {
-              const saved = localStorage.getItem("fotion-focus-session-state");
-              if (saved) {
-                const parsed = JSON.parse(saved);
-                parsed.isRunning = !parsed.isRunning;
-                if (parsed.isRunning) {
-                  parsed.expectedEndTime = Date.now() + parsed.timeLeft * 1000;
-                } else {
-                  parsed.expectedEndTime = null;
-                }
-                localStorage.setItem("fotion-focus-session-state", JSON.stringify(parsed));
-              }
-            } catch (e) {}
-          }}
-          onExpand={() => setIsFocusSessionOpen(true)}
-          onCloseSession={() => {
-            try {
-              localStorage.removeItem("fotion-focus-session-state");
-            } catch (e) {}
-            setActiveFocusSession(null);
-          }}
+          mode={focusSession.mode}
+          timeLeft={focusSession.timeLeft}
+          isRunning={focusSession.isRunning}
+          activeTaskTitle={focusSession.activeTask?.title}
+          isMicrobreakActive={focusSession.isMicrobreakActive}
+          microbreakTimeLeft={focusSession.microbreakTimeLeft}
+          onToggleTimer={focusSession.toggleTimer}
+          onExpand={focusSession.expand}
+          onCloseSession={focusSession.endSession}
         />
       )}
 
-      <FocusSessionOverlay 
-        isOpen={isFocusSessionOpen} 
-        onClose={() => setIsFocusSessionOpen(false)} 
-        focusedTasks={focusedTasks} 
+      {/* Full-screen overlay — always mounted; renders null internally when minimized. */}
+      <FocusSessionOverlay session={focusSession} />
+
+      {/* Wellness modals — mounted at page level so they persist across minimize/expand. */}
+      <GuidedBreathingModal
+        isOpen={focusSession.isBreathingOpen}
+        onClose={() => focusSession.setIsBreathingOpen(false)}
+        settings={focusSession.focusSettings}
+        onUpdateSettings={focusSession.handleSaveSettings}
+      />
+
+      <VisualFocusModal
+        isOpen={focusSession.isVisualFocusOpen}
+        onClose={() => focusSession.setIsVisualFocusOpen(false)}
+        settings={focusSession.focusSettings}
+        onUpdateSettings={focusSession.handleSaveSettings}
+      />
+
+      <FocusSettingsModal
+        isOpen={focusSession.isSettingsOpen}
+        onClose={() => focusSession.setIsSettingsOpen(false)}
+        settings={focusSession.focusSettings}
+        onSave={focusSession.handleSaveSettings}
       />
 
     </div>
