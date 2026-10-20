@@ -39,8 +39,12 @@ const DoubleSpaceFix = Extension.create({
   },
 });
 
-// FIX: Override TaskItem's Enter key shortcut so it ALWAYS spawns unchecked items.
-// Using chain() guarantees updateAttributes targets the newly-created taskItem node.
+// FIX: Override TaskItem's Enter key so the NEWLY-CREATED item is always
+// unchecked, regardless of whether the split went up or down.
+// The old code used `updateAttributes('taskItem', { checked: false })` which
+// patches every taskItem in the selection range — after an upward split from
+// a completed item, that range includes BOTH the new item and the old one,
+// which unchecks the previously-completed task too.
 const CustomTaskItem = TaskItem.extend({
   addKeyboardShortcuts() {
     const shortcuts = this.parent?.() || {};
@@ -49,14 +53,36 @@ const CustomTaskItem = TaskItem.extend({
       Enter: () => {
         const { editor } = this;
         if (!editor.isActive('taskItem')) return false;
-        return editor
-          .chain()
-          .splitListItem('taskItem')
-          .updateAttributes('taskItem', { checked: false })
-          .run();
-      }
+
+        // 1. Perform the split. TipTap places the cursor inside the new block.
+        const didSplit = editor.commands.splitListItem('taskItem');
+        if (!didSplit) return false;
+
+        // 2. Find the taskItem ancestor of the current (post-split) selection.
+        //    That node IS the newly-created item, by definition.
+        const { state, view } = editor;
+        const { $from } = state.selection;
+
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === 'taskItem') {
+            const itemNode = $from.node(d);
+            // Only patch if it inherited checked=true. If it's already
+            // unchecked (the normal case), do nothing — no extra transaction.
+            if (itemNode.attrs.checked === true) {
+              const itemPos = $from.before(d);
+              const tr = state.tr.setNodeMarkup(itemPos, undefined, {
+                ...itemNode.attrs,
+                checked: false,
+              });
+              view.dispatch(tr);
+            }
+            return true;
+          }
+        }
+        return true;
+      },
     };
-  }
+  },
 });
 
 const PropertyRow = ({ icon: Icon, label, children, disabled }: { icon: any, label: string, children: React.ReactNode, disabled?: boolean }) => (
