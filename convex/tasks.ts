@@ -49,8 +49,8 @@ export const createTask = mutation({
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
     sessionId: v.optional(v.string()),
-    recurringGroupId: v.optional(v.union(v.string(), v.null())), // FIX: Accept null to clear
-    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())), // FIX: Accept null to clear
+    recurringGroupId: v.optional(v.union(v.string(), v.null())),
+    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())),
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -96,8 +96,8 @@ export const updateTask = mutation({
     sharedWithSessions: v.optional(v.array(v.string())),
     sessionId: v.optional(v.string()),
     focusedSessions: v.optional(v.array(v.string())),
-    recurringGroupId: v.optional(v.union(v.string(), v.null())), // FIX: Accept null to clear
-    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())), // FIX: Accept null to clear
+    recurringGroupId: v.optional(v.union(v.string(), v.null())),
+    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())),
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -188,7 +188,18 @@ export const updateTask = mutation({
       }
     }
 
-    await ctx.db.patch(id, fields);
+    // Explicitly set `undefined` for null values to clear them from the database,
+    // ensuring the field is actually removed.
+    const cleanFields: any = {};
+    for (const [key, value] of Object.entries(fields)) {
+      if (value === null) {
+        cleanFields[key] = undefined;
+      } else {
+        cleanFields[key] = value;
+      }
+    }
+
+    await ctx.db.patch(id, cleanFields);
     return id;
   },
 });
