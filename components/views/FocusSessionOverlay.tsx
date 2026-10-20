@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { 
+import {
   X, Play, Pause, RotateCcw, Target, CheckSquare, Check, Coffee, GripVertical, Moon, Plus, FileText, Wind, Eye, Zap, Sliders, ChevronRight, ChevronLeft, List
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -11,7 +11,7 @@ import { useGuestSession } from "@/hooks/useGuestSession";
 import { openTaskDetails } from "./TaskDetailsPane";
 
 import {
-  DndContext, 
+  DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
@@ -33,6 +33,7 @@ import { loadFocusSettings, saveFocusSettings, FocusSettings, DEFAULT_FOCUS_SETT
 import { GuidedBreathingModal } from "./GuidedBreathingModal";
 import { VisualFocusModal } from "./VisualFocusModal";
 import { FocusSettingsModal } from "./FocusSettingsModal";
+import { FloatingFocusWidget } from "./FloatingFocusWidget";
 
 type FocusMode = "work" | "short-break" | "long-break";
 
@@ -44,14 +45,14 @@ const getTodayDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-function SortableTaskItem({ 
-  task, 
-  isActive, 
-  onSelect, 
-  onDone 
-}: { 
-  task: any; 
-  isActive: boolean; 
+function SortableTaskItem({
+  task,
+  isActive,
+  onSelect,
+  onDone
+}: {
+  task: any;
+  isActive: boolean;
   onSelect: () => void;
   onDone: (task: any) => void;
 }) {
@@ -71,37 +72,34 @@ function SortableTaskItem({
   };
 
   return (
-    <div 
+    <div
       ref={setNodeRef}
       style={style}
       onClick={onSelect}
-      className={`p-3 sm:p-4 rounded-xl cursor-pointer transition-all border group flex items-center gap-2 sm:gap-3 ${
-        isDragging ? 'opacity-50 border-zinc-400' : 
-        isActive ? 'bg-zinc-100 dark:bg-[#2a2a2a] border-[var(--foreground)] shadow-md' : 
-        'bg-white dark:bg-[#1c1c1c] border-[var(--border)] hover:border-zinc-400 dark:hover:border-zinc-500'
-      }`}
+      className={`p-3 sm:p-4 rounded-xl cursor-pointer transition-all border group flex items-center gap-2 sm:gap-3 ${isDragging ? 'opacity-50 border-zinc-400' :
+        isActive ? 'bg-zinc-100 dark:bg-[#2a2a2a] border-[var(--foreground)] shadow-md' :
+          'bg-white dark:bg-[#1c1c1c] border-[var(--border)] hover:border-zinc-400 dark:hover:border-zinc-500'
+        }`}
     >
-      <div 
-        {...attributes} 
-        {...listeners} 
+      <div
+        {...attributes}
+        {...listeners}
         className="cursor-grab active:cursor-grabbing p-2 -ml-2 text-zinc-300 group-hover:text-zinc-400 transition-colors touch-none"
       >
         <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
       </div>
 
-      <button 
+      <button
         onClick={(e) => {
           e.stopPropagation();
           onDone(task);
         }}
-        className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center transition-colors bg-transparent ${
-          isActive ? 'border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600'
-        } hover:border-pink-400 dark:hover:border-pink-400 hover:bg-pink-400/20`}
+        className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center transition-colors bg-transparent ${isActive ? 'border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600'
+          } hover:border-pink-400 dark:hover:border-pink-400 hover:bg-pink-400/20`}
       />
-      
-      <span className={`text-[14px] sm:text-[15px] font-medium leading-snug truncate flex-1 ${
-        isActive ? 'text-[var(--foreground)]' : 'text-zinc-600 dark:text-zinc-300'
-      }`}>
+
+      <span className={`text-[14px] sm:text-[15px] font-medium leading-snug truncate flex-1 ${isActive ? 'text-[var(--foreground)]' : 'text-zinc-600 dark:text-zinc-300'
+        }`}>
         {task.title}
       </span>
 
@@ -120,12 +118,12 @@ function SortableTaskItem({
   );
 }
 
-export function FocusSessionOverlay({ 
-  isOpen, 
-  onClose, 
-  focusedTasks: initialTasks 
-}: { 
-  isOpen: boolean; 
+export function FocusSessionOverlay({
+  isOpen,
+  onClose,
+  focusedTasks: initialTasks
+}: {
+  isOpen: boolean;
   onClose: () => void;
   focusedTasks: any[];
 }) {
@@ -135,29 +133,29 @@ export function FocusSessionOverlay({
 
   const router = useRouter();
   const guestSessionId = useGuestSession();
-  
-  // Loaded Settings
+
   const [focusSettings, setFocusSettings] = useState<FocusSettings>(DEFAULT_FOCUS_SETTINGS);
-  
-  // Modals state for Huberman tools
+
   const [isBreathingOpen, setIsBreathingOpen] = useState(false);
   const [isVisualFocusOpen, setIsVisualFocusOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQueueMinimized, setIsQueueMinimized] = useState(initialTasks.length === 0);
   const prevQueueLengthRef = useRef(initialTasks.length);
 
-  // Sorted Queue state
+  // Local override that lets the floating widget's Expand button reopen the overlay
+  // without needing to reach into a parent's DOM tree.
+  const [forceOpen, setForceOpen] = useState(false);
+  const overlayVisible = isOpen || forceOpen;
+
   const [localQueue, setLocalQueue] = useState<any[]>([]);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [mode, setMode] = useState<FocusMode>("work");
-  
-  // Timer State
+
   const [timeLeft, setTimeLeft] = useState<number>(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [completedToday, setCompletedToday] = useState<number>(0);
 
-  // Microbreaks Engine State
   const [isMicrobreakActive, setIsMicrobreakActive] = useState(false);
   const [microbreakTimeLeft, setMicrobreakTimeLeft] = useState(focusSettings.microbreakDurationSec || 5);
   const nextMicrobreakTimeRef = useRef<number | null>(null);
@@ -168,14 +166,12 @@ export function FocusSessionOverlay({
   const completedTodayRef = useRef<number>(0);
   const quickAddInputRef = useRef<HTMLInputElement>(null);
 
-  // Load custom settings on mount
   useEffect(() => {
     const loaded = loadFocusSettings();
     setFocusSettings(loaded);
     setMicrobreakTimeLeft(loaded.microbreakDurationSec || 5);
   }, []);
 
-  // Mode durations dictionary calculated from settings
   const getModeDuration = (targetMode: FocusMode, settings = focusSettings) => {
     switch (targetMode) {
       case "work":
@@ -187,7 +183,6 @@ export function FocusSessionOverlay({
     }
   };
 
-  // Keep localQueue sorted by `order` when initialTasks updates
   useEffect(() => {
     const sorted = [...initialTasks].sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
     setLocalQueue(sorted);
@@ -203,12 +198,9 @@ export function FocusSessionOverlay({
     completedTodayRef.current = newCount;
     try {
       localStorage.setItem("fotion-focus-daily-stats", JSON.stringify({ date: todayStr, count: newCount }));
-    } catch (e) {
-      console.error("Failed to save daily focus stats", e);
-    }
+    } catch (e) { }
   };
 
-  // Restore saved focus timer state and daily stats on initial mount
   useEffect(() => {
     if (typeof window === "undefined" || hasRestoredRef.current) return;
     hasRestoredRef.current = true;
@@ -263,17 +255,14 @@ export function FocusSessionOverlay({
       } else {
         setTimeLeft(getModeDuration("work", loadFocusSettings()));
       }
-    } catch (e) {
-      console.error("Failed to restore focus timer state", e);
-    }
+    } catch (e) { }
   }, []);
 
-  // Save current focus timer state and microbreak schedule on changes
   useEffect(() => {
     if (typeof window === "undefined" || !hasRestoredRef.current) return;
     try {
       const stateToSave = {
-        isOpen,
+        isOpen: overlayVisible,
         mode,
         timeLeft,
         isRunning,
@@ -285,10 +274,8 @@ export function FocusSessionOverlay({
         updatedAt: Date.now(),
       };
       localStorage.setItem("fotion-focus-session-state", JSON.stringify(stateToSave));
-    } catch (e) {
-      console.error("Failed to save focus timer state", e);
-    }
-  }, [isOpen, mode, timeLeft, isRunning, isMicrobreakActive, microbreakTimeLeft, activeTaskId]);
+    } catch (e) { }
+  }, [overlayVisible, mode, timeLeft, isRunning, isMicrobreakActive, microbreakTimeLeft, activeTaskId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -297,17 +284,17 @@ export function FocusSessionOverlay({
   );
 
   useEffect(() => {
-    if (isOpen && localQueue.length > 0 && !activeTaskId) {
+    if (overlayVisible && localQueue.length > 0 && !activeTaskId) {
       setActiveTaskId(localQueue[0]._id);
     }
-  }, [isOpen, localQueue, activeTaskId]);
+  }, [overlayVisible, localQueue, activeTaskId]);
 
   const initAudio = () => {
     if (!audioCtxRef.current) {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       audioCtxRef.current = new AudioContext();
     }
-    
+
     const ctx = audioCtxRef.current;
     if (ctx.state === "suspended") {
       ctx.resume();
@@ -325,18 +312,18 @@ export function FocusSessionOverlay({
   const playNote = (ctx: AudioContext, freq: number, startTimeOffset: number, duration: number, maxVolume: number) => {
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();
-    
+
     osc.connect(gainNode);
     gainNode.connect(ctx.destination);
-    
+
     osc.type = "sine";
     osc.frequency.value = freq;
-    
+
     const startTime = ctx.currentTime + startTimeOffset;
     gainNode.gain.setValueAtTime(0.001, startTime);
     gainNode.gain.linearRampToValueAtTime(maxVolume, startTime + 0.05);
     gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-    
+
     osc.start(startTime);
     osc.stop(startTime + duration);
   };
@@ -348,7 +335,7 @@ export function FocusSessionOverlay({
       if (ctx.state === "suspended") ctx.resume();
       playNote(ctx, 523.25, 0.0, 1.5, 0.2);
       playNote(ctx, 698.46, 0.15, 1.5, 0.2);
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const playFinishChime = () => {
@@ -360,7 +347,7 @@ export function FocusSessionOverlay({
       playNote(ctx, 659.25, 0.15, 3.0, 0.3);
       playNote(ctx, 783.99, 0.3, 3.0, 0.3);
       playNote(ctx, 987.77, 0.45, 4.0, 0.4);
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const playMicrobreakSound = (type: "start" | "pulse" | "end") => {
@@ -373,18 +360,18 @@ export function FocusSessionOverlay({
 
       if (soundType === "chime") {
         if (type === "start") {
-          playNote(ctx, 659.25, 0.0, 1.2, 0.2); // E5
-          playNote(ctx, 880.00, 0.1, 1.5, 0.25); // A5
+          playNote(ctx, 659.25, 0.0, 1.2, 0.2);
+          playNote(ctx, 880.00, 0.1, 1.5, 0.25);
         } else if (type === "pulse") {
-          playNote(ctx, 432.00, 0.0, 0.4, 0.06); // Subtle 432Hz ambient pulse
+          playNote(ctx, 432.00, 0.0, 0.4, 0.06);
         } else if (type === "end") {
-          playNote(ctx, 523.25, 0.0, 1.5, 0.2); // C5
-          playNote(ctx, 659.25, 0.12, 1.5, 0.2); // E5
-          playNote(ctx, 783.99, 0.24, 2.5, 0.25); // G5
+          playNote(ctx, 523.25, 0.0, 1.5, 0.2);
+          playNote(ctx, 659.25, 0.12, 1.5, 0.2);
+          playNote(ctx, 783.99, 0.24, 2.5, 0.25);
         }
       } else if (soundType === "bell") {
         if (type === "start") {
-          playNote(ctx, 216.00, 0.0, 2.5, 0.3); // Deep bowl sound
+          playNote(ctx, 216.00, 0.0, 2.5, 0.3);
           playNote(ctx, 432.00, 0.05, 2.5, 0.15);
         } else if (type === "pulse") {
           playNote(ctx, 216.00, 0.0, 0.5, 0.04);
@@ -402,28 +389,25 @@ export function FocusSessionOverlay({
           playNote(ctx, 1567.98, 0.15, 0.3, 0.2);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
-  // Schedule Next Random Microbreak Trigger
   const scheduleNextMicrobreak = (currentRemainingSeconds: number) => {
     if (!focusSettings.microbreaksEnabled || mode !== "work") {
       nextMicrobreakTimeRef.current = null;
       return;
     }
     const maxSec = focusSettings.microbreakMaxIntervalMin * 60;
-    const minSec = 60; // minimum 1 minute
+    const minSec = 60;
     if (currentRemainingSeconds <= minSec + 15) return;
 
-    // Pick a random interval between 60s and maxSec
     const randomOffset = Math.floor(Math.random() * (maxSec - minSec)) + minSec;
     nextMicrobreakTimeRef.current = currentRemainingSeconds - randomOffset;
   };
 
-  // Main Timer Interval Loop with Microbreak Triggering
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    
+
     if (isRunning) {
       if (mode === "work" && focusSettings.microbreaksEnabled && nextMicrobreakTimeRef.current === null) {
         scheduleNextMicrobreak(timeLeft);
@@ -455,7 +439,6 @@ export function FocusSessionOverlay({
           } else {
             setTimeLeft(remainingSeconds);
 
-            // Check if Microbreak should trigger
             if (
               mode === "work" &&
               focusSettings.microbreaksEnabled &&
@@ -463,20 +446,18 @@ export function FocusSessionOverlay({
               nextMicrobreakTimeRef.current !== null &&
               remainingSeconds <= nextMicrobreakTimeRef.current
             ) {
-              // Trigger Microbreak!
               setIsMicrobreakActive(true);
               setMicrobreakTimeLeft(focusSettings.microbreakDurationSec);
               playMicrobreakSound("start");
             }
           }
         }
-      }, 500); 
+      }, 500);
     }
 
     return () => clearInterval(interval);
   }, [isRunning, mode, focusSettings, isMicrobreakActive]);
 
-  // Microbreak active countdown loop with start/pulse/end auditory cues
   useEffect(() => {
     if (!isMicrobreakActive) return;
 
@@ -498,17 +479,24 @@ export function FocusSessionOverlay({
   }, [isMicrobreakActive]);
 
   const toggleTimer = () => {
-    initAudio(); 
+    initAudio();
     if (!isRunning) {
-      playStartChime(); 
+      playStartChime();
       expectedEndTimeRef.current = Date.now() + timeLeft * 1000;
       setIsRunning(true);
       if (mode === "work" && focusSettings.microbreaksEnabled) {
         scheduleNextMicrobreak(timeLeft);
       }
     } else {
+      // FIX: Force exact calculation against Date.now() before stopping the interval.
+      // This prevents background-throttled time freezes from overriding the true time.
+      if (expectedEndTimeRef.current) {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.round((expectedEndTimeRef.current - now) / 1000));
+        setTimeLeft(remaining);
+      }
       setIsRunning(false);
-      expectedEndTimeRef.current = null; 
+      expectedEndTimeRef.current = null;
       setIsMicrobreakActive(false);
     }
   };
@@ -533,7 +521,6 @@ export function FocusSessionOverlay({
     if (activeTaskId === task._id) setActiveTaskId(null);
   };
 
-  // Re-ordering logic that saves index order into database
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -542,14 +529,11 @@ export function FocusSessionOverlay({
         const newIndex = items.findIndex((i) => i._id === over.id);
         const newQueue = arrayMove(items, oldIndex, newIndex);
 
-        // PERSIST ORDER TO CONVEX BACKEND!
         try {
           reorderTasksMutation({
             tasks: newQueue.map((t, idx) => ({ id: t._id, order: idx })),
           });
-        } catch (e) {
-          console.error("Failed to save reordered tasks", e);
-        }
+        } catch (e) { }
 
         return newQueue;
       });
@@ -570,15 +554,12 @@ export function FocusSessionOverlay({
         order: localQueue.length,
       });
       setNewTaskTitle("");
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { }
   };
 
   const handleSaveSettings = (newSettings: FocusSettings) => {
     setFocusSettings(newSettings);
     saveFocusSettings(newSettings);
-    // If timer is not running, update current mode duration
     if (!isRunning) {
       setTimeLeft(getModeDuration(mode, newSettings));
     }
@@ -590,23 +571,48 @@ export function FocusSessionOverlay({
     return `${m}:${s}`;
   };
 
-  if (!isOpen) return null;
+  // FIX: Use the real FloatingFocusWidget component instead of a DOM-scraping inline pill.
+  if (!overlayVisible) {
+    if (!isRunning && timeLeft === getModeDuration(mode)) return null;
+
+    return (
+      <FloatingFocusWidget
+        mode={mode}
+        timeLeft={timeLeft}
+        isRunning={isRunning}
+        activeTaskTitle={localQueue.find(t => t._id === activeTaskId)?.title}
+        isMicrobreakActive={isMicrobreakActive}
+        microbreakTimeLeft={microbreakTimeLeft}
+        onToggleTimer={toggleTimer}
+        onExpand={() => setForceOpen(true)}
+        onCloseSession={() => {
+          setForceOpen(false);
+          setIsRunning(false);
+          expectedEndTimeRef.current = null;
+          setTimeLeft(getModeDuration(mode));
+          onClose();
+        }}
+      />
+    );
+  }
 
   const activeTask = localQueue.find(t => t._id === activeTaskId);
+
+  const handleMinimize = () => {
+    setForceOpen(false);
+    onClose();
+  };
 
   return (
     <>
       <div className="fixed inset-0 z-[200] bg-[var(--background)]/95 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col">
-        
-        {/* Top Bar with Focus Protocols Toolbar */}
+
         <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border)] md:border-none">
           <div className="flex items-center gap-2 text-[var(--foreground)] font-bold tracking-widest uppercase text-xs sm:text-sm">
             <Target className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-500" /> Focus Session
           </div>
 
-          {/* Andrew Huberman Focus Protocols Toolbar */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Wim Hof Guided Breathing */}
             <button
               onClick={() => setIsBreathingOpen(true)}
               className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all active:scale-95"
@@ -616,7 +622,6 @@ export function FocusSessionOverlay({
               <span className="hidden sm:inline">Breathing</span>
             </button>
 
-            {/* Visual Focus Fixation Exercise */}
             <button
               onClick={() => setIsVisualFocusOpen(true)}
               className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all active:scale-95"
@@ -626,17 +631,15 @@ export function FocusSessionOverlay({
               <span className="hidden sm:inline">Visual Focus</span>
             </button>
 
-            {/* Microbreaks Quick Toggle */}
             <button
               onClick={() => {
                 const updated = { ...focusSettings, microbreaksEnabled: !focusSettings.microbreaksEnabled };
                 handleSaveSettings(updated);
               }}
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all active:scale-95 ${
-                focusSettings.microbreaksEnabled
-                  ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800"
-                  : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border-[var(--border)]"
-              }`}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all active:scale-95 ${focusSettings.microbreaksEnabled
+                ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800"
+                : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border-[var(--border)]"
+                }`}
               title="Toggle Microbreaks Protocol"
             >
               <Zap className={`w-3.5 h-3.5 ${focusSettings.microbreaksEnabled ? "text-amber-500" : "text-zinc-400"}`} />
@@ -644,7 +647,6 @@ export function FocusSessionOverlay({
               <span className="text-[10px] uppercase">{focusSettings.microbreaksEnabled ? "ON" : "OFF"}</span>
             </button>
 
-            {/* Custom Timers Settings */}
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full text-zinc-500 hover:text-[var(--foreground)] transition-colors ml-1"
@@ -653,9 +655,8 @@ export function FocusSessionOverlay({
               <Sliders className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            {/* Close Overlay (Minimizes into floating widget when timer is going!) */}
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={handleMinimize}
               className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full text-zinc-500 hover:text-[var(--foreground)] transition-colors"
               title="Minimize overlay"
             >
@@ -664,7 +665,6 @@ export function FocusSessionOverlay({
           </div>
         </div>
 
-        {/* Microbreak Active Banner Alert */}
         {isMicrobreakActive && (
           <div className="w-full bg-amber-500 text-amber-950 px-4 py-2.5 text-center flex items-center justify-between font-bold text-xs sm:text-sm shadow-lg animate-in slide-in-from-top duration-300 z-30">
             <div className="flex items-center gap-2 mx-auto">
@@ -682,11 +682,9 @@ export function FocusSessionOverlay({
         )}
 
         <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row max-w-6xl w-full mx-auto">
-          
-          {/* Timer Section */}
+
           <div className="flex flex-col justify-center items-center w-full md:flex-1 shrink-0 min-h-[60vh] md:min-h-0 md:h-full p-6 sm:p-8">
-            
-            {/* Minimal Daily Progress Indicator */}
+
             <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 px-4 py-1.5 rounded-full bg-zinc-100/80 dark:bg-zinc-900/80 border border-[var(--border)] text-xs font-medium text-zinc-500 dark:text-zinc-400 backdrop-blur-sm">
               <div className="flex items-center gap-1.5" title={`${focusSettings.longBreakInterval}-session cycle to long break`}>
                 {Array.from({ length: focusSettings.longBreakInterval }).map((_, i) => {
@@ -700,13 +698,12 @@ export function FocusSessionOverlay({
                   return (
                     <span
                       key={step}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        isCompleted
-                          ? "w-5 bg-[var(--foreground)]"
-                          : isActive
+                      className={`h-2 rounded-full transition-all duration-300 ${isCompleted
+                        ? "w-5 bg-[var(--foreground)]"
+                        : isActive
                           ? "w-5 bg-zinc-400 dark:bg-zinc-500 animate-pulse"
                           : "w-2 bg-zinc-300 dark:bg-zinc-700"
-                      }`}
+                        }`}
                     />
                   );
                 })}
@@ -719,29 +716,25 @@ export function FocusSessionOverlay({
               </span>
             </div>
 
-            {/* Mode Selector */}
             <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 rounded-full p-1 mb-6 sm:mb-8 shadow-inner border border-[var(--border)] max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden">
-              <button 
-                onClick={() => switchMode("work")} 
-                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${
-                  mode === "work" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
-                }`}
+              <button
+                onClick={() => switchMode("work")}
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "work" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
+                  }`}
               >
                 <Target className="w-3 h-3 sm:w-4 sm:h-4" /> Deep Work
               </button>
-              <button 
-                onClick={() => switchMode("short-break")} 
-                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${
-                  mode === "short-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
-                }`}
+              <button
+                onClick={() => switchMode("short-break")}
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "short-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
+                  }`}
               >
                 <Coffee className="w-3 h-3 sm:w-4 sm:h-4" /> Short Break
               </button>
-              <button 
-                onClick={() => switchMode("long-break")} 
-                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${
-                  mode === "long-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
-                }`}
+              <button
+                onClick={() => switchMode("long-break")}
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${mode === "long-break" ? 'bg-white dark:bg-[#252525] text-[var(--foreground)] shadow-sm border border-[var(--border)]' : 'text-zinc-500 border border-transparent'
+                  }`}
               >
                 <Moon className="w-3 h-3 sm:w-4 sm:h-4" /> Long Break
               </button>
@@ -770,8 +763,8 @@ export function FocusSessionOverlay({
                   <button onClick={() => handleMarkDone(activeTask)} className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 rounded-full font-bold shadow-lg active:scale-95 text-sm sm:text-base">
                     <Check className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" /> Mark as Complete
                   </button>
-                  <button 
-                    onClick={() => openTaskDetails(activeTask._id)} 
+                  <button
+                    onClick={() => openTaskDetails(activeTask._id)}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 bg-zinc-100 dark:bg-zinc-800 text-[var(--foreground)] hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full font-bold shadow-sm active:scale-95 text-sm sm:text-base border border-[var(--border)] transition-colors"
                   >
                     <FileText className="w-4 h-4 sm:w-5 sm:h-5" /> Details
@@ -786,9 +779,8 @@ export function FocusSessionOverlay({
             )}
           </div>
 
-          {/* Queue Section with Persisted Drag & Drop Sorting */}
           <div className={`w-full ${isQueueMinimized ? 'md:w-16 lg:w-16' : 'md:w-[350px] lg:w-[400px]'} shrink-0 flex flex-col border-t md:border-t-0 md:border-l border-[var(--border)] bg-zinc-50/50 md:bg-transparent transition-all duration-300 relative`}>
-            
+
             <button
               onClick={() => setIsQueueMinimized(!isQueueMinimized)}
               className="hidden md:flex absolute top-4 -left-3.5 z-10 p-1 bg-white dark:bg-zinc-800 border border-[var(--border)] rounded-full shadow-md text-zinc-500 hover:text-[var(--foreground)] items-center justify-center"
@@ -796,23 +788,23 @@ export function FocusSessionOverlay({
             >
               {isQueueMinimized ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>
-            
+
             {isQueueMinimized ? (
               <div className="hidden md:flex flex-col items-center h-full p-4 space-y-4 pt-12">
-                 <button onClick={() => setIsQueueMinimized(false)} title="Expand Queue" className="text-zinc-400 hover:text-[var(--foreground)] transition-colors">
-                    <List className="w-5 h-5" />
-                 </button>
-                 <div className="flex-1" />
-                 <button 
-                   onClick={() => {
-                     setIsQueueMinimized(false);
-                     setTimeout(() => quickAddInputRef.current?.focus(), 100);
-                   }} 
-                   title="Add Task" 
-                   className="w-8 h-8 flex items-center justify-center bg-[var(--foreground)] text-[var(--background)] rounded-full shadow-lg active:scale-95 transition-all"
-                 >
-                    <Plus className="w-4 h-4" />
-                 </button>
+                <button onClick={() => setIsQueueMinimized(false)} title="Expand Queue" className="text-zinc-400 hover:text-[var(--foreground)] transition-colors">
+                  <List className="w-5 h-5" />
+                </button>
+                <div className="flex-1" />
+                <button
+                  onClick={() => {
+                    setIsQueueMinimized(false);
+                    setTimeout(() => quickAddInputRef.current?.focus(), 100);
+                  }}
+                  title="Add Task"
+                  className="w-8 h-8 flex items-center justify-center bg-[var(--foreground)] text-[var(--background)] rounded-full shadow-lg active:scale-95 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
             ) : (
               <div className="p-4 sm:p-6 md:p-0 md:pl-8 lg:pl-12 md:pt-8 flex-1 flex flex-col md:h-full w-full">
@@ -822,49 +814,49 @@ export function FocusSessionOverlay({
                     {localQueue.length} left
                   </span>
                 </div>
-  
-                <div className="flex-1 md:overflow-y-auto space-y-2 sm:space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-12 md:pb-24 md:pr-4">
-                {localQueue.length === 0 ? (
-                  <div className="text-zinc-500 text-sm text-center py-8 sm:py-10 bg-white dark:bg-[#1a1a1a] rounded-xl border border-dashed border-[var(--border)]">
-                    Queue empty.
-                  </div>
-                ) : (
-                  <DndContext 
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext 
-                      items={localQueue.map(t => t._id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {localQueue.map(task => (
-                        <SortableTaskItem 
-                          key={task._id}
-                          task={task}
-                          isActive={activeTaskId === task._id}
-                          onSelect={() => setActiveTaskId(task._id)}
-                          onDone={handleMarkDone}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                )}
-              </div>
 
-              <div className="mt-4 pt-4 pb-6 sm:pb-8 md:pb-8 border-t border-[var(--border)] shrink-0">
-                <form onSubmit={handleQuickAdd} className="flex items-center gap-2 bg-white dark:bg-[#1a1a1a] p-2 rounded-xl border border-[var(--border)] focus-within:ring-2 focus-within:ring-zinc-200 dark:focus-within:ring-zinc-800 transition-shadow">
-                  <Plus className="w-5 h-5 text-zinc-400 shrink-0 ml-1" />
-                  <input 
-                    ref={quickAddInputRef}
-                    type="text" 
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    placeholder="Quick add to session..."
-                    className="w-full bg-transparent outline-none text-sm font-medium text-[var(--foreground)] placeholder:text-zinc-500"
-                  />
-                </form>
-              </div>
+                <div className="flex-1 md:overflow-y-auto space-y-2 sm:space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-12 md:pb-24 md:pr-4">
+                  {localQueue.length === 0 ? (
+                    <div className="text-zinc-500 text-sm text-center py-8 sm:py-10 bg-white dark:bg-[#1a1a1a] rounded-xl border border-dashed border-[var(--border)]">
+                      Queue empty.
+                    </div>
+                  ) : (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={localQueue.map(t => t._id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {localQueue.map(task => (
+                          <SortableTaskItem
+                            key={task._id}
+                            task={task}
+                            isActive={activeTaskId === task._id}
+                            onSelect={() => setActiveTaskId(task._id)}
+                            onDone={handleMarkDone}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  )}
+                </div>
+
+                <div className="mt-4 pt-4 pb-6 sm:pb-8 md:pb-8 border-t border-[var(--border)] shrink-0">
+                  <form onSubmit={handleQuickAdd} className="flex items-center gap-2 bg-white dark:bg-[#1a1a1a] p-2 rounded-xl border border-[var(--border)] focus-within:ring-2 focus-within:ring-zinc-200 dark:focus-within:ring-zinc-800 transition-shadow">
+                    <Plus className="w-5 h-5 text-zinc-400 shrink-0 ml-1" />
+                    <input
+                      ref={quickAddInputRef}
+                      type="text"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      placeholder="Quick add to session..."
+                      className="w-full bg-transparent outline-none text-sm font-medium text-[var(--foreground)] placeholder:text-zinc-500"
+                    />
+                  </form>
+                </div>
               </div>
             )}
           </div>
@@ -872,7 +864,6 @@ export function FocusSessionOverlay({
         </div>
       </div>
 
-      {/* Huberman Focus Protocols Modals */}
       <GuidedBreathingModal
         isOpen={isBreathingOpen}
         onClose={() => setIsBreathingOpen(false)}

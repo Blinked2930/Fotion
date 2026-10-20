@@ -19,18 +19,12 @@ export const getTasks = query({
     const { actualSessionId } = parseSessionId(args.sessionId);
 
     return allTasks.filter(task => {
-      // FIX: Strict isolation. If the user is identified as Admin, 
-      // evaluate exclusively under Admin rules and do not fall through to guest checks.
       if (identity) {
         return !task.sessionId;
       }
-      
-      // 2. Sandbox/VIP users see tasks they specifically created
       if (actualSessionId && task.sessionId === actualSessionId) return true;
-      
-      // 3. Shared tasks ONLY show up in the Matrix AFTER they click "Add to My Matrix"
       if (actualSessionId && task.sharedWithSessions && task.sharedWithSessions.includes(actualSessionId)) return true;
-      
+
       return false;
     });
   },
@@ -55,8 +49,8 @@ export const createTask = mutation({
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
     sessionId: v.optional(v.string()),
-    recurringGroupId: v.optional(v.string()),
-    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
+    recurringGroupId: v.optional(v.union(v.string(), v.null())), // FIX: Accept null to clear
+    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())), // FIX: Accept null to clear
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -74,7 +68,7 @@ export const createTask = mutation({
       listCategory: initialCategory,
       isToday: args.isToday ?? false,
       lastContactedAt: initialLastContacted,
-      sessionId: taskSessionId, 
+      sessionId: taskSessionId,
       order: args.order,
     });
   },
@@ -100,40 +94,38 @@ export const updateTask = mutation({
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
     sharedWithSessions: v.optional(v.array(v.string())),
-    sessionId: v.optional(v.string()), 
-    focusedSessions: v.optional(v.array(v.string())), // NEW: VIP Focus Isolation
-    recurringGroupId: v.optional(v.string()),
-    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
+    sessionId: v.optional(v.string()),
+    focusedSessions: v.optional(v.array(v.string())),
+    recurringGroupId: v.optional(v.union(v.string(), v.null())), // FIX: Accept null to clear
+    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())), // FIX: Accept null to clear
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, sessionId, ...fields } = args;
-    
-    // Automatically set lastContactedAt when switching pipeline to Waiting For or Someday Maybe
+
     if (fields.listCategory && fields.listCategory !== "Current" && fields.lastContactedAt === undefined) {
       fields.lastContactedAt = Date.now();
     }
-    
-    // Spawn next recurring task or sequential task if marked done
+
     if (fields.status === "done") {
       const prevTask = await ctx.db.get(id);
       if (prevTask && prevTask.status !== "done") {
         if (prevTask.recurrenceRule && prevTask.recurringGroupId) {
           let newDoOnDate = prevTask.doOnDate;
           let newDoByDate = prevTask.doByDate;
-          
+
           const DAY_MS = 24 * 60 * 60 * 1000;
           let offsetMs = 0;
           if (prevTask.recurrenceRule === "daily") offsetMs = DAY_MS;
           else if (prevTask.recurrenceRule === "weekly") offsetMs = 7 * DAY_MS;
           else if (prevTask.recurrenceRule === "monthly") offsetMs = 30 * DAY_MS;
-          
+
           if (offsetMs > 0) {
             if (newDoOnDate) newDoOnDate += offsetMs;
             else newDoOnDate = Date.now() + offsetMs;
-            
+
             if (newDoByDate) newDoByDate += offsetMs;
-            
+
             const { _id, _creationTime, completedAt, status, ...baseTask } = prevTask;
             await ctx.db.insert("tasks", {
               ...baseTask,
@@ -144,21 +136,20 @@ export const updateTask = mutation({
             });
           }
         }
-        
-        // NEW: Sequential Pipeline logic
+
         if (prevTask.projectId) {
           const project = await ctx.db.get(prevTask.projectId);
           if (project?.isSequential) {
             const projectTasks = await ctx.db.query("tasks")
               .withIndex("by_project", q => q.eq("projectId", prevTask.projectId))
               .collect();
-            
-            const uncompletedTasks = projectTasks.filter(t => 
-              t.status !== "done" && 
+
+            const uncompletedTasks = projectTasks.filter(t =>
+              t.status !== "done" &&
               t._id !== id &&
               t.sessionId === prevTask.sessionId
             );
-            
+
             if (uncompletedTasks.length > 0) {
               uncompletedTasks.sort((a, b) => {
                 const orderA = a.order ?? 999999;
@@ -167,25 +158,25 @@ export const updateTask = mutation({
 
                 if (a.isToday && !b.isToday) return -1;
                 if (!a.isToday && b.isToday) return 1;
-                
+
                 const getScore = (t: any) => {
                   if (t.isUrgent && t.isImportant) return 4;
                   if (t.isImportant) return 3;
                   if (t.isUrgent) return 2;
                   return 1;
                 };
-                
+
                 const scoreA = getScore(a);
                 const scoreB = getScore(b);
                 if (scoreA !== scoreB) return scoreB - scoreA;
-                
+
                 if (a.doByDate && !b.doByDate) return -1;
                 if (!a.doByDate && b.doByDate) return 1;
                 if (a.doByDate && b.doByDate) return a.doByDate - b.doByDate;
-                
+
                 return 0;
               });
-              
+
               const nextTask = uncompletedTasks[0];
               await ctx.db.patch(nextTask._id, {
                 listCategory: "Current",
@@ -243,8 +234,7 @@ export const deleteRecurringTasks = mutation({
     const tasks = await ctx.db.query("tasks")
       .filter(q => q.eq(q.field("recurringGroupId"), args.groupId))
       .collect();
-      
-    // Only delete uncompleted tasks so history is preserved
+
     for (const task of tasks) {
       if (task.status !== "done") {
         await ctx.db.delete(task._id);
@@ -273,17 +263,15 @@ export const getTask = query({
 
     const { actualSessionId, vipToken } = parseSessionId(args.sessionId);
 
-    // FIX: Strict isolation for the Admin route
     if (identity) {
       return !task.sessionId ? task : null;
     }
-    
-    // Allows the VIP to load the task into the Details Pane to PREVIEW IT.
+
     if (vipToken && task.isPublic && task.shareToken === vipToken) return task;
-    
+
     if (actualSessionId && task.sessionId === actualSessionId) return task;
     if (actualSessionId && task.sharedWithSessions && task.sharedWithSessions.includes(actualSessionId)) return task;
-    
+
     return null;
   },
 });
@@ -315,11 +303,11 @@ export const createManyTasks = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     const taskIds = [];
-    
+
     for (const task of args.tasks) {
       const { actualSessionId } = parseSessionId(task.sessionId);
       const taskSessionId = identity ? undefined : actualSessionId;
-      
+
       const initialContact = task.lastContactedAt ?? (task.listCategory !== "Current" ? Date.now() : undefined);
       const id = await ctx.db.insert("tasks", {
         ...task,
@@ -333,7 +321,6 @@ export const createManyTasks = mutation({
   },
 });
 
-// NEW: Internal mutation to reset the 'Today' flag
 export const resetTodayFlags = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -346,7 +333,6 @@ export const resetTodayFlags = internalMutation({
         resetCount++;
       }
     }
-    console.log(`Reset isToday flag for ${resetCount} tasks.`);
     return resetCount;
   },
 });

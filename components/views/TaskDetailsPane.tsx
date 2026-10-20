@@ -5,8 +5,8 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
-import { 
-  X, Calendar, List, AlignLeft, Trash2, 
+import {
+  X, Calendar, List, AlignLeft, Trash2,
   Folder, PlayCircle, Sigma, AlertTriangle, CheckSquare, Check, Loader2, Bold, Italic, ListOrdered,
   Globe, Link as LinkIcon, ListFilter, UserPlus, Target, Repeat, Clock, Send
 } from "lucide-react";
@@ -21,9 +21,9 @@ import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 import { getProjectColor, getListColor } from "./NewTaskForm";
 import { useAuth } from "@clerk/nextjs";
-import { useGuestSession } from "@/hooks/useGuestSession"; 
-import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation"; 
-import { RepeatDropdown } from "@/components/ui/RepeatDropdown"; 
+import { useGuestSession } from "@/hooks/useGuestSession";
+import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation";
+import { RepeatDropdown } from "@/components/ui/RepeatDropdown";
 
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
@@ -37,6 +37,26 @@ const DoubleSpaceFix = Extension.create({
       }),
     ];
   },
+});
+
+// FIX: Override TaskItem's Enter key shortcut so it ALWAYS spawns unchecked items.
+// Using chain() guarantees updateAttributes targets the newly-created taskItem node.
+const CustomTaskItem = TaskItem.extend({
+  addKeyboardShortcuts() {
+    const shortcuts = this.parent?.() || {};
+    return {
+      ...shortcuts,
+      Enter: () => {
+        const { editor } = this;
+        if (!editor.isActive('taskItem')) return false;
+        return editor
+          .chain()
+          .splitListItem('taskItem')
+          .updateAttributes('taskItem', { checked: false })
+          .run();
+      }
+    };
+  }
 });
 
 const PropertyRow = ({ icon: Icon, label, children, disabled }: { icon: any, label: string, children: React.ReactNode, disabled?: boolean }) => (
@@ -55,7 +75,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   const sessionId = useGuestSession();
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
   const createProject = useOfflineSyncMutation(api.projects.createProject, "createProject");
-  
+
   const [isOpen, setIsOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -83,7 +103,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
   return (
     <>
       <div className="relative w-fit max-w-full" ref={ref}>
-        <button 
+        <button
           onClick={() => setIsOpen(!isOpen)}
           className={`outline-none px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border max-w-full truncate ${getProjectColor(value)}`}
         >
@@ -113,9 +133,9 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[300] flex items-center justify-center animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-[var(--border)]">
             <h3 className="font-bold text-lg text-[var(--foreground)] mb-4">New Project</h3>
-            <input 
+            <input
               autoFocus
-              type="text" 
+              type="text"
               placeholder="e.g., Q3 Finances"
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
@@ -144,14 +164,14 @@ export const EditorToolbar = ({ editor, isSorting, onToggleSort, disabled }: { e
       <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><List className="w-4 h-4" /></button>
       <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><ListOrdered className="w-4 h-4" /></button>
       <button type="button" onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded shrink-0 transition-colors ${editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-[var(--foreground)]' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}><CheckSquare className="w-4 h-4" /></button>
-      
+
       {onToggleSort && (
         <>
           <div className="w-px h-4 bg-[var(--border)] mx-1 shrink-0" />
-          <button 
-            type="button" 
-            onClick={onToggleSort} 
-            title={isSorting ? "Turn Off Sort (Restore Manual Order)" : "Sort Checkboxes (Unchecked First)"} 
+          <button
+            type="button"
+            onClick={onToggleSort}
+            title={isSorting ? "Turn Off Sort (Restore Manual Order)" : "Sort Checkboxes (Unchecked First)"}
             className={`p-1.5 rounded shrink-0 transition-colors ${isSorting ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[var(--foreground)]'}`}
           >
             <ListFilter className="w-4 h-4" />
@@ -185,7 +205,7 @@ export function closeTaskDetails() {
 function PaneContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [localTaskId, setLocalTaskId] = useState<Id<"tasks"> | null>(() => {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("taskId") as Id<"tasks"> | null;
@@ -205,15 +225,35 @@ function PaneContent() {
 
   const taskId = localTaskId || (searchParams.get("taskId") as Id<"tasks"> | null);
 
-  const { isSignedIn } = useAuth(); 
-  const guestSessionId = useGuestSession(); 
+  const { isSignedIn } = useAuth();
+  const guestSessionId = useGuestSession();
 
   const [displayTaskId, setDisplayTaskId] = useState<Id<"tasks"> | null>(taskId);
   const [isOpen, setIsOpen] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  
+
   const [isSorting, setIsSorting] = useState(false);
-  
+
+  const paneRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+
+  // FIX: Force browser to ignore auto-scrolling when clicking checkboxes by intercepting focus.
+  // Scoped to the details pane so it doesn't affect other TipTap editors elsewhere in the app.
+  useEffect(() => {
+    const preventFocusScroll = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target?.matches('.tiptap input[type="checkbox"]') &&
+        paneRef.current &&
+        paneRef.current.contains(target)
+      ) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('mousedown', preventFocusScroll);
+    return () => document.removeEventListener('mousedown', preventFocusScroll);
+  }, []);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedSort = localStorage.getItem("fotion-editor-sort");
@@ -229,11 +269,8 @@ function PaneContent() {
     });
   };
 
-  const paneRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLTextAreaElement>(null);
-
-  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
-  const [isCopied, setIsCopied] = useState(false); 
+  const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
@@ -261,7 +298,7 @@ function PaneContent() {
   }, [taskId]);
 
   const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId, sessionId: guestSessionId ?? undefined } : "skip");
-  
+
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
   const deleteTask = useOfflineSyncMutation(api.tasks.deleteTask, "deleteTask");
   const deleteRecurringTasks = useOfflineSyncMutation(api.tasks.deleteRecurringTasks, "deleteRecurringTasks");
@@ -283,15 +320,15 @@ function PaneContent() {
 
   const editor = useEditor({
     extensions: [
-      StarterKit, TaskList, TaskItem.configure({ nested: true }), DoubleSpaceFix,
+      StarterKit, TaskList, CustomTaskItem.configure({ nested: true }), DoubleSpaceFix,
       Placeholder.configure({ placeholder: "Type your notes here... (Use 1. or - or [ ] for lists)" })
     ],
-    content: "", 
-    immediatelyRender: false, 
-    onBlur: ({ editor }) => { 
+    content: "",
+    immediatelyRender: false,
+    onBlur: ({ editor }) => {
       const { taskId, needsToAccept: isViewOnly } = editorStateRef.current;
       if (taskId && !isViewOnly) {
-        updateTask({ id: taskId, description: editor.getHTML() }); 
+        updateTask({ id: taskId, description: editor.getHTML() });
       }
     },
   });
@@ -307,7 +344,7 @@ function PaneContent() {
 
   useEffect(() => {
     if (!editor) return;
-    
+
     if (!task || task._id !== displayTaskId) {
       if (editor.getHTML() !== "<p></p>") editor.commands.setContent("");
     } else {
@@ -347,9 +384,9 @@ function PaneContent() {
     if (touchStart.x - e.changedTouches[0].clientX < -60) closePane();
   };
 
-  const handleUpdate = (field: string, value: any) => { 
-    if (needsToAccept) return; 
-    if (displayTaskId) updateTask({ id: displayTaskId, [field]: value }); 
+  const handleUpdate = (field: string, value: any) => {
+    if (needsToAccept) return;
+    if (displayTaskId) updateTask({ id: displayTaskId, [field]: value });
   };
 
   const handleStatusUpdate = (newStatus: "todo" | "in-progress" | "done") => {
@@ -367,7 +404,7 @@ function PaneContent() {
   const handleShare = async () => {
     if (!task || !displayTaskId) return;
     let token = task.shareToken;
-    
+
     if (!token) {
       token = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
       await updateTask({ id: displayTaskId, isPublic: true, shareToken: token });
@@ -380,29 +417,28 @@ function PaneContent() {
       await navigator.clipboard.writeText(url);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleAcceptTask = () => {
     if (!actualSessionId || !displayTaskId) return;
     const currentSessions = task?.sharedWithSessions || [];
-    
+
     if (!currentSessions.includes(actualSessionId)) {
-      updateTask({ 
-        id: displayTaskId, 
+      updateTask({
+        id: displayTaskId,
         sharedWithSessions: [...currentSessions, actualSessionId],
       });
     }
   };
 
-  // FIX: Isolated Focus Session Toggles
-  const isTaskFocused = isOwner 
-    ? !!task?.isFocused 
+  const isTaskFocused = isOwner
+    ? !!task?.isFocused
     : !!task?.focusedSessions?.includes(actualSessionId!);
 
   const handleToggleFocus = () => {
     if (!task || !displayTaskId || needsToAccept) return;
-    
+
     if (isOwner) {
       handleUpdate("isFocused", !task.isFocused);
     } else {
@@ -433,7 +469,6 @@ function PaneContent() {
         @media (prefers-color-scheme: dark) { .tiptap input[type="checkbox"] { border-color: #52525b; } }
         @media (max-height: 500px) { .floating-action-pills { display: none !important; } }
         
-        /* IRONCLAD CSS FLEXBOX SORTING - UPDATED TO IGNORE SUBTASKS */
         .sort-checklists .tiptap ul { display: flex !important; flex-direction: column !important; }
         .sort-checklists .tiptap ul > li { order: 1 !important; transition: opacity 0.2s ease; }
         .sort-checklists .tiptap ul > li[data-checked="true"],
@@ -443,7 +478,7 @@ function PaneContent() {
         }
       `}</style>
 
-      <div 
+      <div
         ref={paneRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
         onMouseMove={(e) => {
           if (!paneRef.current || !isOpen) return;
@@ -458,7 +493,7 @@ function PaneContent() {
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-24 max-w-full">
-            
+
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 {task.isPublic && (
@@ -472,12 +507,12 @@ function PaneContent() {
                   </span>
                 )}
               </div>
-              
+
               {isSignedIn && (
                 <div className="flex items-center gap-2">
                   {task.isPublic && (
-                    <button 
-                      onClick={() => updateTask({ id: displayTaskId, isPublic: false, shareToken: "", sharedWithSessions: [] })} 
+                    <button
+                      onClick={() => updateTask({ id: displayTaskId, isPublic: false, shareToken: "", sharedWithSessions: [] })}
                       className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
                     >
                       Revoke Access
@@ -497,7 +532,7 @@ function PaneContent() {
                   <h4 className="text-blue-800 dark:text-blue-300 font-bold text-sm mb-1">Shared Task Inbox</h4>
                   <p className="text-blue-600/80 dark:text-blue-400/80 text-xs">You are viewing a VIP task. Save it to your Fotion to track its progress and edit details.</p>
                 </div>
-                <button 
+                <button
                   onClick={handleAcceptTask}
                   className="shrink-0 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm"
                 >
@@ -509,11 +544,11 @@ function PaneContent() {
             <textarea ref={titleRef} value={title} onChange={handleTitleChange} onBlur={() => handleUpdate("title", title)} readOnly={needsToAccept} rows={1} className={`w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none text-[var(--foreground)] placeholder-zinc-300 resize-none overflow-hidden block py-1 leading-tight mt-0 ${needsToAccept ? 'opacity-80' : ''}`} placeholder="Task title" />
 
             <div className="flex flex-col gap-1 sm:gap-2 text-[15px] max-w-full">
-              
+
               <PropertyRow icon={Target} label="Focus Mode" disabled={needsToAccept}>
-                <button 
-                  type="button" 
-                  onClick={handleToggleFocus} 
+                <button
+                  type="button"
+                  onClick={handleToggleFocus}
                   className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${isTaskFocused ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
                 >
                   {isTaskFocused ? "In Focus Session" : "Add to Focus Session"}
@@ -525,15 +560,16 @@ function PaneContent() {
               <PropertyRow icon={Calendar} label="Due By Date" disabled={needsToAccept}><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Calendar} label="Do On Date" disabled={needsToAccept}><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Repeat} label="Repeat" disabled={needsToAccept}>
-                <RepeatDropdown 
-                  value={task.recurrenceRule || "none"} 
+                <RepeatDropdown
+                  value={task.recurrenceRule || "none"}
                   onChange={(val) => {
                     if (needsToAccept || !displayTaskId) return;
                     const updates: any = { id: displayTaskId, recurrenceRule: val };
                     if (val !== "none" && !task.recurringGroupId) {
-                       updates.recurringGroupId = crypto.randomUUID();
+                      updates.recurringGroupId = crypto.randomUUID();
                     } else if (val === "none") {
-                       updates.recurringGroupId = undefined;
+                      updates.recurringGroupId = null; // Send null to successfully erase from database
+                      updates.recurrenceRule = null;
                     }
                     updateTask(updates);
                   }}
@@ -587,7 +623,7 @@ function PaneContent() {
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
               <h3 className="font-bold text-lg text-[var(--foreground)] mb-0">Delete Task?</h3>
             </div>
-            
+
             {task?.recurringGroupId ? (
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">This is a repeating task. What do you want to delete?</p>

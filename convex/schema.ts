@@ -19,37 +19,37 @@ export default defineSchema({
   tasks: defineTable({
     title: v.string(),
     description: v.optional(v.string()),
-    
+
     isUrgent: v.boolean(),
     isImportant: v.boolean(),
     isForFunsies: v.boolean(),
     isFocused: v.optional(v.boolean()), // NEW: Focus Session Toggle
-    
+
     status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
-    
+
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
-    
+
     isToday: v.optional(v.boolean()),
-    doOnDate: v.optional(v.union(v.number(), v.null())), 
-    doByDate: v.optional(v.union(v.number(), v.null())), 
-    
+    doOnDate: v.optional(v.union(v.number(), v.null())),
+    doByDate: v.optional(v.union(v.number(), v.null())),
+
     completedAt: v.optional(v.union(v.number(), v.null())),
     lastContactedAt: v.optional(v.union(v.number(), v.null())),
-    
+
     projectId: v.optional(v.union(v.id("projects"), v.null())),
 
     // Shared Task Architecture
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
-    
+
     // NEW: Anonymous Cloud Session Architecture
-    sessionId: v.optional(v.string()), 
-    sharedWithSessions: v.optional(v.array(v.string())), 
+    sessionId: v.optional(v.string()),
+    sharedWithSessions: v.optional(v.array(v.string())),
     focusedSessions: v.optional(v.array(v.string())), // NEW: VIP Focus Isolation
 
     // NEW: Repeating Tasks
-    recurringGroupId: v.optional(v.string()),
-    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
+    recurringGroupId: v.optional(v.union(v.string(), v.null())),
+    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())),
 
     // NEW: Project task ordering
     order: v.optional(v.number()),
@@ -58,7 +58,7 @@ export default defineSchema({
     .index("by_listCategory", ["listCategory"])
     .index("by_project", ["projectId"])
     .index("by_shareToken", ["shareToken"])
-    .index("by_sessionId", ["sessionId"]), 
+    .index("by_sessionId", ["sessionId"]),
 
   preferences: defineTable({
     userId: v.string(),

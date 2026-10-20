@@ -2,6 +2,14 @@
   "name": "my-app",
   "version": "0.1.0",
   "private": true,
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions",
+    "iOS >= 16",
+    "not dead"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
