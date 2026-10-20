@@ -39,12 +39,12 @@ const DoubleSpaceFix = Extension.create({
   },
 });
 
-// FIX: Override TaskItem's Enter key so the NEWLY-CREATED item is always
-// unchecked, regardless of whether the split went up or down.
-// The old code used `updateAttributes('taskItem', { checked: false })` which
-// patches every taskItem in the selection range — after an upward split from
-// a completed item, that range includes BOTH the new item and the old one,
-// which unchecks the previously-completed task too.
+// FIX: Override TaskItem's Enter key shortcut.
+// ProseMirror's splitListItem pushes the *existing* node down and creates a new 
+// node above it when the cursor is at the start. We want the new node (top) 
+// to be unchecked, and the existing node (bottom) to keep its state.
+// By clearing `checked` on the current node BEFORE splitting, the new item above 
+// inherits `checked: false`, and the existing item below gets restored immediately after.
 const CustomTaskItem = TaskItem.extend({
   addKeyboardShortcuts() {
     const shortcuts = this.parent?.() || {};
@@ -54,31 +54,60 @@ const CustomTaskItem = TaskItem.extend({
         const { editor } = this;
         if (!editor.isActive('taskItem')) return false;
 
-        // 1. Perform the split. TipTap places the cursor inside the new block.
+        // 1. Determine if the current item is checked
+        const isChecked = editor.getAttributes('taskItem').checked === true;
+        const { $from } = editor.state.selection;
+
+        let currentPos = -1;
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === 'taskItem') {
+            currentPos = $from.before(d);
+            break;
+          }
+        }
+
+        // 2. If checked, temporarily uncheck the CURRENT node so the split inherits "false"
+        if (isChecked && currentPos !== -1) {
+          editor.view.dispatch(
+            editor.state.tr.setNodeMarkup(currentPos, undefined, {
+              ...editor.getAttributes('taskItem'),
+              checked: false,
+            })
+          );
+        }
+
+        // 3. Perform the split
         const didSplit = editor.commands.splitListItem('taskItem');
         if (!didSplit) return false;
 
-        // 2. Find the taskItem ancestor of the current (post-split) selection.
-        //    That node IS the newly-created item, by definition.
-        const { state, view } = editor;
-        const { $from } = state.selection;
+        // 4. If it was checked, restore the CURRENT node's checked state (which is now the bottom one)
+        if (isChecked && currentPos !== -1) {
+          const { state, view } = editor;
+          const { $from: $newFrom } = state.selection;
 
-        for (let d = $from.depth; d > 0; d--) {
-          if ($from.node(d).type.name === 'taskItem') {
-            const itemNode = $from.node(d);
-            // Only patch if it inherited checked=true. If it's already
-            // unchecked (the normal case), do nothing — no extra transaction.
-            if (itemNode.attrs.checked === true) {
-              const itemPos = $from.before(d);
-              const tr = state.tr.setNodeMarkup(itemPos, undefined, {
-                ...itemNode.attrs,
-                checked: false,
-              });
-              view.dispatch(tr);
+          for (let d = $newFrom.depth; d > 0; d--) {
+            if ($newFrom.node(d).type.name === 'taskItem') {
+              // If we split downward, we need to look above us to restore the original item.
+              // However, TipTap always places the cursor in the NEW node. 
+              // Since the split pushed the old node down, the new node is technically 
+              // "below" in index but we can just find the original node we mutated.
+
+              // We can just find the original position (it shifted by the size of the new node)
+              // Actually, the safest way is to check if the node at currentPos is still our task.
+              const nodeAtPos = view.state.doc.nodeAt(currentPos);
+              if (nodeAtPos && nodeAtPos.type.name === 'taskItem') {
+                view.dispatch(
+                  view.state.tr.setNodeMarkup(currentPos, undefined, {
+                    ...nodeAtPos.attrs,
+                    checked: true,
+                  })
+                );
+              }
+              break;
             }
-            return true;
           }
         }
+
         return true;
       },
     };
