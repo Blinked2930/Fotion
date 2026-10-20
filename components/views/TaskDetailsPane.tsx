@@ -42,8 +42,7 @@ const DoubleSpaceFix = Extension.create({
 /**
  * CustomTaskItem
  *
- * Overrides Enter so checked state is always correct, regardless of where the
- * cursor is inside a task item.
+ * Overrides Enter so checked state is always correct.
  */
 const CustomTaskItem = TaskItem.extend({
   addKeyboardShortcuts() {
@@ -689,14 +688,16 @@ function PaneContent() {
               <PropertyRow icon={Calendar} label="Due By Date" disabled={needsToAccept}><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Calendar} label="Do On Date" disabled={needsToAccept}><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Repeat} label="Repeat" disabled={needsToAccept}>
+                {/* The key prop forces a remount when the recurrence rule changes from the server,
+                    ensuring the internal state of RepeatDropdown doesn't get stuck. */}
                 <RepeatDropdown
+                  key={task.recurrenceRule || "none"}
                   value={task.recurrenceRule || "none"}
                   onChange={(val) => {
                     if (needsToAccept || !displayTaskId) return;
 
                     if (val === "none") {
-                      // Detach this task from the chain. It will no longer spawn
-                      // a new task upon completion, and existing siblings are untouched.
+                      // Detach this task from the chain.
                       updateTask({
                         id: displayTaskId,
                         recurrenceRule: null,

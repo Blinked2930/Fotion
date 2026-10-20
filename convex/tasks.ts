@@ -188,12 +188,12 @@ export const updateTask = mutation({
       }
     }
 
-    // Explicitly set `undefined` for null values to clear them from the database,
-    // ensuring the field is actually removed.
+    // Directly patch the null values into the database so the field remains
+    // present as `null` rather than being deleted.
     const cleanFields: any = {};
     for (const [key, value] of Object.entries(fields)) {
       if (value === null) {
-        cleanFields[key] = undefined;
+        cleanFields[key] = null;
       } else {
         cleanFields[key] = value;
       }
