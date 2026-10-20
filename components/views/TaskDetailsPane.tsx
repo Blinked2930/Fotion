@@ -39,12 +39,6 @@ const DoubleSpaceFix = Extension.create({
   },
 });
 
-// FIX: Override TaskItem's Enter key shortcut.
-// ProseMirror's splitListItem pushes the *existing* node down and creates a new 
-// node above it when the cursor is at the start. We want the new node (top) 
-// to be unchecked, and the existing node (bottom) to keep its state.
-// By clearing `checked` on the current node BEFORE splitting, the new item above 
-// inherits `checked: false`, and the existing item below gets restored immediately after.
 const CustomTaskItem = TaskItem.extend({
   addKeyboardShortcuts() {
     const shortcuts = this.parent?.() || {};
@@ -54,7 +48,6 @@ const CustomTaskItem = TaskItem.extend({
         const { editor } = this;
         if (!editor.isActive('taskItem')) return false;
 
-        // 1. Determine if the current item is checked
         const isChecked = editor.getAttributes('taskItem').checked === true;
         const { $from } = editor.state.selection;
 
@@ -66,46 +59,49 @@ const CustomTaskItem = TaskItem.extend({
           }
         }
 
-        // 2. If checked, temporarily uncheck the CURRENT node so the split inherits "false"
-        if (isChecked && currentPos !== -1) {
-          editor.view.dispatch(
-            editor.state.tr.setNodeMarkup(currentPos, undefined, {
-              ...editor.getAttributes('taskItem'),
-              checked: false,
-            })
-          );
-        }
-
-        // 3. Perform the split
+        // 1. Run the native split command synchronously
         const didSplit = editor.commands.splitListItem('taskItem');
         if (!didSplit) return false;
 
-        // 4. If it was checked, restore the CURRENT node's checked state (which is now the bottom one)
+        // 2. If the item was completed, fix the states immediately after the render cycle
         if (isChecked && currentPos !== -1) {
-          const { state, view } = editor;
-          const { $from: $newFrom } = state.selection;
+          setTimeout(() => {
+            // If the selection is still inside the task list
+            if (!editor.isActive('taskItem')) return;
 
-          for (let d = $newFrom.depth; d > 0; d--) {
-            if ($newFrom.node(d).type.name === 'taskItem') {
-              // If we split downward, we need to look above us to restore the original item.
-              // However, TipTap always places the cursor in the NEW node. 
-              // Since the split pushed the old node down, the new node is technically 
-              // "below" in index but we can just find the original node we mutated.
+            const { state, view } = editor;
+            const { $from: $newFrom } = state.selection;
+            let newPos = -1;
 
-              // We can just find the original position (it shifted by the size of the new node)
-              // Actually, the safest way is to check if the node at currentPos is still our task.
-              const nodeAtPos = view.state.doc.nodeAt(currentPos);
-              if (nodeAtPos && nodeAtPos.type.name === 'taskItem') {
-                view.dispatch(
-                  view.state.tr.setNodeMarkup(currentPos, undefined, {
-                    ...nodeAtPos.attrs,
-                    checked: true,
-                  })
-                );
+            for (let d = $newFrom.depth; d > 0; d--) {
+              if ($newFrom.node(d).type.name === 'taskItem') {
+                newPos = $newFrom.before(d);
+                break;
               }
-              break;
             }
-          }
+
+            if (newPos === -1) return;
+
+            const tr = state.tr;
+
+            // The item we split from was checked. 
+            // TipTap places the new item at `newPos` and pushes the old one down.
+            // We want the item above (newPos) to be checked, and the current one to be unchecked.
+
+            const nodeAbove = state.doc.nodeAt(currentPos);
+            if (nodeAbove && nodeAbove.type.name === 'taskItem') {
+              tr.setNodeMarkup(currentPos, undefined, { ...nodeAbove.attrs, checked: true });
+            }
+
+            const currentNode = state.doc.nodeAt(newPos);
+            if (currentNode && currentNode.type.name === 'taskItem') {
+              tr.setNodeMarkup(newPos, undefined, { ...currentNode.attrs, checked: false });
+            }
+
+            if (tr.docChanged) {
+              view.dispatch(tr);
+            }
+          }, 0);
         }
 
         return true;
@@ -292,8 +288,6 @@ function PaneContent() {
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
-  // FIX: Force browser to ignore auto-scrolling when clicking checkboxes by intercepting focus.
-  // Scoped to the details pane so it doesn't affect other TipTap editors elsewhere in the app.
   useEffect(() => {
     const preventFocusScroll = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
