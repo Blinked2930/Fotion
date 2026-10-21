@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { recurrenceOrNull, recurrenceRuleOrNull } from "./recurrence";
 
 export default defineSchema({
   projects: defineTable({
@@ -47,9 +48,13 @@ export default defineSchema({
     sharedWithSessions: v.optional(v.array(v.string())),
     focusedSessions: v.optional(v.array(v.string())), // NEW: VIP Focus Isolation
 
-    // NEW: Repeating Tasks
+    // Repeating tasks.
+    // `recurringGroupId` ties the chain together. `recurrence` holds the full
+    // structured rule (interval, weekdays, monthly mode, anchor, end).
+    // `recurrenceRule` is a short summary label kept for older code paths.
     recurringGroupId: v.optional(v.union(v.string(), v.null())),
-    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())),
+    recurrenceRule: v.optional(recurrenceRuleOrNull),
+    recurrence: v.optional(recurrenceOrNull),
 
     // NEW: Project task ordering
     order: v.optional(v.number()),

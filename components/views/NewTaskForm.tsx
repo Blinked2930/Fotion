@@ -8,6 +8,7 @@ import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineSyncMutation, useOfflineQuery } from "@/hooks/useOfflineMutation";
 import { RepeatDropdown } from "@/components/ui/RepeatDropdown";
+import { Recurrence, ruleLabel } from "@/convex/recurrence";
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, InputRule } from '@tiptap/core';
@@ -73,14 +74,14 @@ export function NewTaskForm() {
   const [doOnDate, setDoOnDate] = useState<number | null>(null);
   const [doByDate, setDoByDate] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
-  const [recurrenceRule, setRecurrenceRule] = useState<"none" | "daily" | "weekly" | "monthly">("none");
+  const [recurrence, setRecurrence] = useState<Recurrence | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
-  
+
   const [isSorting, setIsSorting] = useState(false);
-  
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedSort = localStorage.getItem("fotion-editor-sort");
@@ -111,21 +112,24 @@ export function NewTaskForm() {
     immediatelyRender: false,
   });
 
-  const stateRef = useRef({ title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrenceRule });
+  const stateRef = useRef({ title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrence });
   useEffect(() => {
-    stateRef.current = { title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrenceRule };
-  }, [title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrenceRule]);
+    stateRef.current = { title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrence };
+  }, [title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrence]);
 
   const resetForm = () => {
     setTitle(""); setIsUrgent(false); setIsImportant(false); setIsForFunsies(false);
     setIsToday(false); setListCategory("Current"); setDoOnDate(null); setDoByDate(null); setProjectId(null);
-    setRecurrenceRule("none");
+    setRecurrence(null);
     editor?.commands.setContent("");
   };
 
   useEffect(() => {
     function handleClickOutside(event: PointerEvent | MouseEvent) {
       if (isModalOpen) return;
+      // The custom-repeat popup is portaled to <body>, outside this form. Clicks
+      // inside it must not count as "clicked outside" (that would save the task).
+      if ((event.target as HTMLElement | null)?.closest?.('[data-recurrence-modal]')) return;
       if (projectDropdownRef.current && projectDropdownRef.current.contains(event.target as Node)) return;
 
       if (formRef.current && !formRef.current.contains(event.target as Node)) {
@@ -135,10 +139,9 @@ export function NewTaskForm() {
         const hasNotes = editor && !editor.isEmpty;
         const hasTags = stateRef.current.isUrgent || stateRef.current.isImportant || stateRef.current.isForFunsies || stateRef.current.isToday || stateRef.current.listCategory !== "Current" || stateRef.current.doOnDate || stateRef.current.doByDate || stateRef.current.projectId;
 
-        if (stateRef.current.title.trim() !== "" || hasNotes || hasTags || stateRef.current.recurrenceRule !== "none") {
-          const rule = stateRef.current.recurrenceRule;
-          const isRecurring = rule !== "none";
-          
+        if (stateRef.current.title.trim() !== "" || hasNotes || hasTags || stateRef.current.recurrence !== null) {
+          const rec = stateRef.current.recurrence;
+
           createTask({
             title: stateRef.current.title.trim() || "Unknown Task",
             description: hasNotes ? descriptionHTML : undefined,
@@ -151,12 +154,13 @@ export function NewTaskForm() {
             doByDate: stateRef.current.doByDate,
             projectId: stateRef.current.projectId as any,
             sessionId: sessionId ?? undefined,
-            ...(isRecurring ? {
-              recurrenceRule: rule as "daily" | "weekly" | "monthly",
+            ...(rec ? {
+              recurrence: rec,
+              recurrenceRule: ruleLabel(rec),
               recurringGroupId: crypto.randomUUID()
             } : {})
           }).catch(console.error);
-          
+
           setIsExpanded(false);
           setTimeout(() => resetForm(), 300);
         } else {
@@ -174,20 +178,20 @@ export function NewTaskForm() {
       setIsExpanded(false);
       return;
     }
-    const rule = recurrenceRule;
-    const isRecurring = rule !== "none";
-    
+    const rec = recurrence;
+
     createTask({
       title: title.trim() || "Unknown Task",
       description: (editor && !editor.isEmpty) ? editor.getHTML() : undefined,
       isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
       sessionId: sessionId ?? undefined,
-      ...(isRecurring ? {
-        recurrenceRule: rule as "daily" | "weekly" | "monthly",
+      ...(rec ? {
+        recurrence: rec,
+        recurrenceRule: ruleLabel(rec),
         recurringGroupId: crypto.randomUUID()
       } : {})
     }).catch(console.error);
-    
+
     setIsExpanded(false);
     setTimeout(() => resetForm(), 300);
   };
@@ -212,7 +216,7 @@ export function NewTaskForm() {
       createProject({ name: newProjectName.trim(), sessionId: sessionId ?? undefined })
         .then(newId => setProjectId(newId))
         .catch(console.error);
-        
+
       setIsModalOpen(false);
       setNewProjectName("");
     }
@@ -279,21 +283,20 @@ export function NewTaskForm() {
             opacity: 0.4 !important;
         }
       `}</style>
-      <form 
-        ref={formRef} 
-        onSubmit={handleSubmit} 
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
         onKeyDownCapture={handleKeyDownCapture}
-        className={`relative flex flex-col transition-all rounded-xl border mx-2 sm:mx-0 ${
-          isExpanded 
-            ? "bg-white dark:bg-[#1f1f1f] border-[var(--border)] shadow-xl py-4 px-4 sm:px-6 my-4 z-30" 
+        className={`relative flex flex-col transition-all rounded-xl border mx-2 sm:mx-0 ${isExpanded
+            ? "bg-white dark:bg-[#1f1f1f] border-[var(--border)] shadow-xl py-4 px-4 sm:px-6 my-4 z-30"
             : "border-transparent bg-transparent py-2 px-3 sm:px-4 hover:bg-[var(--subtle-bg)]"
-        }`}
+          }`}
       >
         <div className="flex items-center gap-2 w-full">
           <Plus className={`w-5 h-5 flex-shrink-0 transition-colors ${isExpanded ? "text-zinc-500" : "text-zinc-300"}`} />
           <div className="flex-1 min-w-0 flex items-center">
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onFocus={() => setIsExpanded(true)}
@@ -307,10 +310,10 @@ export function NewTaskForm() {
         <div className={`grid transition-all duration-[300ms] ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
           <div className={isExpanded ? "overflow-visible" : "overflow-hidden"}>
             <div className="space-y-3 w-full sm:ml-7 sm:pr-7 pb-1">
-              
+
               <div className="w-full bg-zinc-50 dark:bg-[#1a1a1a] rounded-xl p-3 border border-[var(--border)] mt-2">
                 <EditorToolbar editor={editor} isSorting={isSorting} onToggleSort={handleToggleSort} />
-                <div 
+                <div
                   className={`w-full bg-transparent outline-none text-[15px] text-[var(--foreground)] placeholder:text-zinc-400 cursor-text min-h-[80px] ${isSorting ? "sort-checklists" : ""}`}
                   onClick={() => editor?.commands.focus()}
                 >
@@ -319,11 +322,11 @@ export function NewTaskForm() {
               </div>
 
               <div className="flex flex-col gap-4 border-t border-[var(--border)] pt-4">
-                
+
                 <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
                   <label className="flex items-center gap-2 cursor-pointer hover:text-[var(--foreground)] font-medium">
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setIsToday(!isToday)}
                       className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}
                     >
@@ -333,8 +336,8 @@ export function NewTaskForm() {
                   </label>
 
                   <div className="relative" ref={projectDropdownRef}>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
                       className={`flex items-center gap-1.5 font-medium px-3 py-1 rounded-full border transition-colors text-[12px] ${getProjectColor(projectId)}`}
                     >
@@ -363,7 +366,7 @@ export function NewTaskForm() {
                       <button type="button" onClick={() => setIsForFunsies(!isForFunsies)} className={`text-xs px-3 py-1 rounded-full transition-colors border ${isForFunsies ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50" : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}>For Funsies</button>
                     </div>
                   </div>
-                  
+
                   <div>
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">List</span>
                     <div className="flex gap-2">
@@ -390,9 +393,10 @@ export function NewTaskForm() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-zinc-500">
                         <span className="font-medium text-zinc-400">Repeat:</span>
-                        <RepeatDropdown 
-                          value={recurrenceRule} 
-                          onChange={setRecurrenceRule}
+                        <RepeatDropdown
+                          value={recurrence}
+                          onChange={setRecurrence}
+                          baseDate={doOnDate ?? doByDate}
                           align="right"
                         />
                       </div>
@@ -400,9 +404,9 @@ export function NewTaskForm() {
                   </div>
 
                   <div className="flex justify-end mt-2 sm:mt-0">
-                    <button 
-                      type="button" 
-                      onClick={handleSubmit} 
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
                       className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white text-[13px] font-medium rounded-xl transition-all shadow-sm"
                     >
                       Save Task
@@ -420,9 +424,9 @@ export function NewTaskForm() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-[var(--border)] relative" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-lg text-[var(--foreground)] mb-4">New Project</h3>
-            <input 
+            <input
               autoFocus
-              type="text" 
+              type="text"
               placeholder="e.g., Q3 Finances"
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}

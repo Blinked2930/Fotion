@@ -5,31 +5,31 @@ import { calculateQuadrant } from "@/lib/eisenhower";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
-import { 
-  Loader2, Type, PlayCircle, Calendar, CheckSquare, 
+import {
+  Loader2, Type, PlayCircle, Calendar, CheckSquare,
   List as ListIcon, Folder, Sigma, Check, Maximize2, Link as LinkIcon, AlertTriangle, Target, FilterX, Repeat
 } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { getProjectColor, getListColor } from "./NewTaskForm";
-import { useGuestSession } from "@/hooks/useGuestSession"; 
+import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineQuery, useOfflineSyncMutation } from "@/hooks/useOfflineMutation";
 import { RepeatDropdown } from "@/components/ui/RepeatDropdown";
 import { openTaskDetails } from "./TaskDetailsPane";
 
 type SortConfig = { key: string, direction: 'asc' | 'desc' }[];
 
-const NotionHeader = ({ 
-  icon: Icon, label, minWidth, sortKey, currentSorts, onSort 
-}: { 
-  icon: any, label: string, minWidth?: string, sortKey?: string, currentSorts?: SortConfig, onSort?: (key: string) => void 
+const NotionHeader = ({
+  icon: Icon, label, minWidth, sortKey, currentSorts, onSort
+}: {
+  icon: any, label: string, minWidth?: string, sortKey?: string, currentSorts?: SortConfig, onSort?: (key: string) => void
 }) => {
   const sortInfo = currentSorts?.find(s => s.key === sortKey);
   const sortIndex = currentSorts && sortInfo ? currentSorts.findIndex(s => s.key === sortKey) + 1 : -1;
-  
+
   return (
-    <th 
+    <th
       onClick={() => sortKey && onSort && onSort(sortKey)}
-      className={`border border-[var(--border)] px-3 py-2 font-normal text-[13px] text-left align-middle select-none ${sortKey ? 'cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800' : 'bg-zinc-50/50 dark:bg-zinc-900/50'} ${sortInfo ? 'text-[var(--foreground)] bg-zinc-100/50 dark:bg-zinc-800/50' : 'text-zinc-500 dark:text-zinc-400'}`} 
+      className={`border border-[var(--border)] px-3 py-2 font-normal text-[13px] text-left align-middle select-none ${sortKey ? 'cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800' : 'bg-zinc-50/50 dark:bg-zinc-900/50'} ${sortInfo ? 'text-[var(--foreground)] bg-zinc-100/50 dark:bg-zinc-800/50' : 'text-zinc-500 dark:text-zinc-400'}`}
       style={{ minWidth: minWidth || '140px' }}
     >
       <div className="flex items-center justify-between whitespace-nowrap">
@@ -56,7 +56,7 @@ const NotionCell = ({ children }: { children: React.ReactNode }) => (
 
 function CopyLinkButton({ token, isPublic }: { token?: string, isPublic?: boolean }) {
   const [copied, setCopied] = useState(false);
-  if (!token || !isPublic) return null; 
+  if (!token || !isPublic) return null;
   return (
     <button
       onClick={() => {
@@ -72,19 +72,19 @@ function CopyLinkButton({ token, isPublic }: { token?: string, isPublic?: boolea
   );
 }
 
-function BeautifulDropdown({ 
-  value, 
-  options, 
-  onChange, 
-  renderPill, 
+function BeautifulDropdown({
+  value,
+  options,
+  onChange,
+  renderPill,
   placeholder = "Empty",
   actionLabel,
   onActionClick
-}: { 
-  value: any, 
-  options: {value: string | null, label?: string}[], 
-  onChange: (val: any) => void, 
-  renderPill: (val: any) => React.ReactNode, 
+}: {
+  value: any,
+  options: { value: string | null, label?: string }[],
+  onChange: (val: any) => void,
+  renderPill: (val: any) => React.ReactNode,
   placeholder?: string,
   actionLabel?: string,
   onActionClick?: () => void
@@ -102,7 +102,7 @@ function BeautifulDropdown({
 
   return (
     <div className="relative w-full" ref={ref}>
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full text-left flex items-center justify-between p-1 -ml-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
       >
@@ -111,9 +111,9 @@ function BeautifulDropdown({
       {isOpen && (
         <div className="absolute top-full left-0 z-[100] mt-1 min-w-[140px] bg-white dark:bg-[#252525] border border-[var(--border)] rounded-lg shadow-xl py-1">
           {options.map(opt => (
-            <button 
-              key={opt.value || 'null'} 
-              onClick={() => { onChange(opt.value); setIsOpen(false); }} 
+            <button
+              key={opt.value || 'null'}
+              onClick={() => { onChange(opt.value); setIsOpen(false); }}
               className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center"
             >
               {opt.value ? renderPill(opt.value) : <span className="text-zinc-400 text-xs">{opt.label || placeholder}</span>}
@@ -122,8 +122,8 @@ function BeautifulDropdown({
           {actionLabel && onActionClick && (
             <>
               <div className="border-t border-[var(--border)] my-1"></div>
-              <button 
-                onClick={() => { setIsOpen(false); onActionClick(); }} 
+              <button
+                onClick={() => { setIsOpen(false); onActionClick(); }}
                 className="w-full text-left px-3 py-1.5 text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium text-[12px] transition-colors"
               >
                 {actionLabel}
@@ -153,11 +153,11 @@ const ListPill = (list: string) => {
 export function RawDataView() {
   const router = useRouter();
   const { isSignedIn } = useAuth();
-  const sessionId = useGuestSession(); 
-  
-  const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks"); 
+  const sessionId = useGuestSession();
+
+  const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks");
   const projects = useOfflineQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined }, "getProjects");
-  
+
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
   const createProject = useOfflineSyncMutation(api.projects.createProject, "createProject");
 
@@ -175,11 +175,11 @@ export function RawDataView() {
       setTimeout(() => setSyncState("synced"), 2000);
     };
     const handleOffline = () => setSyncState("offline");
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     if (typeof window !== "undefined" && !navigator.onLine) setSyncState("offline");
-    
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -226,7 +226,7 @@ export function RawDataView() {
     setSortConfig(prev => {
       const existingIndex = prev.findIndex(s => s.key === key);
       const newConfig = [...prev];
-      
+
       if (existingIndex >= 0) {
         if (newConfig[existingIndex].direction === 'asc') {
           newConfig[existingIndex].direction = 'desc';
@@ -258,9 +258,9 @@ export function RawDataView() {
 
       if (aVal === null || aVal === undefined) aVal = "";
       if (bVal === null || bVal === undefined) bVal = "";
-      
+
       if (aVal === bVal) continue;
-      
+
       if (aVal < bVal) return sort.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sort.direction === 'asc' ? 1 : -1;
     }
@@ -271,7 +271,7 @@ export function RawDataView() {
     <>
       {sortConfig.length > 0 && (
         <div className="mb-3 flex items-center justify-end">
-          <button 
+          <button
             onClick={() => setSortConfig([])}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400 rounded-md text-xs font-bold transition-colors border border-red-200 dark:border-red-900/50"
           >
@@ -308,13 +308,13 @@ export function RawDataView() {
                   <tr key={task._id} className="hover:bg-zinc-50 dark:bg-zinc-900/40 transition-colors group">
                     <NotionCell>
                       <div className="group/title relative flex items-center w-full gap-2">
-                        <input 
-                          type="text" 
-                          defaultValue={task.title} 
-                          onBlur={(e) => { if(e.target.value.trim() !== task.title) handleUpdate(task._id, "title", e.target.value.trim() || "Unknown Task") }}
+                        <input
+                          type="text"
+                          defaultValue={task.title}
+                          onBlur={(e) => { if (e.target.value.trim() !== task.title) handleUpdate(task._id, "title", e.target.value.trim() || "Unknown Task") }}
                           className="bg-transparent flex-1 min-w-0 outline-none font-medium truncate"
                         />
-                        <button 
+                        <button
                           type="button"
                           onClick={(e) => {
                             e.preventDefault();
@@ -328,26 +328,27 @@ export function RawDataView() {
                         </button>
                       </div>
                     </NotionCell>
-                    
-                    <NotionCell><BeautifulDropdown value={task.status} options={[{value: 'todo'}, {value: 'in-progress'}, {value: 'done'}]} onChange={(val) => handleUpdate(task._id, "status", val)} renderPill={StatusPill} /></NotionCell>
+
+                    <NotionCell><BeautifulDropdown value={task.status} options={[{ value: 'todo' }, { value: 'in-progress' }, { value: 'done' }]} onChange={(val) => handleUpdate(task._id, "status", val)} renderPill={StatusPill} /></NotionCell>
                     <NotionCell><div className="whitespace-nowrap min-w-[130px]"><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate(task._id, "doByDate", val)} alignPopover="right" /></div></NotionCell>
                     <NotionCell><div className="whitespace-nowrap min-w-[130px]"><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate(task._id, "doOnDate", val)} alignPopover="right" /></div></NotionCell>
                     <NotionCell>
-                      <RepeatDropdown 
-                        value={task.recurrenceRule || "none"} 
-                        onChange={(val) => {
-                          const updates: any = { recurrenceRule: val };
-                          if (val !== "none" && !task.recurringGroupId) updates.recurringGroupId = crypto.randomUUID();
-                          else if (val === "none") updates.recurringGroupId = undefined;
+                      <RepeatDropdown
+                        value={task.recurrenceRule || "none"}
+                        onChange={(val: any) => {
+                          const isNone = val === "none" || val === null;
+                          const updates: any = { recurrenceRule: isNone ? null : val };
+                          if (!isNone && !task.recurringGroupId) updates.recurringGroupId = crypto.randomUUID();
+                          else if (isNone) updates.recurringGroupId = undefined;
                           updateTask({ id: task._id, ...updates });
-                        }} 
+                        }}
                       />
                     </NotionCell>
                     <NotionCell><button onClick={() => handleUpdate(task._id, "isImportant", !task.isImportant)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isImportant ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isImportant && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
                     <NotionCell><button onClick={() => handleUpdate(task._id, "isUrgent", !task.isUrgent)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isUrgent ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isUrgent && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
                     <NotionCell><button onClick={() => handleUpdate(task._id, "isForFunsies", !task.isForFunsies)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isForFunsies ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isForFunsies && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
                     <NotionCell><BeautifulDropdown value={task.projectId} options={projectOptions} onChange={(val) => handleUpdate(task._id, "projectId", val)} renderPill={ProjectPill} placeholder="None" actionLabel="+ Create Project" onActionClick={() => { setPendingTaskId(task._id); setIsModalOpen(true); }} /></NotionCell>
-                    <NotionCell><BeautifulDropdown value={task.listCategory || "Current"} options={[{value: 'Current'}, {value: 'Waiting For'}, {value: 'Someday Maybe'}]} onChange={(val) => handleUpdate(task._id, "listCategory", val)} renderPill={ListPill} /></NotionCell>
+                    <NotionCell><BeautifulDropdown value={task.listCategory || "Current"} options={[{ value: 'Current' }, { value: 'Waiting For' }, { value: 'Someday Maybe' }]} onChange={(val) => handleUpdate(task._id, "listCategory", val)} renderPill={ListPill} /></NotionCell>
                     <NotionCell><span className="text-zinc-600 dark:text-zinc-300 text-[12px]">{quadrant}</span></NotionCell>
                     <NotionCell><button onClick={() => handleUpdate(task._id, "isFocused", !task.isFocused)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isFocused ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isFocused && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
                     <NotionCell><button onClick={() => handleUpdate(task._id, "isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></NotionCell>
@@ -355,7 +356,7 @@ export function RawDataView() {
                     {isSignedIn && (
                       <NotionCell>
                         <div className="flex items-center">
-                          <button 
+                          <button
                             onClick={() => {
                               if (task.shareToken && task.isPublic) {
                                 updateTask({ id: task._id, shareToken: "", isPublic: false, sharedWithSessions: [] });
@@ -402,9 +403,9 @@ export function RawDataView() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-[var(--border)] relative" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-lg text-[var(--foreground)] mb-4">New Project</h3>
-            <input 
+            <input
               autoFocus
-              type="text" 
+              type="text"
               placeholder="e.g., Q3 Finances"
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}

@@ -1,5 +1,12 @@
 import { v } from "convex/values";
 import { query, mutation, internalMutation } from "./_generated/server";
+import {
+  recurrenceOrNull,
+  recurrenceRuleOrNull,
+  computeNextTask,
+  effectiveRecurrence,
+  ruleLabel,
+} from "./recurrence";
 
 function parseSessionId(raw?: string) {
   if (!raw) return { actualSessionId: undefined, vipToken: undefined };
@@ -50,7 +57,8 @@ export const createTask = mutation({
     shareToken: v.optional(v.string()),
     sessionId: v.optional(v.string()),
     recurringGroupId: v.optional(v.union(v.string(), v.null())),
-    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())),
+    recurrenceRule: v.optional(recurrenceRuleOrNull),
+    recurrence: v.optional(recurrenceOrNull),
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -97,11 +105,20 @@ export const updateTask = mutation({
     sessionId: v.optional(v.string()),
     focusedSessions: v.optional(v.array(v.string())),
     recurringGroupId: v.optional(v.union(v.string(), v.null())),
-    recurrenceRule: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.null())),
+    recurrenceRule: v.optional(recurrenceRuleOrNull),
+    recurrence: v.optional(recurrenceOrNull),
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, sessionId, ...fields } = args;
+
+    // The recurrence fields always move together. If the caller sends null for
+    // any of them, the task is being detached from its chain, so all three are
+    // REMOVED from the document (patching a field with `undefined` deletes it).
+    const clearingRecurrence =
+      fields.recurrenceRule === null ||
+      fields.recurringGroupId === null ||
+      fields.recurrence === null;
 
     if (fields.listCategory && fields.listCategory !== "Current" && fields.lastContactedAt === undefined) {
       fields.lastContactedAt = Date.now();
@@ -110,30 +127,57 @@ export const updateTask = mutation({
     if (fields.status === "done") {
       const prevTask = await ctx.db.get(id);
       if (prevTask && prevTask.status !== "done") {
-        if (prevTask.recurrenceRule && prevTask.recurringGroupId) {
-          let newDoOnDate = prevTask.doOnDate;
-          let newDoByDate = prevTask.doByDate;
+        // A task detached in this same call must not spawn a successor.
+        const rec = effectiveRecurrence(prevTask);
+        if (!clearingRecurrence && prevTask.recurringGroupId && rec) {
+          const completedAt =
+            typeof fields.completedAt === "number" ? fields.completedAt : Date.now();
 
-          const DAY_MS = 24 * 60 * 60 * 1000;
-          let offsetMs = 0;
-          if (prevTask.recurrenceRule === "daily") offsetMs = DAY_MS;
-          else if (prevTask.recurrenceRule === "weekly") offsetMs = 7 * DAY_MS;
-          else if (prevTask.recurrenceRule === "monthly") offsetMs = 30 * DAY_MS;
+          const next = computeNextTask({
+            recurrence: rec,
+            doOnDate: prevTask.doOnDate,
+            doByDate: prevTask.doByDate,
+            completedAt,
+          });
 
-          if (offsetMs > 0) {
-            if (newDoOnDate) newDoOnDate += offsetMs;
-            else newDoOnDate = Date.now() + offsetMs;
+          if (next) {
+            // Guard against duplicates (done -> undone -> done again).
+            const siblings = await ctx.db
+              .query("tasks")
+              .filter(q => q.eq(q.field("recurringGroupId"), prevTask.recurringGroupId))
+              .collect();
+            const duplicate = siblings.some(
+              t =>
+                t._id !== id &&
+                t.status !== "done" &&
+                (t.doOnDate ?? null) === next.doOnDate &&
+                (t.doByDate ?? null) === next.doByDate
+            );
 
-            if (newDoByDate) newDoByDate += offsetMs;
+            if (!duplicate) {
+              // Sharing fields are NOT copied: a duplicated shareToken would
+              // make getTaskByShareToken ambiguous.
+              const {
+                _id,
+                _creationTime,
+                completedAt: _completedAt,
+                status,
+                shareToken,
+                isPublic,
+                sharedWithSessions,
+                ...baseTask
+              } = prevTask;
 
-            const { _id, _creationTime, completedAt, status, ...baseTask } = prevTask;
-            await ctx.db.insert("tasks", {
-              ...baseTask,
-              status: "todo",
-              doOnDate: newDoOnDate,
-              doByDate: newDoByDate,
-              isToday: false,
-            });
+              await ctx.db.insert("tasks", {
+                ...baseTask,
+                status: "todo",
+                doOnDate: next.doOnDate,
+                doByDate: next.doByDate,
+                recurrence: next.recurrence,
+                recurrenceRule: ruleLabel(next.recurrence),
+                isToday: false,
+              });
+            }
           }
         }
 
@@ -188,18 +232,22 @@ export const updateTask = mutation({
       }
     }
 
-    // Directly patch the null values into the database so the field remains
-    // present as `null` rather than being deleted.
-    const cleanFields: any = {};
+    // Build the patch. Fields the caller did not send (undefined) are skipped
+    // so they are left untouched. Other nulls (doOnDate, projectId, ...) are
+    // written as null, which the schema allows.
+    const patchFields: Record<string, any> = {};
     for (const [key, value] of Object.entries(fields)) {
-      if (value === null) {
-        cleanFields[key] = null;
-      } else {
-        cleanFields[key] = value;
-      }
+      if (value === undefined) continue;
+      patchFields[key] = value;
     }
 
-    await ctx.db.patch(id, cleanFields);
+    if (clearingRecurrence) {
+      patchFields.recurrenceRule = undefined;
+      patchFields.recurringGroupId = undefined;
+      patchFields.recurrence = undefined;
+    }
+
+    await ctx.db.patch(id, patchFields);
     return id;
   },
 });
@@ -220,7 +268,11 @@ export const touchBaseTasks = mutation({
 export const deleteTask = mutation({
   args: { id: v.id("tasks") },
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.id);
+    // Idempotent: deleting something that is already gone is not an error.
+    const existing = await ctx.db.get(args.id);
+    if (existing) {
+      await ctx.db.delete(args.id);
+    }
     return args.id;
   },
 });
@@ -246,11 +298,14 @@ export const deleteRecurringTasks = mutation({
       .filter(q => q.eq(q.field("recurringGroupId"), args.groupId))
       .collect();
 
+    let deleted = 0;
     for (const task of tasks) {
       if (task.status !== "done") {
         await ctx.db.delete(task._id);
+        deleted++;
       }
     }
+    return deleted;
   }
 });
 

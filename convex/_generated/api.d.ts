@@ -15,6 +15,7 @@ import type * as preferences from "../preferences.js";
 import type * as projects from "../projects.js";
 import type * as push from "../push.js";
 import type * as pushNode from "../pushNode.js";
+import type * as recurrence from "../recurrence.js";
 import type * as shared from "../shared.js";
 import type * as tasks from "../tasks.js";
 
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   projects: typeof projects;
   push: typeof push;
   pushNode: typeof pushNode;
+  recurrence: typeof recurrence;
   shared: typeof shared;
   tasks: typeof tasks;
 }>;

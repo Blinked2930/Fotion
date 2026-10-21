@@ -24,6 +24,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation";
 import { RepeatDropdown } from "@/components/ui/RepeatDropdown";
+import { effectiveRecurrence, ruleLabel } from "@/convex/recurrence";
 
 const DoubleSpaceFix = Extension.create({
   name: 'doubleSpaceFix',
@@ -688,25 +689,33 @@ function PaneContent() {
               <PropertyRow icon={Calendar} label="Due By Date" disabled={needsToAccept}><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Calendar} label="Do On Date" disabled={needsToAccept}><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Repeat} label="Repeat" disabled={needsToAccept}>
-                {/* The key prop forces a remount when the recurrence rule changes from the server,
-                    ensuring the internal state of RepeatDropdown doesn't get stuck. */}
+                {/* The key forces a remount when the rule changes from the server,
+                    so the dropdown's internal open/modal state can never get stuck. */}
                 <RepeatDropdown
-                  key={task.recurrenceRule || "none"}
-                  value={task.recurrenceRule || "none"}
-                  onChange={(val) => {
+                  key={JSON.stringify(task.recurrence ?? task.recurrenceRule ?? null)}
+                  value={effectiveRecurrence(task)}
+                  baseDate={task.doOnDate ?? task.doByDate ?? null}
+                  onChange={(rec) => {
                     if (needsToAccept || !displayTaskId) return;
 
-                    if (val === "none") {
-                      // Detach this task from the chain.
+                    if (!rec) {
+                      // Detach this task from its chain. The backend removes all
+                      // three recurrence fields, and this task will not spawn
+                      // a successor when completed.
                       updateTask({
                         id: displayTaskId,
                         recurrenceRule: null,
                         recurringGroupId: null,
+                        recurrence: null,
                       });
                       return;
                     }
 
-                    const updates: any = { id: displayTaskId, recurrenceRule: val };
+                    const updates: any = {
+                      id: displayTaskId,
+                      recurrence: rec,
+                      recurrenceRule: ruleLabel(rec),
+                    };
                     if (!task.recurringGroupId) {
                       updates.recurringGroupId = crypto.randomUUID();
                     }
