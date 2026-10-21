@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X, CalendarDays, RefreshCw } from "lucide-react";
 import {
     Recurrence,
     WEEKDAY_LONG,
@@ -11,7 +11,6 @@ import {
     getBrowserTimeZone,
 } from "@/convex/recurrence";
 
-// Monday-first display order; values are JS weekday numbers (0 = Sunday).
 const WEEKDAY_CHIPS: { value: number; letter: string; name: string }[] = [
     { value: 1, letter: "M", name: "Monday" },
     { value: 2, letter: "T", name: "Tuesday" },
@@ -38,7 +37,7 @@ const fromDateInput = (s: string): number | null => {
 };
 
 const inputClass =
-    "bg-transparent border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[14px] text-[var(--foreground)] outline-none focus:border-blue-500";
+    "bg-zinc-50 dark:bg-[#1a1a1a] border border-[var(--border)] rounded-xl px-3 py-2 text-[14px] font-medium text-[var(--foreground)] outline-none focus:border-pink-500/50 focus:ring-2 focus:ring-pink-500/20 transition-all cursor-pointer";
 
 export function RecurrenceModal({
     initial,
@@ -157,37 +156,35 @@ export function RecurrenceModal({
         onSave(rec);
     };
 
-    const segBtn = (active: boolean) =>
-        `flex-1 px-3 py-1.5 text-[13px] font-medium rounded-lg border transition-colors ${active
-            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50"
-            : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-        }`;
-
-    const radioRow = "flex items-center gap-3 text-[14px] text-[var(--foreground)]";
-
     return createPortal(
         <div
             data-recurrence-modal
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[400] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[400] flex items-center justify-center p-4 animate-in fade-in duration-200"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
         >
-            <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto border border-[var(--border)] p-6 space-y-5">
+            <div className="bg-white dark:bg-[#181818] rounded-[24px] shadow-2xl w-full max-w-[420px] max-h-[90dvh] overflow-y-auto border border-[var(--border)] p-6 md:p-7 space-y-7 animate-in zoom-in-95 duration-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+
                 <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-lg text-[var(--foreground)]">Custom repeat</h3>
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
+                            <RefreshCw className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+                        </div>
+                        <h3 className="font-bold text-xl text-[var(--foreground)] tracking-tight">Custom Repeat</h3>
+                    </div>
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="p-1 rounded text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        className="p-2 rounded-full text-zinc-400 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
                         aria-label="Close"
                     >
-                        <X className="w-4 h-4" />
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Repeat every N unit */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[14px] text-zinc-500">Repeat every</span>
+                <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-medium text-zinc-600 dark:text-zinc-400 shrink-0">Repeat every</span>
                     <input
                         type="number"
                         min={1}
@@ -197,27 +194,25 @@ export function RecurrenceModal({
                             const n = parseInt(e.target.value, 10);
                             patch({ interval: Number.isNaN(n) ? 1 : Math.min(99, Math.max(1, n)) });
                         }}
-                        className={`${inputClass} w-16 text-center`}
+                        className={`${inputClass} w-20 text-center font-bold`}
                     />
                     <select
                         value={draft.freq}
                         onChange={(e) => setFreq(e.target.value as Recurrence["freq"])}
-                        className={inputClass}
+                        className={`${inputClass} flex-1`}
                     >
-                        <option value="daily">{draft.interval === 1 ? "day" : "days"}</option>
-                        <option value="weekly">{draft.interval === 1 ? "week" : "weeks"}</option>
-                        <option value="monthly">{draft.interval === 1 ? "month" : "months"}</option>
-                        <option value="yearly">{draft.interval === 1 ? "year" : "years"}</option>
+                        <option value="daily">{draft.interval === 1 ? "Day" : "Days"}</option>
+                        <option value="weekly">{draft.interval === 1 ? "Week" : "Weeks"}</option>
+                        <option value="monthly">{draft.interval === 1 ? "Month" : "Months"}</option>
+                        <option value="yearly">{draft.interval === 1 ? "Year" : "Years"}</option>
                     </select>
                 </div>
 
                 {/* Weekday chips */}
                 {draft.freq === "weekly" && !isCompletion && (
-                    <div>
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block mb-2">
-                            Repeat on
-                        </span>
-                        <div className="flex gap-1.5">
+                    <div className="space-y-3">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Repeat On</span>
+                        <div className="flex justify-between gap-1.5">
                             {WEEKDAY_CHIPS.map((c) => {
                                 const active = (draft.byWeekday ?? []).includes(c.value);
                                 return (
@@ -225,12 +220,11 @@ export function RecurrenceModal({
                                         key={c.value}
                                         type="button"
                                         title={c.name}
-                                        aria-label={c.name}
                                         aria-pressed={active}
                                         onClick={() => toggleWeekday(c.value)}
-                                        className={`w-9 h-9 rounded-full text-[13px] font-medium border transition-colors ${active
-                                                ? "bg-blue-500 border-blue-500 text-white"
-                                                : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                        className={`flex-1 aspect-square max-w-[40px] rounded-full text-[14px] font-bold transition-all border ${active
+                                            ? "bg-pink-500 border-pink-500 text-white shadow-md shadow-pink-500/20 scale-105"
+                                            : "bg-zinc-50 dark:bg-[#1a1a1a] border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                                             }`}
                                     >
                                         {c.letter}
@@ -243,121 +237,131 @@ export function RecurrenceModal({
 
                 {/* Monthly mode */}
                 {draft.freq === "monthly" && !isCompletion && (
-                    <div>
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block mb-2">
-                            Repeat on
-                        </span>
+                    <div className="space-y-3">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Repeat On</span>
                         <select
                             value={monthlyValue}
                             onChange={(e) => setMonthly(e.target.value as "day" | "nth" | "last")}
                             className={`${inputClass} w-full`}
                         >
                             <option value="day">Day {base.day}</option>
-                            <option value="nth">
-                                The {ORDINAL_LABEL[base.nth]} {WEEKDAY_LONG[base.weekday]}
-                            </option>
+                            <option value="nth">The {ORDINAL_LABEL[base.nth]} {WEEKDAY_LONG[base.weekday]}</option>
                             <option value="last">The last day of the month</option>
                         </select>
                     </div>
                 )}
 
                 {draft.freq === "yearly" && !isCompletion && (
-                    <p className="text-[13px] text-zinc-500">Repeats every year on {base.monthLabel}.</p>
+                    <div className="bg-zinc-50 dark:bg-[#1a1a1a] border border-[var(--border)] rounded-xl p-4 flex items-center gap-3">
+                        <CalendarDays className="w-5 h-5 text-pink-500" />
+                        <span className="text-[14px] font-medium text-[var(--foreground)]">Repeats yearly on {base.monthLabel}</span>
+                    </div>
                 )}
 
-                {/* Anchor */}
-                <div>
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block mb-2">
-                        Repeat from
-                    </span>
-                    <div className="flex gap-2">
-                        <button type="button" onClick={() => patch({ anchor: "due" })} className={segBtn(!isCompletion)}>
-                            Due date
+                {/* Anchor - Segmented Control */}
+                <div className="space-y-3">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Repeat Schedule Anchored To</span>
+                    <div className="flex p-1 bg-zinc-100 dark:bg-[#1a1a1a] rounded-[14px] border border-[var(--border)] relative">
+                        <button type="button" onClick={() => patch({ anchor: "due" })} className={`flex-1 py-2 text-[13px] font-bold rounded-xl transition-all z-10 ${!isCompletion ? 'bg-white dark:bg-[#2c2c2c] text-[var(--foreground)] shadow-sm border border-zinc-200/50 dark:border-zinc-700/50' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-transparent'}`}>
+                            Strict Schedule (Due Date)
                         </button>
-                        <button type="button" onClick={() => patch({ anchor: "completion" })} className={segBtn(isCompletion)}>
-                            Completion date
+                        <button type="button" onClick={() => patch({ anchor: "completion" })} className={`flex-1 py-2 text-[13px] font-bold rounded-xl transition-all z-10 ${isCompletion ? 'bg-white dark:bg-[#2c2c2c] text-[var(--foreground)] shadow-sm border border-zinc-200/50 dark:border-zinc-700/50' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-transparent'}`}>
+                            Flexible (Completion Date)
                         </button>
                     </div>
-                    <p className="text-[12px] text-zinc-500 mt-2">
+                    <p className="text-[12px] leading-relaxed text-zinc-500 px-1">
                         {isCompletion
-                            ? "The next task is dated from the day you finish this one. Weekday and month options don't apply."
-                            : "The next task follows this task's own date, so the schedule never drifts. If you finish late, it skips ahead rather than starting overdue."}
+                            ? "The next task is scheduled relative to the day you actually finish this one. Best for flexible habits."
+                            : "The next task follows the strict calendar schedule. If you finish late, it skips ahead so you aren't buried."}
                     </p>
                 </div>
 
                 {/* Ends */}
-                <div>
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block mb-2">
-                        Ends
-                    </span>
-                    <div className="space-y-2.5">
-                        <label className={radioRow}>
-                            <input type="radio" name="rec-ends" checked={endsType === "never"} onChange={() => setEndsType("never")} />
-                            Never
+                <div className="space-y-3">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Ends</span>
+                    <div className="flex flex-col gap-2">
+                        {/* Never */}
+                        <label className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${endsType === "never" ? 'bg-pink-50/50 dark:bg-pink-900/10 border-pink-200 dark:border-pink-900/30' : 'bg-transparent border-transparent hover:bg-zinc-50 dark:hover:bg-[#1a1a1a]'}`}>
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${endsType === "never" ? 'border-pink-500' : 'border-zinc-400'}`}>
+                                {endsType === "never" && <div className="w-2 h-2 rounded-full bg-pink-500" />}
+                            </div>
+                            <span className={`text-[15px] font-medium ${endsType === "never" ? 'text-pink-700 dark:text-pink-400' : 'text-zinc-600 dark:text-zinc-400'}`}>Never</span>
                         </label>
-                        <label className={radioRow}>
-                            <input type="radio" name="rec-ends" checked={endsType === "on"} onChange={() => setEndsType("on")} />
-                            On
+
+                        {/* On */}
+                        <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${endsType === "on" ? 'bg-pink-50/50 dark:bg-pink-900/10 border-pink-200 dark:border-pink-900/30' : 'bg-transparent border-transparent hover:bg-zinc-50 dark:hover:bg-[#1a1a1a]'}`}>
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${endsType === "on" ? 'border-pink-500' : 'border-zinc-400'}`}>
+                                {endsType === "on" && <div className="w-2 h-2 rounded-full bg-pink-500" />}
+                            </div>
+                            <span className={`text-[15px] font-medium ${endsType === "on" ? 'text-[var(--foreground)]' : 'text-zinc-600 dark:text-zinc-400'}`}>On</span>
                             <input
                                 type="date"
                                 disabled={endsType !== "on"}
                                 value={draft.endsOn !== undefined ? toDateInput(draft.endsOn) : ""}
                                 onChange={(e) => {
+                                    setEndsType("on"); // Auto-select radio if they click the input
                                     const ts = fromDateInput(e.target.value);
                                     if (ts !== null) patch({ endsOn: ts });
                                 }}
-                                className={`${inputClass} disabled:opacity-40`}
+                                className={`ml-auto bg-transparent border rounded-lg px-2 py-1 text-[13px] font-medium outline-none transition-all ${endsType === "on" ? 'border-pink-200 dark:border-pink-900/50 text-[var(--foreground)] focus:border-pink-500' : 'border-[var(--border)] text-zinc-400 disabled:opacity-50'}`}
                             />
                         </label>
-                        <label className={radioRow}>
-                            <input type="radio" name="rec-ends" checked={endsType === "after"} onChange={() => setEndsType("after")} />
-                            After
-                            <input
-                                type="number"
-                                min={1}
-                                max={999}
-                                disabled={endsType !== "after"}
-                                value={draft.count ?? 10}
-                                onChange={(e) => {
-                                    const n = parseInt(e.target.value, 10);
-                                    patch({ count: Number.isNaN(n) ? 1 : Math.min(999, Math.max(1, n)) });
-                                }}
-                                className={`${inputClass} w-20 text-center disabled:opacity-40`}
-                            />
-                            occurrences
+
+                        {/* After */}
+                        <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${endsType === "after" ? 'bg-pink-50/50 dark:bg-pink-900/10 border-pink-200 dark:border-pink-900/30' : 'bg-transparent border-transparent hover:bg-zinc-50 dark:hover:bg-[#1a1a1a]'}`}>
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${endsType === "after" ? 'border-pink-500' : 'border-zinc-400'}`}>
+                                {endsType === "after" && <div className="w-2 h-2 rounded-full bg-pink-500" />}
+                            </div>
+                            <span className={`text-[15px] font-medium ${endsType === "after" ? 'text-[var(--foreground)]' : 'text-zinc-600 dark:text-zinc-400'}`}>After</span>
+                            <div className="ml-auto flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={999}
+                                    disabled={endsType !== "after"}
+                                    value={draft.count ?? 10}
+                                    onChange={(e) => {
+                                        setEndsType("after"); // Auto-select
+                                        const n = parseInt(e.target.value, 10);
+                                        patch({ count: Number.isNaN(n) ? 1 : Math.min(999, Math.max(1, n)) });
+                                    }}
+                                    className={`w-16 text-center bg-transparent border rounded-lg px-2 py-1 text-[13px] font-bold outline-none transition-all ${endsType === "after" ? 'border-pink-200 dark:border-pink-900/50 text-[var(--foreground)] focus:border-pink-500' : 'border-[var(--border)] text-zinc-400 disabled:opacity-50'}`}
+                                />
+                                <span className={`text-[13px] ${endsType === "after" ? 'text-zinc-600 dark:text-zinc-400' : 'text-zinc-400'}`}>times</span>
+                            </div>
                         </label>
                     </div>
                 </div>
 
-                {/* Preview */}
-                <div className="rounded-xl bg-zinc-50 dark:bg-[#161616] border border-[var(--border)] px-4 py-3">
-                    <div className="text-[13px] font-medium text-[var(--foreground)]">{describeRecurrence({ ...draft, tz })}</div>
-                    <div className="text-[12px] text-zinc-500 mt-0.5">
+                {/* Preview Box */}
+                <div className="rounded-[16px] bg-pink-50/50 dark:bg-[#1a1a1a] border border-pink-100 dark:border-zinc-800 p-5">
+                    <div className="text-[14px] font-bold text-pink-900 dark:text-pink-300 leading-tight mb-1">{describeRecurrence({ ...draft, tz })}</div>
+                    <div className="text-[12px] font-medium text-pink-600/80 dark:text-pink-500/80">
                         {preview
-                            ? `Next task: ${new Date(preview.doOnDate ?? preview.doByDate ?? Date.now()).toLocaleDateString(undefined, {
+                            ? `Next: ${new Date(preview.doOnDate ?? preview.doByDate ?? Date.now()).toLocaleDateString(undefined, {
                                 weekday: "short",
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
-                            })}${baseDate ? " (if completed on its date)" : ""}`
+                            })}${baseDate ? " (if completed today)" : ""}`
                             : "This is the last occurrence. The series ends here."}
                     </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-1">
+                <div className="flex justify-end gap-3 pt-2">
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                        className="px-5 py-2.5 text-[14px] font-bold text-zinc-600 hover:bg-zinc-100 dark:hover:bg-[#252525] rounded-xl transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         type="button"
                         onClick={handleSave}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+                        className="px-6 py-2.5 text-[14px] font-bold text-white bg-pink-500 hover:bg-pink-600 rounded-xl transition-all shadow-sm shadow-pink-500/20 active:scale-95"
                     >
-                        Done
+                        Save Schedule
                     </button>
                 </div>
             </div>

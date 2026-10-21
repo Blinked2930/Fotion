@@ -21,10 +21,8 @@ export function RepeatDropdown({
   align = "left",
   disabled = false,
 }: {
-  /** Current structured recurrence, or null for "None". */
   value: Recurrence | null;
   onChange: (val: Recurrence | null) => void;
-  /** The task's Do-On (or Due-By) date. Presets like "Weekly on Wednesday" use it. */
   baseDate?: number | null;
   align?: "left" | "right";
   disabled?: boolean;
@@ -73,8 +71,8 @@ export function RepeatDropdown({
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
         className={`outline-none px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border max-w-full ${disabled ? "opacity-70 pointer-events-none" : ""} ${isActive
-            ? "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50"
-            : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          ? "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50"
+          : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
           }`}
       >
         <Repeat className="w-3.5 h-3.5 shrink-0" />
@@ -83,25 +81,28 @@ export function RepeatDropdown({
 
       {isOpen && (
         <div
-          className={`absolute top-full ${align === "right" ? "right-0" : "left-0"} mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50`}
+          className={`absolute top-full ${align === "right" ? "right-0" : "left-0"} mt-2 w-56 bg-white dark:bg-[#1a1a1a] border border-[var(--border)] shadow-xl rounded-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden`}
         >
-          {options.map((opt) => (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() => handleSelect(opt.key)}
-              className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center"
-            >
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${opt.key !== "none"
-                    ? "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50"
-                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]"
-                  }`}
+          {options.map((opt) => {
+            const isCustom = opt.key === "custom";
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => handleSelect(opt.key)}
+                className={`w-full text-left px-3 py-2.5 flex items-center transition-colors ${isCustom ? 'hover:bg-pink-50 dark:hover:bg-pink-900/20 border-t border-[var(--border)] mt-1 pt-3' : 'hover:bg-zinc-50 dark:hover:bg-[#252525]'}`}
               >
-                {opt.label}
-              </span>
-            </button>
-          ))}
+                <span
+                  className={`px-3 py-1 rounded-full text-[12px] font-bold border ${opt.key !== "none"
+                    ? isCustom ? "bg-pink-500 text-white border-pink-500 shadow-sm" : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50"
+                    : "bg-zinc-100 text-zinc-600 dark:bg-[#2a2a2a] dark:text-zinc-300 border-transparent"
+                    }`}
+                >
+                  {opt.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
