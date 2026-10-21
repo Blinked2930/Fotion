@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare, ListFilter } from "lucide-react";
+import { Plus, Folder, Check, Bold, Italic, List, ListOrdered, CheckSquare, ListFilter, Target } from "lucide-react";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineSyncMutation, useOfflineQuery } from "@/hooks/useOfflineMutation";
@@ -48,6 +48,17 @@ export const getProjectColor = (id: string | null | undefined) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
+const getGoalColor = (color?: string) => {
+  const map: any = {
+    emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50",
+    blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50",
+    purple: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50",
+    amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-900/50",
+    pink: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50",
+  };
+  return map[color || "emerald"] || map.emerald;
+};
+
 export const getListColor = (list: string) => {
   switch (list) {
     case 'Current': return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50';
@@ -64,6 +75,7 @@ export function NewTaskForm() {
   const createTask = useOfflineSyncMutation(api.tasks.createTask, "createTask");
   const createProject = useOfflineSyncMutation(api.projects.createProject, "createProject");
   const projects = useOfflineQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined }, "getProjects");
+  const goals = useOfflineQuery(api.goals.getGoals, { sessionId: sessionId ?? undefined }, "getGoals");
 
   const [title, setTitle] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
@@ -74,9 +86,12 @@ export function NewTaskForm() {
   const [doOnDate, setDoOnDate] = useState<number | null>(null);
   const [doByDate, setDoByDate] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [goalId, setGoalId] = useState<string | null>(null);
   const [recurrence, setRecurrence] = useState<Recurrence | null>(null);
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
+  const [isGoalDropdownOpen, setIsGoalDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
 
@@ -99,6 +114,7 @@ export function NewTaskForm() {
 
   const formRef = useRef<HTMLFormElement>(null);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
+  const goalDropdownRef = useRef<HTMLDivElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -112,15 +128,15 @@ export function NewTaskForm() {
     immediatelyRender: false,
   });
 
-  const stateRef = useRef({ title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrence });
+  const stateRef = useRef({ title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, goalId, recurrence });
   useEffect(() => {
-    stateRef.current = { title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrence };
-  }, [title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, recurrence]);
+    stateRef.current = { title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, goalId, recurrence };
+  }, [title, isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId, goalId, recurrence]);
 
   const resetForm = () => {
     setTitle(""); setIsUrgent(false); setIsImportant(false); setIsForFunsies(false);
-    setIsToday(false); setListCategory("Current"); setDoOnDate(null); setDoByDate(null); setProjectId(null);
-    setRecurrence(null);
+    setIsToday(false); setListCategory("Current"); setDoOnDate(null); setDoByDate(null);
+    setProjectId(null); setGoalId(null); setRecurrence(null);
     editor?.commands.setContent("");
   };
 
@@ -131,13 +147,15 @@ export function NewTaskForm() {
       // inside it must not count as "clicked outside" (that would save the task).
       if ((event.target as HTMLElement | null)?.closest?.('[data-recurrence-modal]')) return;
       if (projectDropdownRef.current && projectDropdownRef.current.contains(event.target as Node)) return;
+      if (goalDropdownRef.current && goalDropdownRef.current.contains(event.target as Node)) return;
 
       if (formRef.current && !formRef.current.contains(event.target as Node)) {
         setIsProjectDropdownOpen(false);
+        setIsGoalDropdownOpen(false);
 
         const descriptionHTML = editor?.getHTML() || "";
         const hasNotes = editor && !editor.isEmpty;
-        const hasTags = stateRef.current.isUrgent || stateRef.current.isImportant || stateRef.current.isForFunsies || stateRef.current.isToday || stateRef.current.listCategory !== "Current" || stateRef.current.doOnDate || stateRef.current.doByDate || stateRef.current.projectId;
+        const hasTags = stateRef.current.isUrgent || stateRef.current.isImportant || stateRef.current.isForFunsies || stateRef.current.isToday || stateRef.current.listCategory !== "Current" || stateRef.current.doOnDate || stateRef.current.doByDate || stateRef.current.projectId || stateRef.current.goalId;
 
         if (stateRef.current.title.trim() !== "" || hasNotes || hasTags || stateRef.current.recurrence !== null) {
           const rec = stateRef.current.recurrence;
@@ -153,6 +171,7 @@ export function NewTaskForm() {
             doOnDate: stateRef.current.doOnDate,
             doByDate: stateRef.current.doByDate,
             projectId: stateRef.current.projectId as any,
+            goalId: stateRef.current.goalId as any,
             sessionId: sessionId ?? undefined,
             ...(rec ? {
               recurrence: rec,
@@ -170,7 +189,7 @@ export function NewTaskForm() {
     }
     document.addEventListener("pointerdown", handleClickOutside);
     return () => document.removeEventListener("pointerdown", handleClickOutside);
-  }, [createTask, isModalOpen, editor, isProjectDropdownOpen, sessionId]);
+  }, [createTask, isModalOpen, editor, isProjectDropdownOpen, isGoalDropdownOpen, sessionId]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -183,7 +202,9 @@ export function NewTaskForm() {
     createTask({
       title: title.trim() || "Unknown Task",
       description: (editor && !editor.isEmpty) ? editor.getHTML() : undefined,
-      isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate, projectId: projectId as any,
+      isUrgent, isImportant, isForFunsies, isToday, listCategory, doOnDate, doByDate,
+      projectId: projectId as any,
+      goalId: goalId as any,
       sessionId: sessionId ?? undefined,
       ...(rec ? {
         recurrence: rec,
@@ -223,6 +244,7 @@ export function NewTaskForm() {
   };
 
   const selectedProject = projects?.find((p: any) => p._id === projectId);
+  const selectedGoal = goals?.find((g: any) => g._id === goalId);
 
   return (
     <>
@@ -288,8 +310,8 @@ export function NewTaskForm() {
         onSubmit={handleSubmit}
         onKeyDownCapture={handleKeyDownCapture}
         className={`relative flex flex-col transition-all rounded-xl border mx-2 sm:mx-0 ${isExpanded
-            ? "bg-white dark:bg-[#1f1f1f] border-[var(--border)] shadow-xl py-4 px-4 sm:px-6 my-4 z-30"
-            : "border-transparent bg-transparent py-2 px-3 sm:px-4 hover:bg-[var(--subtle-bg)]"
+          ? "bg-white dark:bg-[#1f1f1f] border-[var(--border)] shadow-xl py-4 px-4 sm:px-6 my-4 z-30"
+          : "border-transparent bg-transparent py-2 px-3 sm:px-4 hover:bg-[var(--subtle-bg)]"
           }`}
       >
         <div className="flex items-center gap-2 w-full">
@@ -338,7 +360,7 @@ export function NewTaskForm() {
                   <div className="relative" ref={projectDropdownRef}>
                     <button
                       type="button"
-                      onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
+                      onClick={() => { setIsProjectDropdownOpen(!isProjectDropdownOpen); setIsGoalDropdownOpen(false); }}
                       className={`flex items-center gap-1.5 font-medium px-3 py-1 rounded-full border transition-colors text-[12px] ${getProjectColor(projectId)}`}
                     >
                       <Folder className="w-3.5 h-3.5" />
@@ -352,6 +374,25 @@ export function NewTaskForm() {
                         ))}
                         <div className="border-t border-[var(--border)] my-1"></div>
                         <button type="button" onClick={() => { setIsProjectDropdownOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">+ Create Project</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative" ref={goalDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => { setIsGoalDropdownOpen(!isGoalDropdownOpen); setIsProjectDropdownOpen(false); }}
+                      className={`flex items-center gap-1.5 font-medium px-3 py-1 rounded-full border transition-colors text-[12px] ${selectedGoal ? getGoalColor(selectedGoal.color) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                    >
+                      <Target className="w-3.5 h-3.5" />
+                      {selectedGoal?.title || "No Goal"}
+                    </button>
+                    {isGoalDropdownOpen && (
+                      <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[250px] overflow-y-auto">
+                        <button type="button" onClick={() => { setGoalId(null); setIsGoalDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)]">None</button>
+                        {goals?.map((g: any) => (
+                          <button key={g._id} type="button" onClick={() => { setGoalId(g._id); setIsGoalDropdownOpen(false); }} className="w-full text-left px-3 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[var(--foreground)] truncate">{g.title}</button>
+                        ))}
                       </div>
                     )}
                   </div>

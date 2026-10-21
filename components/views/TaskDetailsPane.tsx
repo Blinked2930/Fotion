@@ -82,8 +82,7 @@ const CustomTaskItem = TaskItem.extend({
         // Cursor at the very start of the item's first paragraph?
         const atStart =
           $from.depth === itemDepth + 1 &&
-          $from.index(itemDepth) === 0 &&
-          $from.parentOffset === 0;
+          $from.index(itemDepth) === 0 && $from.parentOffset === 0;
 
         if (atStart) {
           // Insert a fresh unchecked item ABOVE. Original item is untouched.
@@ -226,6 +225,60 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
         </div>
       )}
     </>
+  );
+}
+
+function GoalSelect({ value, onChange }: { value?: string | null, onChange: (val: string | null) => void }) {
+  const sessionId = useGuestSession();
+  const goals = useQuery(api.goals.getGoals, { sessionId: sessionId ?? undefined });
+
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: PointerEvent | MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
+  }, []);
+
+  const selectedGoal = goals?.find((g: any) => g._id === value);
+
+  const getGoalColor = (color?: string) => {
+    const map: any = {
+      emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50",
+      blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50",
+      purple: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50",
+      amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-900/50",
+      pink: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border-pink-200 dark:border-pink-900/50",
+    };
+    return map[color || "emerald"] || map.emerald;
+  };
+
+  return (
+    <div className="relative w-fit max-w-full" ref={ref}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`outline-none px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border max-w-full truncate ${selectedGoal ? getGoalColor(selectedGoal.color) : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'}`}
+      >
+        <Target className="w-3.5 h-3.5 shrink-0" />
+        <span className={`truncate ${!value ? "opacity-60" : ""}`}>{selectedGoal?.title || "None"}</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[250px] overflow-y-auto">
+          <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">None</span>
+          </button>
+          {goals?.map((g: any) => (
+            <button key={g._id} onClick={() => { onChange(g._id); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border truncate max-w-full ${getGoalColor(g.color)}`}>{g.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -481,7 +534,7 @@ function PaneContent() {
     if (editor.getHTML() !== incoming) {
       editor.commands.setContent(incoming, { emitUpdate: false });
     }
-    lastSavedHtmlRef.current = editor.getHTML();
+    lastSavedHtmlRef.current = incoming;
   }, [task, displayTaskId, editor]);
 
   useEffect(() => {
@@ -689,25 +742,20 @@ function PaneContent() {
               <PropertyRow icon={Calendar} label="Due By Date" disabled={needsToAccept}><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Calendar} label="Do On Date" disabled={needsToAccept}><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Repeat} label="Repeat" disabled={needsToAccept}>
-                {/* The key forces a remount when the rule changes from the server,
-                    so the dropdown's internal open/modal state can never get stuck. */}
                 <RepeatDropdown
-                  key={JSON.stringify(task.recurrence ?? task.recurrenceRule ?? null)}
+                  key={JSON.stringify((task as any).recurrence ?? task.recurrenceRule ?? null)}
                   value={effectiveRecurrence(task)}
                   baseDate={task.doOnDate ?? task.doByDate ?? null}
                   onChange={(rec) => {
                     if (needsToAccept || !displayTaskId) return;
 
                     if (!rec) {
-                      // Detach this task from its chain. The backend removes all
-                      // three recurrence fields, and this task will not spawn
-                      // a successor when completed.
                       updateTask({
                         id: displayTaskId,
                         recurrenceRule: null,
                         recurringGroupId: null,
                         recurrence: null,
-                      });
+                      } as any);
                       return;
                     }
 
@@ -743,6 +791,7 @@ function PaneContent() {
                 </PropertyRow>
               )}
               <PropertyRow icon={Folder} label="Project" disabled={needsToAccept}><ProjectSelect value={task.projectId} onChange={(val) => handleUpdate("projectId", val)} /></PropertyRow>
+              <PropertyRow icon={Target} label="Goal" disabled={needsToAccept}><GoalSelect value={task.goalId} onChange={(val) => handleUpdate("goalId", val)} /></PropertyRow>
             </div>
 
             <hr className="border-[var(--border)] my-6" />

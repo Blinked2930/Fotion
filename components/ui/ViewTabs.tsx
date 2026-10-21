@@ -1,25 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LayoutGrid, ListTodo, Calendar, Database, FolderGit2 } from "lucide-react";
+import { LayoutGrid, ListTodo, Calendar, Database, FolderGit2, Target } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-export type ViewType = "Matrix" | "Pipelines" | "Today" | "Projects" | "Raw Data";
+export type ViewType = "Matrix" | "Pipelines" | "Today" | "Projects" | "Goals" | "Raw Data";
 
 const defaultTabs: { id: ViewType; icon: any; label: string }[] = [
   { id: "Today", icon: Calendar, label: "Today" },
   { id: "Pipelines", icon: ListTodo, label: "Pipelines" },
   { id: "Projects", icon: FolderGit2, label: "Projects" },
+  { id: "Goals", icon: Target, label: "Goals" },
   { id: "Matrix", icon: LayoutGrid, label: "Matrix" },
   { id: "Raw Data", icon: Database, label: "Raw Data" },
 ];
 
-export function ViewTabs({ 
-  activeView, 
+export function ViewTabs({
+  activeView,
   onViewChange
-}: { 
-  activeView: ViewType; 
+}: {
+  activeView: ViewType;
   onViewChange: (view: ViewType) => void;
 }) {
   const preferences = useQuery(api.preferences.get);
@@ -52,7 +53,7 @@ export function ViewTabs({
       const reordered = order.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
       const missing = defaultTabs.filter(t => !order.includes(t.id));
       const finalTabs = [...reordered, ...missing];
-      
+
       setTabs(finalTabs);
       localStorage.setItem("fotion-tab-order", JSON.stringify(preferences.tabOrder));
     }
@@ -81,12 +82,12 @@ export function ViewTabs({
     const newTabs = [...tabs];
     const draggedIdx = newTabs.findIndex(t => t.id === draggedTab);
     const targetIdx = newTabs.findIndex(t => t.id === targetId);
-    
+
     const [removed] = newTabs.splice(draggedIdx, 1);
     newTabs.splice(targetIdx, 0, removed);
-    
+
     setTabs(newTabs);
-    
+
     // Update both local cache AND the cloud instantly
     localStorage.setItem("fotion-tab-order", JSON.stringify(newTabs.map(t => t.id)));
     updateTabOrder({ tabOrder: newTabs.map(t => t.id) });
@@ -111,11 +112,10 @@ export function ViewTabs({
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, tab.id)}
             onClick={() => onViewChange(tab.id)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap cursor-grab active:cursor-grabbing ${
-              isActive 
-                ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 shadow-sm" 
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap cursor-grab active:cursor-grabbing ${isActive
+                ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 shadow-sm"
                 : "text-zinc-500 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
-            }`}
+              }`}
           >
             <Icon className="w-4 h-4" />
             {tab.label}

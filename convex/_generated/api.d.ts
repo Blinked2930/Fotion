@@ -11,6 +11,7 @@
 import type * as crons from "../crons.js";
 import type * as debugTasks from "../debugTasks.js";
 import type * as demo from "../demo.js";
+import type * as goals from "../goals.js";
 import type * as preferences from "../preferences.js";
 import type * as projects from "../projects.js";
 import type * as push from "../push.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   debugTasks: typeof debugTasks;
   demo: typeof demo;
+  goals: typeof goals;
   preferences: typeof preferences;
   projects: typeof projects;
   push: typeof push;

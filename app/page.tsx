@@ -8,6 +8,7 @@ import { RawDataView } from "@/components/views/RawDataView";
 import { TodayView } from "@/components/views/TodayView";
 import { PipelinesView } from "@/components/views/PipelinesView";
 import { ProjectsView } from "@/components/views/ProjectsView";
+import { GoalsView } from "@/components/views/GoalsView";
 import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
@@ -81,7 +82,6 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
         className="w-full max-w-2xl bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[80vh] animate-in slide-in-from-top-4 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-
         <div className="flex items-center gap-3 p-4 border-b border-[var(--border)]">
           <Search className="w-5 h-5 text-zinc-400" />
           <input
@@ -121,7 +121,6 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
             })
           )}
         </div>
-
       </div>
     </div>
   );
@@ -259,7 +258,6 @@ function HomeContent() {
 
   const [isOffline, setIsOffline] = useState(false);
 
-  // NEW PWA INSTALL STATES
   const [showInstallScreen, setShowInstallScreen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"demo" | null>(null);
 
@@ -301,7 +299,6 @@ function HomeContent() {
 
   const totalTouchBaseCount = staleWaitingCount + staleSomedayCount;
 
-  // Focus session is now a single lifted hook. No polling, no duplicate state.
   const focusSession = useFocusSession(focusedTasks);
 
   const hasAutoOpenedVip = useRef(false);
@@ -341,7 +338,6 @@ function HomeContent() {
     sessionStorage.setItem("fotion-bypassed-install", "true");
     setShowInstallScreen(false);
 
-    // Resume interrupted actions
     if (pendingAction === "demo") {
       setPendingAction(null);
       handleStartDemo();
@@ -417,7 +413,6 @@ function HomeContent() {
   };
 
   const handleStartDemo = async () => {
-    // HALT AND SHOW INSTALL SCREEN IF NEEDED
     if (checkNeedsInstall()) {
       setPendingAction("demo");
       setShowInstallScreen(true);
@@ -443,7 +438,6 @@ function HomeContent() {
     }
   };
 
-  // 1. Loading States
   if ((!isOffline && !isLoaded) || (!isOffline && !isSignedIn && guestSessionId === null && !isMounted)) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
@@ -452,16 +446,13 @@ function HomeContent() {
     );
   }
 
-  // 2. Install Interceptor (Takes precedence over the Landing Page)
   if (showInstallScreen) {
     return <InstallScreen onBypass={handleBypassInstall} />;
   }
 
-  // 3. Landing Page
   if (!isSignedIn && sessionType === "none" && !isOffline) {
     return (
       <div className="min-h-[100dvh] bg-zinc-50 dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 relative overflow-hidden">
-
         <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02] pointer-events-none">
           <svg className="absolute top-[15%] left-[10%] w-64 h-64 text-zinc-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="0.5">
             <circle cx="12" cy="12" r="10" />
@@ -518,17 +509,13 @@ function HomeContent() {
           <p className="text-xs text-zinc-400 font-medium pt-2">
             Sandbox sessions are isolated to your browser and automatically clear after 48 hours.
           </p>
-
         </div>
       </div>
     );
   }
 
-  // 4. Main App Interface
   return (
     <div className="min-h-screen bg-[var(--background)] overflow-x-hidden flex flex-col relative">
-
-      {/* GLOBAL OFFLINE BANNER */}
       {isOffline && (
         <div className="w-full bg-amber-500 text-amber-950 px-4 py-2 text-xs sm:text-sm font-bold text-center flex items-center justify-center gap-2 shadow-md z-[100]">
           <WifiOff className="w-4 h-4" /> You are currently offline. Changes are saving locally.
@@ -561,8 +548,8 @@ function HomeContent() {
             <button
               onClick={() => setIsTouchBaseOpen(true)}
               className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium transition-colors px-2 py-1 rounded-md border ${totalTouchBaseCount > 0
-                  ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800 font-bold'
-                  : 'text-zinc-500 hover:text-[var(--foreground)] border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800 font-bold'
+                : 'text-zinc-500 hover:text-[var(--foreground)] border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800'
                 }`}
               title="Touch base with Waiting For & Someday tasks"
             >
@@ -611,6 +598,7 @@ function HomeContent() {
                 {activeView === "Today" && <TodayView />}
                 {activeView === "Pipelines" && <PipelinesView />}
                 {activeView === "Projects" && <ProjectsView />}
+                {activeView === "Goals" && <GoalsView />}
                 {activeView === "Raw Data" && <RawDataView />}
               </>
             )}
@@ -625,7 +613,6 @@ function HomeContent() {
         <PushPromptModal />
       </main>
 
-      {/* "Start Focus" pill — shown only when neither the overlay nor the floating widget is visible. */}
       {!focusSession.overlayVisible && !focusSession.shouldShowFloatingWidget && (
         <button
           onClick={focusSession.expand}
@@ -635,7 +622,6 @@ function HomeContent() {
         </button>
       )}
 
-      {/* Floating timer widget — single source of truth, driven by the hook. */}
       {focusSession.shouldShowFloatingWidget && (
         <FloatingFocusWidget
           mode={focusSession.mode}
@@ -650,10 +636,8 @@ function HomeContent() {
         />
       )}
 
-      {/* Full-screen overlay — always mounted; renders null internally when minimized. */}
       <FocusSessionOverlay session={focusSession} />
 
-      {/* Wellness modals — mounted at page level so they persist across minimize/expand. */}
       <GuidedBreathingModal
         isOpen={focusSession.isBreathingOpen}
         onClose={() => focusSession.setIsBreathingOpen(false)}
@@ -674,11 +658,9 @@ function HomeContent() {
         settings={focusSession.focusSettings}
         onSave={focusSession.handleSaveSettings}
       />
-
     </div>
   );
 }
-
 
 export default function Home() {
   return (
