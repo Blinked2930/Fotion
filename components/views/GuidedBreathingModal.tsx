@@ -162,24 +162,25 @@ export function GuidedBreathingModal({
     return () => clearInterval(interval);
   }, [phase, soundEnabled]);
 
-  // Recovery hold timer
+  // Clean Recovery hold timer (Decoupled from phase-switching side effects)
   useEffect(() => {
     let interval: any;
     if (phase === "recovery") {
       interval = setInterval(() => {
-        setRecoverySeconds((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            setPhase("complete");
-            setRoundsCompleted((r) => r + 1);
-            return 15;
-          }
-          return prev - 1;
-        });
+        setRecoverySeconds((prev) => prev - 1);
       }, 1000);
     }
     return () => clearInterval(interval);
   }, [phase]);
+
+  // Transition out of Recovery when timer hits 0
+  useEffect(() => {
+    if (phase === "recovery" && recoverySeconds <= 0) {
+      setPhase("complete");
+      setRoundsCompleted((r) => r + 1);
+      setRecoverySeconds(15);
+    }
+  }, [phase, recoverySeconds]);
 
   if (!isOpen) return null;
 
@@ -266,7 +267,7 @@ export function GuidedBreathingModal({
     circleScale = "scale-110 opacity-90";
     transitionDuration = "1s";
     statusText = "Recovery Inhale";
-    subText = `${recoverySeconds}s hold`;
+    subText = "Hold full lungs • Feel the energy"; // Removed the double timer here
   } else if (phase === "complete") {
     circleScale = "scale-100 opacity-80";
     statusText = "Round Complete";
@@ -333,9 +334,8 @@ export function GuidedBreathingModal({
                   <button
                     key={c.value}
                     onClick={() => setCueColor(c.value)}
-                    className={`w-9 h-9 rounded-full transition-transform border-2 flex items-center justify-center ${
-                      cueColor === c.value ? "scale-110 border-white shadow-lg" : "border-transparent opacity-70 hover:opacity-100"
-                    }`}
+                    className={`w-9 h-9 rounded-full transition-transform border-2 flex items-center justify-center ${cueColor === c.value ? "scale-110 border-white shadow-lg" : "border-transparent opacity-70 hover:opacity-100"
+                      }`}
                     style={{ backgroundColor: c.value }}
                     title={c.name}
                   >
@@ -353,14 +353,12 @@ export function GuidedBreathingModal({
               <button
                 type="button"
                 onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${
-                  soundEnabled ? "bg-cyan-500" : "bg-zinc-700"
-                }`}
+                className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${soundEnabled ? "bg-cyan-500" : "bg-zinc-700"
+                  }`}
               >
                 <div
-                  className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                    soundEnabled ? "translate-x-5" : "translate-x-0"
-                  }`}
+                  className={`w-5 h-5 rounded-full bg-white transition-transform ${soundEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
                 />
               </button>
             </div>
@@ -381,11 +379,10 @@ export function GuidedBreathingModal({
                     key={r.id}
                     type="button"
                     onClick={() => setBreathingRatio(r.id as any)}
-                    className={`py-2 px-1 rounded-xl text-center border transition-all ${
-                      breathingRatio === r.id
+                    className={`py-2 px-1 rounded-xl text-center border transition-all ${breathingRatio === r.id
                         ? "bg-cyan-500 text-black border-cyan-400 font-extrabold"
                         : "bg-zinc-800/60 border-zinc-700 text-zinc-400 hover:bg-zinc-800"
-                    }`}
+                      }`}
                   >
                     <div className="text-xs font-bold">{r.label}</div>
                     <div className="text-[10px] opacity-75">{r.desc}</div>
@@ -553,4 +550,3 @@ export function GuidedBreathingModal({
     </div>
   );
 }
-
