@@ -26,7 +26,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     const createGoal = useOfflineSyncMutation(api.goals.createGoal, "createGoal");
     const updateGoal = useOfflineSyncMutation(api.goals.updateGoal, "updateGoal");
     const deleteGoal = useOfflineSyncMutation(api.goals.deleteGoal, "deleteGoal");
-    const createTask = useOfflineSyncMutation(api.tasks.createTask, "createTask"); // Added createTask mutation
+    const createTask = useOfflineSyncMutation(api.tasks.createTask, "createTask");
 
     const [mounted, setMounted] = useState(false);
     const [openGoalId, setOpenGoalId] = useState<string | null>(null);
@@ -98,9 +98,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                     listCategory: "Current", // Ensures it lands on the active board
                     sessionId: sessionId ?? undefined,
                 });
-                
-                // Note: If you add a dedicated table/mutation for tracking Implementation Intentions 
-                // in the future (e.g., api.goalDetails.addPlan), you can fire it off right here too!
             }
         }
         setEditor({ open: false, goal: null });
