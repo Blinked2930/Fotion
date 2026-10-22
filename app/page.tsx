@@ -19,6 +19,7 @@ import { VisualFocusModal } from "@/components/views/VisualFocusModal";
 import { FocusSettingsModal } from "@/components/views/FocusSettingsModal";
 import { TouchBaseModal } from "@/components/views/TouchBaseModal";
 import { InstallScreen } from "@/components/views/InstallScreen";
+import { GoalSanctuaryOverlay } from "@/components/views/GoalSanctuaryOverlay";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff, Clock } from "lucide-react";
@@ -247,6 +248,7 @@ function HomeContent() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isTouchBaseOpen, setIsTouchBaseOpen] = useState(false);
+  const [isGoalSanctuaryOpen, setIsGoalSanctuaryOpen] = useState(false);
   const [isNearFocusButton, setIsNearFocusButton] = useState(false);
 
   const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");
@@ -275,10 +277,24 @@ function HomeContent() {
     }
   }, []);
 
+  // Global hotkey for Goal Sanctuary
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key.toLowerCase() === 'g') {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+            setIsGoalSanctuaryOpen(prev => !prev);
+        }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
   const vipTask = useOfflineQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip", "getTaskByShareToken");
 
   const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks");
+  const allGoals = useOfflineQuery(api.goals.getGoals, { sessionId: guestSessionId ?? undefined }, "getGoals") || [];
 
   const actualSessionId = guestSessionId?.split("||vip_")[0];
   const focusedTasks = (allTasks?.filter((t: any) => {
@@ -299,20 +315,23 @@ function HomeContent() {
 
   const totalTouchBaseCount = staleWaitingCount + staleSomedayCount;
 
+  // Calculate if any goals need review to show an indicator dot
+  const goalsNeedingReviewCount = allGoals.filter((goal: any) => {
+    if (!goal.reviewCycle || goal.reviewCycle === "none" || goal.status === "archived") return false;
+    if (!goal.lastReviewedAt) return true;
+    const daysSince = (Date.now() - goal.lastReviewedAt) / (1000 * 60 * 60 * 24);
+    switch (goal.reviewCycle) {
+        case "weekly": return daysSince >= 7;
+        case "monthly": return daysSince >= 30;
+        case "quarterly": return daysSince >= 90;
+        case "annual": return daysSince >= 365;
+        default: return false;
+    }
+  }).length;
+
   const focusSession = useFocusSession(focusedTasks);
 
   const hasAutoOpenedVip = useRef(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handleMouseMove = (e: MouseEvent) => {
-      const thresholdX = window.innerWidth - 300;
-      const thresholdY = window.innerHeight - 300;
-      setIsNearFocusButton(e.clientX > thresholdX && e.clientY > thresholdY);
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   useEffect(() => {
     if (sessionType === "vip" && vipTask && vipTask._id && !hasAutoOpenedVip.current) {
@@ -346,7 +365,8 @@ function HomeContent() {
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
-    if (saved) setActiveView(saved);
+    // Don't default to GoalsView if it was saved, since we moved it to the sanctuary
+    if (saved && saved !== "Goals") setActiveView(saved);
 
     const vipParam = searchParams.get("vip");
     const sessionParam = searchParams.get("session");
@@ -566,6 +586,18 @@ function HomeContent() {
               <Folder className="w-4 h-4" /> Projects
             </button>
 
+            {/* NEW GOAL SANCTUARY BUTTON */}
+            <button 
+              onClick={() => setIsGoalSanctuaryOpen(true)} 
+              className={`flex items-center gap-1.5 text-sm font-medium transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 relative ${goalsNeedingReviewCount > 0 ? 'text-[var(--foreground)]' : 'text-zinc-500 hover:text-[var(--foreground)]'}`}
+            >
+              <Target className={`w-4 h-4 ${goalsNeedingReviewCount > 0 ? 'text-amber-500' : ''}`} /> 
+              <span className="hidden sm:inline">Goals <span className="text-[10px] text-zinc-400 font-normal ml-0.5 border border-[var(--border)] rounded px-1 py-0.5">G</span></span>
+              {goalsNeedingReviewCount > 0 && (
+                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-amber-500 border border-white dark:border-[#121212] -translate-y-1/2 translate-x-1/2" />
+              )}
+            </button>
+
             {isSignedIn && (
               <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors px-2 py-1 rounded-md">
                 <Zap className="w-4 h-4" /> Import
@@ -606,6 +638,7 @@ function HomeContent() {
         </div>
 
         <TaskDetailsPane />
+        <GoalSanctuaryOverlay isOpen={isGoalSanctuaryOpen} onClose={() => setIsGoalSanctuaryOpen(false)} />
         <GlobalSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
         <ImportProjectModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
         <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
