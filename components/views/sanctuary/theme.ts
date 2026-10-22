@@ -68,7 +68,7 @@ export function describeHorizon(targetDate?: number | null): { primary: string; 
 
 /**
  * Default prompts for the 5-point scale. Order: index 0 = -2, index 4 = +2.
- * These are shown as placeholders when the owner has not written their own.
+ * Shown as placeholders when the owner has not written their own.
  */
 export const SCALE_PROMPTS = [
     "much worse than expected",
@@ -110,7 +110,6 @@ export function describeWeekKey(weekKey: string): string {
     if (!m) return weekKey;
     const year = parseInt(m[1], 10);
     const week = parseInt(m[2], 10);
-    // Monday of ISO week 1 is the week containing Jan 4.
     const jan4 = new Date(Date.UTC(year, 0, 4));
     const jan4Day = (jan4.getUTCDay() + 6) % 7;
     const week1Monday = new Date(jan4);
@@ -120,7 +119,7 @@ export function describeWeekKey(weekKey: string): string {
     return target.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** Map -2..+2 to a Tailwind color for the sparkline / rating chips. */
+/** Map -2..+2 to a colour for the sparkline / rating chips. */
 export function ratingColor(rating: number): string {
     if (rating <= -2) return "#ef4444";
     if (rating === -1) return "#f97316";

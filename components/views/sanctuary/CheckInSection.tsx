@@ -27,7 +27,6 @@ export function CheckInSection({
 }) {
     const upsertCheckIn = useMutation(api.goalDetails.upsertCheckIn);
 
-    // Prefill from this week's existing check-in if there is one.
     const existingThisWeek = useMemo(
         () => checkIns.find((c) => c.weekKey === currentWeek),
         [checkIns, currentWeek]
@@ -62,7 +61,6 @@ export function CheckInSection({
         }
     };
 
-    // Oldest-first for the sparkline.
     const timeline = useMemo(() => [...checkIns].reverse(), [checkIns]);
 
     return (
@@ -74,10 +72,8 @@ export function CheckInSection({
                 </span>
             </div>
 
-            {/* Sparkline: last 12 ratings, oldest -> newest, right-aligned to today. */}
             <Sparkline entries={timeline} />
 
-            {/* Inline form */}
             <div className="mt-6 space-y-4 rounded-2xl border border-black/[0.06] bg-white/40 p-5 dark:border-white/[0.08] dark:bg-white/[0.02]">
                 <div>
                     <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -184,9 +180,8 @@ function Sparkline({
     const padding = 4;
     const stepX = entries.length > 1 ? (width - padding * 2) / (entries.length - 1) : 0;
 
-    // Map -2..+2 to y in [height-padding, padding] (higher rating = higher up).
     const yFor = (rating: number) => {
-        const t = (rating + 2) / 4; // 0..1
+        const t = (rating + 2) / 4;
         return height - padding - t * (height - padding * 2);
     };
 
@@ -201,7 +196,6 @@ function Sparkline({
     return (
         <div className="mt-2">
             <svg viewBox={`0 0 ${width} ${height}`} className="w-full max-w-[360px]" role="img" aria-label="Rating trend">
-                {/* Baseline at 0 */}
                 <line
                     x1={padding}
                     x2={width - padding}
