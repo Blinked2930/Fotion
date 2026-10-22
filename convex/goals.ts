@@ -55,6 +55,21 @@ export const getGoals = query({
     },
 });
 
+export const getGoalById = query({
+    args: { id: v.id("goals"), sessionId: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        const { actualSessionId } = parseSessionId(args.sessionId);
+        const goal = await ctx.db.get(args.id);
+        if (!goal) return null;
+        if (identity) {
+            return goal.sessionId ? null : goal;
+        }
+        if (actualSessionId && goal.sessionId === actualSessionId) return goal;
+        return null;
+    },
+});
+
 export const createGoal = mutation({
     args: {
         title: v.string(),
@@ -105,6 +120,7 @@ export const updateGoal = mutation({
         for (const [key, val] of Object.entries(fields)) {
             if (val !== undefined) cleanFields[key] = val;
         }
+        if (Object.keys(cleanFields).length === 0) return;
         await ctx.db.patch(id, cleanFields);
     },
 });
@@ -122,13 +138,21 @@ export const deleteGoal = mutation({
             await ctx.db.patch(project._id, { goalId: null });
         }
 
-        // Cleanup dependencies
         const plans = await ctx.db.query("goalPlans").withIndex("by_goal", (q) => q.eq("goalId", args.id)).collect();
         for (const plan of plans) await ctx.db.delete(plan._id);
-        
+
         const milestones = await ctx.db.query("goalMilestones").withIndex("by_goal", (q) => q.eq("goalId", args.id)).collect();
         for (const ms of milestones) await ctx.db.delete(ms._id);
-        
+
+        // Check-in notes are personal. Delete them with the goal rather than
+        // orphaning them (handoff spec §6).
+        const checkIns = await ctx.db.query("goalCheckIns").withIndex("by_goal", (q) => q.eq("goalId", args.id)).collect();
+        for (const c of checkIns) await ctx.db.delete(c._id);
+
+        // focusLogs are aggregate time data; keep them so "time invested"
+        // survives a retire/reactivate cycle. They will show up as orphaned in
+        // the goal timeline, which is intentional.
+
         await ctx.db.delete(args.id);
     },
 });
