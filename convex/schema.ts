@@ -11,6 +11,10 @@ export default defineSchema({
     category: v.optional(v.string()),
     color: v.optional(v.string()),
     sessionId: v.optional(v.string()),
+    
+    // Reflection Flow tracking
+    reviewCycle: v.optional(v.union(v.literal("weekly"), v.literal("monthly"), v.literal("quarterly"), v.literal("annual"), v.literal("none"))),
+    lastReviewedAt: v.optional(v.union(v.number(), v.null())),
   }).index("by_sessionId", ["sessionId"]),
 
   projects: defineTable({
