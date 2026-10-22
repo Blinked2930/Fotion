@@ -37,9 +37,6 @@ const TASK_CACHE_KEY = "offline_cache_getTasks";
 export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) {
   const mutate = useMutation(mutationFunc);
 
-  // Convex's useMutation returns a new function identity on every render.
-  // Store it in a ref so the flush effect doesn't re-register on every render
-  // and doesn't capture a stale `mutate`.
   const mutateRef = useRef(mutate);
   useEffect(() => {
     mutateRef.current = mutate;
@@ -49,7 +46,6 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
     const key = `offline_queue_${mutationName}`;
 
     const flushQueue = async () => {
-      // Serialize flushes per mutation name.
       const existing = FLUSH_LOCKS.get(key);
       if (existing) {
         await existing;
@@ -96,9 +92,7 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
   }, [mutationName]);
 
   const executeWithSync = useCallback(async (args: any) => {
-    // 1. Optimistic UI: update the local task cache so the app feels instant.
-    //    Only task mutations touch `offline_cache_getTasks`; other mutation
-    //    names (createProject, etc.) skip this block.
+    // 1. Optimistic UI: update the local cache so the app feels instant.
     if (
       mutationName === "createTask" ||
       mutationName === "updateTask" ||
@@ -117,9 +111,6 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
         };
         localStorage.setItem(TASK_CACHE_KEY, JSON.stringify([optimisticTask, ...existingCache]));
       } else if (mutationName === "updateTask") {
-        // Spread order matters: args (which may contain `null` for recurrence
-        // clearing) overrides the existing task fields, but `_id` and
-        // `_creationTime` are preserved.
         const updated = existingCache.map((task: any) =>
           task._id === args.id
             ? { ...task, ...args, _id: task._id, _creationTime: task._creationTime }
@@ -140,7 +131,6 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
 
       window.dispatchEvent(new Event("offline_cache_updated"));
 
-      // 2. Network routing
       if (typeof window !== "undefined" && !navigator.onLine) {
         const queueKey = `offline_queue_${mutationName}`;
         const queue = safeParse(localStorage.getItem(queueKey)) || [];
@@ -151,13 +141,11 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
       return mutateRef.current(args);
     }
 
-    // Non-task mutations (createProject, etc.)
     if (typeof window !== "undefined" && !navigator.onLine) {
       const queueKey = `offline_queue_${mutationName}`;
       const queue = safeParse(localStorage.getItem(queueKey)) || [];
       queue.push(cloneArgs(args));
       localStorage.setItem(queueKey, JSON.stringify(queue));
-      // Return a temp id so callers like ProjectSelect can chain off it.
       return generateTempId();
     }
     return mutateRef.current(args);
@@ -167,10 +155,20 @@ export function useOfflineSyncMutation(mutationFunc: any, mutationName: string) 
 }
 
 export function useOfflineQuery(queryFunc: any, args: any, queryName: string) {
-  const data = useQuery(queryFunc, args === "skip" ? "skip" : args);
-  const [cachedData, setCachedData] = useState<any>(undefined);
+  const cacheKey = `offline_cache_${queryName}`;
+  
+  // 1. Instantly load from local storage on mount (Zero load time)
+  const [cachedData, setCachedData] = useState<any>(() => {
+      if (typeof window === "undefined") return undefined;
+      const saved = safeParse(localStorage.getItem(cacheKey));
+      return saved || undefined;
+  });
+  
   const [isOffline, setIsOffline] = useState(false);
   const lastSerializedRef = useRef<string | null>(null);
+
+  // 2. Fire the actual Convex server query in the background
+  const data = useQuery(queryFunc, args === "skip" ? "skip" : args);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -185,14 +183,9 @@ export function useOfflineQuery(queryFunc: any, args: any, queryName: string) {
     };
   }, []);
 
+  // 3. When server responds with fresh data, update UI and overwrite cache
   useEffect(() => {
-    const key = `offline_cache_${queryName}`;
-    // Only cache non-null results. `null` is a legitimate Convex return for
-    // "not found" (e.g. getTask for a deleted task), and caching it would
-    // make the task-not-found UI show stale data when offline.
-    if (!isOffline && data !== undefined && data !== null) {
-      // Skip redundant localStorage writes while online: Convex returns a new
-      // object identity on every tick, so a naive write would fire every render.
+    if (data !== undefined && data !== null) {
       let serialized: string | null = null;
       try {
         serialized = JSON.stringify(data);
@@ -202,22 +195,20 @@ export function useOfflineQuery(queryFunc: any, args: any, queryName: string) {
       if (serialized !== null && serialized !== lastSerializedRef.current) {
         lastSerializedRef.current = serialized;
         setCachedData(data);
-        localStorage.setItem(key, serialized);
+        localStorage.setItem(cacheKey, serialized);
       }
     }
-  }, [data, isOffline, queryName]);
+  }, [data, cacheKey]);
 
   useEffect(() => {
     const loadCache = () => {
-      const key = `offline_cache_${queryName}`;
-      const saved = safeParse(localStorage.getItem(key));
+      const saved = safeParse(localStorage.getItem(cacheKey));
       if (saved) setCachedData(saved);
     };
-
-    loadCache();
     window.addEventListener('offline_cache_updated', loadCache);
     return () => window.removeEventListener('offline_cache_updated', loadCache);
-  }, [queryName]);
+  }, [cacheKey]);
 
-  return isOffline ? cachedData : (data !== undefined ? data : cachedData);
+  // Return server data if we have it, otherwise fallback to the instant local cache
+  return data !== undefined ? data : cachedData;
 }

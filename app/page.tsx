@@ -8,7 +8,6 @@ import { RawDataView } from "@/components/views/RawDataView";
 import { TodayView } from "@/components/views/TodayView";
 import { PipelinesView } from "@/components/views/PipelinesView";
 import { ProjectsView } from "@/components/views/ProjectsView";
-import { GoalsView } from "@/components/views/GoalsView";
 import { TaskDetailsPane } from "@/components/views/TaskDetailsPane";
 import { ImportProjectModal } from "@/components/views/ImportProjectModal";
 import { ProjectManagerModal } from "@/components/views/ProjectManagerModal";
@@ -293,11 +292,11 @@ function HomeContent() {
   const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
   const vipTask = useOfflineQuery(api.tasks.getTaskByShareToken, sessionType === "vip" && activeVipToken ? { shareToken: activeVipToken } : "skip", "getTaskByShareToken");
 
-  const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks");
+  const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks") || [];
   const allGoals = useOfflineQuery(api.goals.getGoals, { sessionId: guestSessionId ?? undefined }, "getGoals") || [];
 
   const actualSessionId = guestSessionId?.split("||vip_")[0];
-  const focusedTasks = (allTasks?.filter((t: any) => {
+  const focusedTasks = (allTasks.filter((t: any) => {
     if (t.status === "done") return false;
     const isOwner = !!(isSignedIn || (t.sessionId && t.sessionId === actualSessionId));
     if (isOwner) return t.isFocused;
@@ -305,11 +304,11 @@ function HomeContent() {
   }) || []).sort((a: any, b: any) => (a.order ?? 999999) - (b.order ?? 999999));
 
   const nowMs = Date.now();
-  const staleWaitingCount = allTasks?.filter((t: any) =>
+  const staleWaitingCount = allTasks.filter((t: any) =>
     t.status !== "done" && t.listCategory === "Waiting For" && (nowMs - (t.lastContactedAt || t._creationTime)) >= (48 * 60 * 60 * 1000)
   ).length || 0;
 
-  const staleSomedayCount = allTasks?.filter((t: any) =>
+  const staleSomedayCount = allTasks.filter((t: any) =>
     t.status !== "done" && t.listCategory === "Someday Maybe" && (nowMs - (t.lastContactedAt || t._creationTime)) >= (7 * 24 * 60 * 60 * 1000)
   ).length || 0;
 
@@ -365,7 +364,6 @@ function HomeContent() {
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
-    // Don't default to GoalsView if it was saved, since we moved it to the sanctuary
     if (saved && saved !== "Goals") setActiveView(saved);
 
     const vipParam = searchParams.get("vip");
@@ -458,7 +456,9 @@ function HomeContent() {
     }
   };
 
-  if ((!isOffline && !isLoaded) || (!isOffline && !isSignedIn && guestSessionId === null && !isMounted)) {
+  // We no longer block rendering with a spinner unless auth specifically blocks it. 
+  // Local cache handles the data loading instantly.
+  if (!isOffline && !isLoaded) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-zinc-300 dark:text-zinc-700" />
@@ -586,7 +586,6 @@ function HomeContent() {
               <Folder className="w-4 h-4" /> Projects
             </button>
 
-            {/* NEW GOAL SANCTUARY BUTTON */}
             <button 
               onClick={() => setIsGoalSanctuaryOpen(true)} 
               className={`flex items-center gap-1.5 text-sm font-medium transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 relative ${goalsNeedingReviewCount > 0 ? 'text-[var(--foreground)]' : 'text-zinc-500 hover:text-[var(--foreground)]'}`}
@@ -622,6 +621,7 @@ function HomeContent() {
           <div className="mt-4 flex-1">
             {!isMounted ? (
               <div className="flex items-center justify-center h-64">
+                {/* Fallback spinner only if cache is completely empty */}
                 <Loader2 className="w-6 h-6 animate-spin text-zinc-300 dark:text-zinc-700" />
               </div>
             ) : (
@@ -630,7 +630,6 @@ function HomeContent() {
                 {activeView === "Today" && <TodayView />}
                 {activeView === "Pipelines" && <PipelinesView />}
                 {activeView === "Projects" && <ProjectsView />}
-                {activeView === "Goals" && <GoalsView />}
                 {activeView === "Raw Data" && <RawDataView />}
               </>
             )}
