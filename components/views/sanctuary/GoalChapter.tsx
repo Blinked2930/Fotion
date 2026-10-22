@@ -22,9 +22,9 @@ import {
   goalHex,
   needsReview,
   SCALE_PROMPTS,
+  formatMinutes,
 } from "./theme";
 import { CheckInSection } from "./CheckInSection";
-import { TimeInvestedSection } from "./TimeInvestedSection";
 
 export function GoalChapter({
   goal,
@@ -133,6 +133,10 @@ export function GoalChapter({
   const handleUnlinkProject = async (projectId: Id<"projects">) => {
     await updateProject({ id: projectId, goalId: null, sessionId });
   };
+
+  // Compact focus bar data: only the last 4 weeks, for the mini strip.
+  const focusWeeks4 = focusWeeks.slice(-4);
+  const maxFocus4 = Math.max(60, ...focusWeeks4.map((w) => w.seconds));
 
   return (
     <div className="mx-auto w-full max-w-6xl animate-in fade-in slide-in-from-bottom-6 duration-500">
@@ -298,11 +302,8 @@ export function GoalChapter({
               </button>
             </form>
           </div>
-        </section>
 
-        {/* RIGHT */}
-        <section className="space-y-12 lg:border-l lg:border-black/[0.06] lg:pl-16 dark:lg:border-white/[0.08]">
-          {/* Success Scale */}
+          {/* Success Scale — moved here from the right column */}
           <div>
             <div className="mb-5 flex items-baseline justify-between">
               <h3 className={`${SERIF} text-2xl font-medium text-[var(--foreground)]`}>
@@ -344,7 +345,10 @@ export function GoalChapter({
               })}
             </div>
           </div>
+        </section>
 
+        {/* RIGHT — 3 sections: Check-ins, If-Then Plans, Linked work (with projects + focus folded in) */}
+        <section className="space-y-12 lg:border-l lg:border-black/[0.06] lg:pl-16 dark:lg:border-white/[0.08]">
           {/* Check-ins */}
           {details ? (
             <CheckInSection
@@ -454,53 +458,14 @@ export function GoalChapter({
                   </p>
                   <p className="text-[15px] font-medium text-[var(--foreground)]">{p.action}</p>
                   <p className="mt-2 text-[11px] text-zinc-500">
-                    {p.taskGroupId
-                      ? "Repeating task · weekly"
-                      : "One-off task created"}
+                    {p.taskGroupId ? "Repeating task · weekly" : "One-off task created"}
                   </p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Linked projects */}
-          <div>
-            <div className="mb-5 flex items-baseline justify-between">
-              <h3 className={`${SERIF} text-2xl font-medium text-[var(--foreground)]`}>
-                Linked projects
-              </h3>
-              <span className="text-[12px] text-zinc-500">{projects.length}</span>
-            </div>
-            {projects.length === 0 ? (
-              <p className={`${SERIF} text-[14px] italic text-zinc-500`}>
-                Link a project from its settings to see it here. (Full linking UI arrives with
-                the Align screen.)
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {projects.map((proj: any) => (
-                  <li
-                    key={proj._id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-black/[0.06] bg-white/40 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.02]"
-                  >
-                    <span className="flex min-w-0 items-center gap-2 text-[14px] text-[var(--foreground)]">
-                      <Folder className="h-4 w-4 shrink-0 text-zinc-400" />
-                      <span className="truncate">{proj.name}</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleUnlinkProject(proj._id)}
-                      className="shrink-0 text-[11px] font-medium text-zinc-500 hover:text-red-500"
-                    >
-                      Unlink
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Linked work */}
+          {/* Linked work — with projects + focus folded in as a compact strip */}
           <div>
             <div className="mb-5 flex items-baseline justify-between">
               <h3 className={`${SERIF} text-2xl font-medium text-[var(--foreground)]`}>
@@ -518,6 +483,57 @@ export function GoalChapter({
                 )}
               </span>
             </div>
+
+            {/* Compact strip: project chips + focus mini-bar */}
+            {(projects.length > 0 || focusSeconds30d > 0) && (
+              <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-black/[0.06] bg-white/40 px-4 py-3 dark:border-white/[0.08] dark:bg-white/[0.02]">
+                {projects.length > 0 && (
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <Folder className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                    {projects.map((proj: any) => (
+                      <span
+                        key={proj._id}
+                        className="group/chip inline-flex items-center gap-1 rounded-full bg-black/[0.04] px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300"
+                      >
+                        <span className="truncate max-w-[120px]">{proj.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUnlinkProject(proj._id)}
+                          aria-label={`Unlink ${proj.name}`}
+                          className="text-zinc-400 opacity-0 transition-opacity hover:text-red-500 group-hover/chip:opacity-100"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {focusSeconds30d > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-end gap-0.5" title="Focus time, last 4 weeks">
+                      {focusWeeks4.map((w) => {
+                        const h = maxFocus4 > 0 ? Math.max(2, (w.seconds / maxFocus4) * 16) : 2;
+                        return (
+                          <div
+                            key={w.key}
+                            className="w-1.5 rounded-sm"
+                            style={{
+                              height: `${h}px`,
+                              background: w.seconds > 0 ? hex : "transparent",
+                              opacity: w.seconds > 0 ? 0.8 : 0,
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <span className="text-[11px] text-zinc-500">
+                      {formatMinutes(focusSeconds30d)} in 30d
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTasks.length === 0 ? (
               <div className="rounded-[24px] border border-dashed border-black/15 p-8 text-center dark:border-white/15">
                 <p className={`${SERIF} text-lg italic text-zinc-600 dark:text-zinc-400`}>
@@ -547,15 +563,6 @@ export function GoalChapter({
               </details>
             )}
           </div>
-
-          {/* Time invested */}
-          {details ? (
-            <TimeInvestedSection
-              weeks={focusWeeks}
-              focusSeconds30d={focusSeconds30d}
-              color={hex}
-            />
-          ) : null}
         </section>
       </div>
     </div>

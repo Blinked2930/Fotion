@@ -9,7 +9,7 @@ export function SanctuarySelect<T extends string>({
     options,
     onChange,
     placeholder = "Choose…",
-    alignPopover = "right",
+    alignPopover = "right", // kept for API compatibility, no longer used
 }: {
     value: T;
     options: { value: T; label: string }[];
@@ -37,11 +37,6 @@ export function SanctuarySelect<T extends string>({
     }, [isOpen]);
 
     const current = options.find((o) => o.value === value);
-    const alignmentClasses = {
-        left: "sm:right-0 sm:origin-top-right",
-        right: "sm:left-0 sm:origin-top-left",
-        center: "sm:left-1/2 sm:-translate-x-1/2 sm:origin-top",
-    };
 
     return (
         <div className="relative flex items-center gap-2" ref={ref}>
@@ -62,7 +57,7 @@ export function SanctuarySelect<T extends string>({
             {isOpen && (
                 <>
                     <div
-                        className="fixed inset-0 z-[90] sm:hidden bg-black/5 dark:bg-black/40 backdrop-blur-[2px]"
+                        className="fixed inset-0 z-[90] bg-black/5 dark:bg-black/40 backdrop-blur-[2px]"
                         onPointerDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -71,7 +66,7 @@ export function SanctuarySelect<T extends string>({
                     />
                     <div
                         role="listbox"
-                        className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] sm:absolute sm:top-full sm:mt-2 sm:w-full sm:translate-x-0 sm:translate-y-0 ${alignmentClasses[alignPopover]} rounded-2xl sm:rounded-xl border border-black/10 bg-white p-1.5 shadow-2xl z-[100] animate-in fade-in zoom-in-95 duration-150 dark:border-white/10 dark:bg-[#252525]`}
+                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-black/10 bg-white p-1.5 shadow-2xl z-[100] animate-in fade-in zoom-in-95 duration-150 dark:border-white/10 dark:bg-[#252525]"
                     >
                         {options.map((opt) => {
                             const selected = opt.value === value;

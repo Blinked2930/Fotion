@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, ChevronRight, XCircle } from "lucide-react";
-
-const POPOVER_HEIGHT = 340;
 
 export function CustomDatePicker({
   value,
   onChange,
   placeholder = "Empty",
-  alignPopover = "right",
+  alignPopover = "right", // kept in the signature for API compatibility, no longer used
 }: {
   value?: number | null;
   onChange: (val: number | null) => void;
@@ -18,8 +16,6 @@ export function CustomDatePicker({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewDate, setViewDate] = useState(value ? new Date(value) : new Date());
-  const [flipUp, setFlipUp] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,14 +33,6 @@ export function CustomDatePicker({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [isOpen]);
-
-  useLayoutEffect(() => {
-    if (!isOpen || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    setFlipUp(spaceBelow < POPOVER_HEIGHT && spaceAbove > spaceBelow);
   }, [isOpen]);
 
   const displayString = value
@@ -66,18 +54,9 @@ export function CustomDatePicker({
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
 
-  const alignmentClasses = {
-    left: "sm:right-0 sm:origin-top-right",
-    right: "sm:left-0 sm:origin-top-left",
-    center: "sm:left-1/2 sm:-translate-x-1/2 sm:origin-top",
-  };
-
-  const desktopPosition = flipUp ? "sm:bottom-full sm:mb-2" : "sm:top-full sm:mt-2";
-
   return (
     <div className="relative flex items-center gap-2 group/date" ref={ref}>
       <button
-        ref={triggerRef}
         type="button"
         onClick={(e) => {
           e.preventDefault();
@@ -107,8 +86,9 @@ export function CustomDatePicker({
 
       {isOpen && (
         <>
+          {/* Backdrop: click-outside to close, always present */}
           <div
-            className="fixed inset-0 z-[90] sm:hidden bg-black/5 dark:bg-black/40 backdrop-blur-[2px]"
+            className="fixed inset-0 z-[90] bg-black/5 dark:bg-black/40 backdrop-blur-[2px]"
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -116,24 +96,19 @@ export function CustomDatePicker({
             }}
           />
 
+          {/* Popover: always centered, never clipped by parent overflow */}
           <div
-            className={`
-              fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px]
-              sm:absolute sm:w-64 sm:translate-x-0 sm:translate-y-0
-              ${desktopPosition}
-              ${alignmentClasses[alignPopover]}
-              bg-white dark:bg-[#252525] border border-[var(--border)] shadow-2xl sm:shadow-xl rounded-2xl sm:rounded-xl p-4 sm:p-3 z-[100] animate-in fade-in zoom-in-95 duration-200
-            `}
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] max-w-[calc(100vw-2rem)] bg-white dark:bg-[#252525] border border-[var(--border)] shadow-2xl rounded-2xl p-4 z-[100] animate-in fade-in zoom-in-95 duration-200"
           >
-            <div className="flex items-center justify-between mb-4 sm:mb-3">
+            <div className="flex items-center justify-between mb-4">
               <button
                 type="button"
                 onClick={prevMonth}
                 className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 hover:text-[var(--foreground)] transition-colors"
               >
-                <ChevronLeft className="w-5 h-5 sm:w-4 sm:h-4" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
-              <span className="text-[15px] sm:text-[14px] font-semibold text-[var(--foreground)]">
+              <span className="text-[15px] font-semibold text-[var(--foreground)]">
                 {viewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
               </span>
               <button
@@ -141,24 +116,24 @@ export function CustomDatePicker({
                 onClick={nextMonth}
                 className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 hover:text-[var(--foreground)] transition-colors"
               >
-                <ChevronRight className="w-5 h-5 sm:w-4 sm:h-4" />
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 mb-2 sm:mb-1">
+            <div className="grid grid-cols-7 gap-1 mb-2">
               {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
                 <div
                   key={day}
-                  className="text-center text-[11px] sm:text-[10px] font-semibold text-zinc-400 py-1"
+                  className="text-center text-[11px] font-semibold text-zinc-400 py-1"
                 >
                   {day}
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-1 sm:gap-1">
+            <div className="grid grid-cols-7 gap-1">
               {blanks.map((b) => (
-                <div key={`blank-${b}`} className="w-9 h-9 sm:w-8 sm:h-8" />
+                <div key={`blank-${b}`} className="w-9 h-9" />
               ))}
               {days.map((day) => {
                 const isSelected =
@@ -176,7 +151,7 @@ export function CustomDatePicker({
                     key={day}
                     type="button"
                     onClick={() => handleSelectDate(day)}
-                    className={`w-9 h-9 sm:w-8 sm:h-8 rounded-lg sm:rounded text-[14px] sm:text-[13px] flex items-center justify-center transition-colors ${
+                    className={`w-9 h-9 rounded-lg text-[14px] flex items-center justify-center transition-colors ${
                       isSelected
                         ? "bg-blue-500 text-white font-medium shadow-sm"
                         : isToday
