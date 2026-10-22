@@ -92,7 +92,8 @@ export function GoalEditorModal({
                     <div>
                         <label className={label}>Target date</label>
                         <div className="flex h-[46px] items-center">
-                            <CustomDatePicker value={targetDate} onChange={setTargetDate} placeholder="Open-ended" alignPopover="left" />
+                            {/* Changed alignPopover from "left" to "right" to prevent screen overflow */}
+                            <CustomDatePicker value={targetDate} onChange={setTargetDate} placeholder="Open-ended" alignPopover="right" />
                         </div>
                     </div>
                 </div>
