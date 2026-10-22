@@ -26,7 +26,6 @@ export const getGoals = query({
 
         let rawGoals;
         if (identity) {
-            // Signed-in owner sees only owner goals (same isolation rule as tasks).
             const all = await ctx.db.query("goals").collect();
             rawGoals = all.filter((g) => !g.sessionId);
         } else if (actualSessionId) {
@@ -64,6 +63,7 @@ export const createGoal = mutation({
         category: v.optional(v.string()),
         color: v.optional(v.string()),
         reviewCycle: v.optional(reviewCycleValidator),
+        kind: v.optional(v.union(v.literal("finish"), v.literal("ongoing"))),
         sessionId: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
@@ -77,8 +77,8 @@ export const createGoal = mutation({
             category: args.category || "General",
             color: args.color || "emerald",
             reviewCycle: args.reviewCycle ?? "quarterly",
-            // A brand-new goal counts as freshly reviewed, so it does not
-            // show "review due" the moment it is created.
+            kind: args.kind ?? "finish",
+            scale: ["", "", "", "", ""],
             lastReviewedAt: Date.now(),
             sessionId: identity ? undefined : actualSessionId,
         });
@@ -91,11 +91,13 @@ export const updateGoal = mutation({
         title: v.optional(v.string()),
         description: v.optional(v.string()),
         targetDate: v.optional(v.union(v.number(), v.null())),
-        status: v.optional(v.union(v.literal("active"), v.literal("completed"), v.literal("archived"))),
+        status: v.optional(v.union(v.literal("active"), v.literal("completed"), v.literal("archived"), v.literal("paused"), v.literal("retired"))),
         category: v.optional(v.string()),
         color: v.optional(v.string()),
         reviewCycle: v.optional(reviewCycleValidator),
         lastReviewedAt: v.optional(v.union(v.number(), v.null())),
+        kind: v.optional(v.union(v.literal("finish"), v.literal("ongoing"))),
+        scale: v.optional(v.array(v.string())),
     },
     handler: async (ctx, args) => {
         const { id, ...fields } = args;
@@ -110,15 +112,23 @@ export const updateGoal = mutation({
 export const deleteGoal = mutation({
     args: { id: v.id("goals") },
     handler: async (ctx, args) => {
-        const tasks = await ctx.db
-            .query("tasks")
-            .withIndex("by_goal", (q) => q.eq("goalId", args.id))
-            .collect();
-
+        const tasks = await ctx.db.query("tasks").withIndex("by_goal", (q) => q.eq("goalId", args.id)).collect();
         for (const task of tasks) {
             await ctx.db.patch(task._id, { goalId: null });
         }
 
+        const projects = await ctx.db.query("projects").withIndex("by_goal", (q) => q.eq("goalId", args.id)).collect();
+        for (const project of projects) {
+            await ctx.db.patch(project._id, { goalId: null });
+        }
+
+        // Cleanup dependencies
+        const plans = await ctx.db.query("goalPlans").withIndex("by_goal", (q) => q.eq("goalId", args.id)).collect();
+        for (const plan of plans) await ctx.db.delete(plan._id);
+        
+        const milestones = await ctx.db.query("goalMilestones").withIndex("by_goal", (q) => q.eq("goalId", args.id)).collect();
+        for (const ms of milestones) await ctx.db.delete(ms._id);
+        
         await ctx.db.delete(args.id);
     },
 });

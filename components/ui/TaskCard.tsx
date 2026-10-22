@@ -2,14 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Check, Calendar, List, AlignLeft, Folder, Target, Clock, Send } from "lucide-react";
+import { Check, Calendar, List, AlignLeft, Folder, Clock, Send } from "lucide-react";
 import { getListColor, getProjectColor } from "../views/NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession";
-import { useOfflineSyncMutation } from "@/hooks/useOfflineMutation"; 
-import { useAuth } from "@clerk/nextjs";
-import { openTaskDetails } from "../views/TaskDetailsPane";
+import { openTaskDetails } from "@/components/views/TaskDetailsPane";
+import { goalHex } from "../views/sanctuary/theme";
 
 function PillDropdown({ 
   currentValue, 
@@ -108,33 +107,11 @@ export function TaskCard({
   searchQuery?: string
 }) {
   const router = useRouter();
-  const { isSignedIn } = useAuth();
-  
-  const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
+  const updateTask = useMutation(api.tasks.updateTask);
   
   const sessionId = useGuestSession();
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
-
-  // Ownership calculation for strict focus boundaries
-  const actualSessionId = sessionId?.split("||vip_")[0];
-  const isOwner = !!(isSignedIn || (task.sessionId && task.sessionId === actualSessionId));
-
-  const isTaskFocused = isOwner 
-    ? !!task.isFocused 
-    : !!task.focusedSessions?.includes(actualSessionId!);
-
-  const handleToggleFocus = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isOwner) {
-      handleInlineUpdate("isFocused", !task.isFocused);
-    } else {
-      const currentFocused = task.focusedSessions || [];
-      const newFocused = currentFocused.includes(actualSessionId!)
-        ? currentFocused.filter((id: string) => id !== actualSessionId)
-        : [...currentFocused, actualSessionId!];
-      handleInlineUpdate("focusedSessions", newFocused);
-    }
-  };
+  const goals = useQuery(api.goals.getGoals, { sessionId: sessionId ?? undefined });
 
   const toggleTaskCompletion = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -151,7 +128,6 @@ export function TaskCard({
   };
 
   const isDone = task.status === "done";
-
   const now = new Date();
   const todayStr = now.toDateString();
   const startOfToday = new Date(todayStr).getTime();
@@ -162,11 +138,9 @@ export function TaskCard({
   if ((task.doByDate && task.doByDate < startOfToday) || (task.doOnDate && task.doOnDate < startOfToday)) {
     isOverdue = true;
   }
-
   if (task.doByDate && new Date(task.doByDate).toDateString() === todayStr) {
     demandsAttentionToday = true;
   }
-
   const isScheduledForToday = task.doOnDate && new Date(task.doOnDate).toDateString() === todayStr;
   
   if ((task.isToday || isScheduledForToday) && !isOverdue) {
@@ -194,6 +168,8 @@ export function TaskCard({
     { label: "None", value: null },
     ...projects.map(p => ({ label: p.name, value: p._id }))
   ] : [];
+
+  const taskGoal = task.goalId && goals ? goals.find(g => g._id === task.goalId) : null;
 
   if (isDone) {
     return (
@@ -229,25 +205,22 @@ export function TaskCard({
             <span className="text-[14px] sm:text-[15px] font-medium text-[var(--foreground)] break-words leading-tight mt-0.5">
               <HighlightText text={task.title} query={searchQuery} />
             </span>
-            <div className="flex items-center gap-1 shrink-0">
-              <button 
-                onClick={handleToggleFocus}
-                className={`p-1.5 rounded-md transition-colors ${isTaskFocused ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'text-zinc-300 dark:text-zinc-600 hover:text-emerald-500 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
-                title={isTaskFocused ? "Remove from Focus Session" : "Add to Focus Session"}
-              >
-                <Target className="w-4 h-4" />
-              </button>
-              {task.description && task.description !== "<p></p>" && (
-                <span className={`p-1.5 rounded-md ${isOverdue ? 'text-red-400 dark:text-red-500' : demandsAttentionToday ? 'text-amber-400 dark:text-amber-500' : 'text-zinc-400 dark:text-zinc-500'}`} title="Contains notes">
-                  <AlignLeft className="w-4 h-4" />
-                </span>
-              )}
-            </div>
+            {task.description && task.description !== "<p></p>" && (
+              <span className={`shrink-0 p-1.5 rounded-md ${isOverdue ? 'text-red-400 dark:text-red-500' : demandsAttentionToday ? 'text-amber-400 dark:text-amber-500' : 'text-zinc-400 dark:text-zinc-500'}`} title="Contains notes">
+                <AlignLeft className="w-4 h-4" />
+              </span>
+            )}
           </div>
         </div>
       </div>
       
       <div className={`flex flex-wrap items-center gap-2 w-full pt-3 mt-3 border-t ${borderLineClass}`}>
+        {taskGoal && (
+          <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: goalHex(taskGoal.color) }} />
+            <span className="truncate max-w-[80px] sm:max-w-[120px]">{taskGoal.title}</span>
+          </span>
+        )}
         {!hideProjectTag && (
           <PillDropdown 
             currentValue={task.projectId || null}

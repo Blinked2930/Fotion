@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import {
     loadFocusSettings,
@@ -28,6 +29,7 @@ export function useFocusSession(focusedTasks: any[]) {
     const updateTask = useMutation(api.tasks.updateTask);
     const createTask = useMutation(api.tasks.createTask);
     const reorderTasksMutation = useMutation(api.tasks.reorderTasks);
+    const logFocusSegment = useMutation(api.goalDetails.logFocusSegment);
 
     const guestSessionId = useGuestSession();
 
@@ -56,6 +58,12 @@ export function useFocusSession(focusedTasks: any[]) {
     const audioCtxRef = useRef<AudioContext | null>(null);
     const hasRestoredRef = useRef(false);
     const completedTodayRef = useRef<number>(0);
+
+    // Refs to provide latest values for the interval closure without needing them as dependencies
+    const queueRef = useRef(localQueue);
+    const activeTaskIdRef = useRef(activeTaskId);
+    useEffect(() => { queueRef.current = localQueue; }, [localQueue]);
+    useEffect(() => { activeTaskIdRef.current = activeTaskId; }, [activeTaskId]);
 
     // Load persisted settings once on mount.
     useEffect(() => {
@@ -369,6 +377,17 @@ export function useFocusSession(focusedTasks: any[]) {
                         playFinishChime();
 
                         if (mode === "work") {
+                            // --- STAGE 2: LOG FOCUS SEGMENT ---
+                            const durationSec = getModeDuration("work");
+                            const currentActiveTask = queueRef.current.find(t => t._id === activeTaskIdRef.current);
+                            logFocusSegment({
+                                taskId: (activeTaskIdRef.current as Id<"tasks">) || undefined,
+                                goalId: (currentActiveTask?.goalId as Id<"goals">) || undefined,
+                                durationSec,
+                                sessionId: guestSessionId ?? undefined,
+                            }).catch(() => {});
+                            // ----------------------------------
+
                             const newCount = completedTodayRef.current + 1;
                             updateCompletedToday(newCount);
                             if (newCount % focusSettings.longBreakInterval === 0) {
@@ -410,6 +429,9 @@ export function useFocusSession(focusedTasks: any[]) {
         switchMode,
         timeLeft,
         updateCompletedToday,
+        logFocusSegment,
+        getModeDuration,
+        guestSessionId,
     ]);
 
     // Microbreak countdown.

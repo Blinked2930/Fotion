@@ -19,15 +19,12 @@ export const getProjects = query({
     const projects = await ctx.db.query("projects").collect();
     const unarchivedProjects = projects.filter(p => !p.isArchived);
 
-    // FIX: Strict isolation. Do not allow Admin to see Guest projects under any circumstances.
     if (identity) {
         return unarchivedProjects.filter(p => !p.sessionId);
     }
 
     const allTasks = await ctx.db.query("tasks").collect();
     
-    // FIX: A bulletproof check that gathers project IDs from ALL tasks the user is actively authorized to view. 
-    // This solves the 'Empty' bug by creating an explicit dependency relationship.
     const visibleTaskProjectIds = allTasks
         .filter(t => {
             if (vipToken && t.isPublic && t.shareToken === vipToken) return true;
@@ -65,6 +62,7 @@ export const updateProject = mutation({
     id: v.id("projects"), 
     name: v.optional(v.string()),
     isSequential: v.optional(v.boolean()),
+    goalId: v.optional(v.union(v.id("goals"), v.null())),
     sessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -89,25 +87,20 @@ export const updateProject = mutation({
         const orderA = a.order ?? 999999;
         const orderB = b.order ?? 999999;
         if (orderA !== orderB) return orderA - orderB;
-
         if (a.isToday && !b.isToday) return -1;
         if (!a.isToday && b.isToday) return 1;
-        
         const getScore = (t: any) => {
           if (t.isUrgent && t.isImportant) return 4;
           if (t.isImportant) return 3;
           if (t.isUrgent) return 2;
           return 1;
         };
-        
         const scoreA = getScore(a);
         const scoreB = getScore(b);
         if (scoreA !== scoreB) return scoreB - scoreA;
-        
         if (a.doByDate && !b.doByDate) return -1;
         if (!a.doByDate && b.doByDate) return 1;
         if (a.doByDate && b.doByDate) return a.doByDate - b.doByDate;
-        
         return 0;
       });
       
@@ -132,17 +125,14 @@ export const archiveProject = mutation({
 export const deleteProject = mutation({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
-    const tasks = await ctx.db.query("tasks")
-      .withIndex("by_project", (q) => q.eq("projectId", args.id))
-      .collect();
-
+    const tasks = await ctx.db.query("tasks").withIndex("by_project", (q) => q.eq("projectId", args.id)).collect();
     for (const task of tasks) {
       await ctx.db.patch(task._id, { projectId: null });
     }
-
     await ctx.db.delete(args.id);
   },
 });
+
 export const debugInfo = query({
   args: {},
   handler: async (ctx) => {

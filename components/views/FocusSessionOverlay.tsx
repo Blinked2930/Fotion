@@ -9,6 +9,11 @@ import { useState, useRef } from "react";
 import { openTaskDetails } from "./TaskDetailsPane";
 import type { FocusSessionApi } from "@/hooks/useFocusSession";
 
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useGuestSession } from "@/hooks/useGuestSession";
+import { SERIF } from "./sanctuary/theme";
+
 import {
   DndContext,
   closestCenter,
@@ -111,6 +116,9 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const quickAddInputRef = useRef<HTMLInputElement>(null);
 
+  const guestSessionId = useGuestSession();
+  const goals = useQuery(api.goals.getGoals, { sessionId: guestSessionId ?? undefined });
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
@@ -151,6 +159,8 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
     handleSaveSettings,
     minimize,
   } = session;
+
+  const activeGoal = activeTask?.goalId && goals ? goals.find((g: any) => g._id === activeTask.goalId) : null;
 
   return (
     <div className="fixed inset-0 z-[200] bg-[var(--background)]/95 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col">
@@ -351,6 +361,14 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
               <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--foreground)] mb-4 sm:mb-6 max-w-xl leading-tight">
                 {activeTask.title}
               </h2>
+              
+              {activeGoal && (
+                <div className="flex flex-col items-center -mt-2 mb-6 text-zinc-500">
+                  <span className="text-[10px] font-bold uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full border border-[var(--border)]">{activeGoal.title}</span>
+                  {activeGoal.description && <span className={`${SERIF} italic text-[15px] mt-2 opacity-80 max-w-md`}>{activeGoal.description}</span>}
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
                 <button
                   onClick={() => handleMarkDone(activeTask)}
