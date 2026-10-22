@@ -10,6 +10,14 @@ function parseSessionId(raw?: string) {
     return { actualSessionId: raw, vipToken: undefined };
 }
 
+const reviewCycleValidator = v.union(
+    v.literal("weekly"),
+    v.literal("monthly"),
+    v.literal("quarterly"),
+    v.literal("annual"),
+    v.literal("none")
+);
+
 export const getGoals = query({
     args: { sessionId: v.optional(v.string()) },
     handler: async (ctx, args) => {
@@ -18,7 +26,9 @@ export const getGoals = query({
 
         let rawGoals;
         if (identity) {
-            rawGoals = await ctx.db.query("goals").collect();
+            // Signed-in owner sees only owner goals (same isolation rule as tasks).
+            const all = await ctx.db.query("goals").collect();
+            rawGoals = all.filter((g) => !g.sessionId);
         } else if (actualSessionId) {
             rawGoals = await ctx.db
                 .query("goals")
@@ -53,9 +63,11 @@ export const createGoal = mutation({
         targetDate: v.optional(v.union(v.number(), v.null())),
         category: v.optional(v.string()),
         color: v.optional(v.string()),
+        reviewCycle: v.optional(reviewCycleValidator),
         sessionId: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
         const { actualSessionId } = parseSessionId(args.sessionId);
         return await ctx.db.insert("goals", {
             title: args.title,
@@ -64,7 +76,11 @@ export const createGoal = mutation({
             status: "active",
             category: args.category || "General",
             color: args.color || "emerald",
-            sessionId: actualSessionId,
+            reviewCycle: args.reviewCycle ?? "quarterly",
+            // A brand-new goal counts as freshly reviewed, so it does not
+            // show "review due" the moment it is created.
+            lastReviewedAt: Date.now(),
+            sessionId: identity ? undefined : actualSessionId,
         });
     },
 });
@@ -78,6 +94,8 @@ export const updateGoal = mutation({
         status: v.optional(v.union(v.literal("active"), v.literal("completed"), v.literal("archived"))),
         category: v.optional(v.string()),
         color: v.optional(v.string()),
+        reviewCycle: v.optional(reviewCycleValidator),
+        lastReviewedAt: v.optional(v.union(v.number(), v.null())),
     },
     handler: async (ctx, args) => {
         const { id, ...fields } = args;
