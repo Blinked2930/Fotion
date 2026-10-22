@@ -4,17 +4,19 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Plus, Sparkles } from "lucide-react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineSyncMutation, useOfflineQuery } from "@/hooks/useOfflineMutation";
+
 import { GoalCard } from "@/components/views/sanctuary/GoalCard";
 import { GoalChapter } from "@/components/views/sanctuary/GoalChapter";
-import { GoalEditorModal, GoalFormValues } from "@/components/views/sanctuary/GoalEditorModal";
+import { GoalEditorModal, type GoalFormValues } from "@/components/views/sanctuary/GoalEditorModal";
 import { SERIF, SOFT_GOAL_CAP, needsReview } from "@/components/views/sanctuary/theme";
 
 /**
- * The Goal Sanctuary: a full-screen space that is intentionally unlike the
- * task UI. z-[240] keeps it BELOW the task details pane (z-[250]) so tasks
- * opened from inside the Sanctuary appear on top of it.
+- The Goal Sanctuary: a full-screen space that is intentionally unlike the
+- task UI. z-[240] keeps it BELOW the task details pane (z-[250]) so tasks
+- opened from inside the Sanctuary appear on top of it.
  */
 export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     const sessionId = useGuestSession();
@@ -24,6 +26,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     const createGoal = useOfflineSyncMutation(api.goals.createGoal, "createGoal");
     const updateGoal = useOfflineSyncMutation(api.goals.updateGoal, "updateGoal");
     const deleteGoal = useOfflineSyncMutation(api.goals.deleteGoal, "deleteGoal");
+    const createTask = useOfflineSyncMutation(api.tasks.createTask, "createTask"); // Added createTask mutation
 
     const [mounted, setMounted] = useState(false);
     const [openGoalId, setOpenGoalId] = useState<string | null>(null);
@@ -63,7 +66,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     const handleSave = async (v: GoalFormValues) => {
         if (editor.goal) {
             await updateGoal({
-                id: editor.goal._id,
+                id: editor.goal._id as Id<"goals">,
                 title: v.title,
                 description: v.description, // "" clears it
                 targetDate: v.targetDate,
@@ -72,7 +75,8 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 reviewCycle: v.reviewCycle,
             });
         } else {
-            await createGoal({
+            // Await the new goal ID so we can attach the if-then task to it
+            const newGoalId = await createGoal({
                 title: v.title,
                 description: v.description || undefined,
                 targetDate: v.targetDate,
@@ -81,6 +85,23 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 reviewCycle: v.reviewCycle,
                 sessionId: sessionId ?? undefined,
             });
+
+            // If the user filled out the WOOP plan, create a linked task
+            if (v.initialPlan && newGoalId) {
+                await createTask({
+                    title: v.initialPlan.action,
+                    description: `**Implementation Intention:**\n*If* ${v.initialPlan.trigger}\n*Then I will* ${v.initialPlan.action}`,
+                    goalId: newGoalId as Id<"goals">,
+                    isUrgent: false,
+                    isImportant: true, // Auto-mark as important since it's a goal action
+                    isForFunsies: false,
+                    listCategory: "Current", // Ensures it lands on the active board
+                    sessionId: sessionId ?? undefined,
+                });
+                
+                // Note: If you add a dedicated table/mutation for tracking Implementation Intentions 
+                // in the future (e.g., api.goalDetails.addPlan), you can fire it off right here too!
+            }
         }
         setEditor({ open: false, goal: null });
     };
@@ -114,7 +135,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                             tasks={tasks.filter((t) => t.goalId === openGoal._id)}
                             onBack={() => setOpenGoalId(null)}
                             onEdit={() => setEditor({ open: true, goal: openGoal })}
-                            onMarkReviewed={() => updateGoal({ id: openGoal._id, lastReviewedAt: Date.now() })}
+                            onMarkReviewed={() => updateGoal({ id: openGoal._id as Id<"goals">, lastReviewedAt: Date.now() })}
                         />
                     ) : (
                         <div className="animate-in fade-in duration-500">
@@ -165,7 +186,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                                             onEdit={() => setEditor({ open: true, goal })}
                                             onDelete={() => {
                                                 if (confirm("Delete this goal? Linked tasks will not be deleted.")) {
-                                                    deleteGoal({ id: goal._id });
+                                                    deleteGoal({ id: goal._id as Id<"goals"> });
                                                 }
                                             }}
                                         />
