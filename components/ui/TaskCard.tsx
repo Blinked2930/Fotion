@@ -248,15 +248,6 @@ export function TaskCard({
               </span>
             )}
           </div>
-          {taskGoal && (
-            <span className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-              <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{ background: goalHex(taskGoal.color) }}
-              />
-              <span className="truncate max-w-[180px] sm:max-w-[240px]">{taskGoal.title}</span>
-            </span>
-          )}
         </div>
       </div>
 
@@ -289,6 +280,18 @@ export function TaskCard({
               );
             }}
           />
+        )}
+        {taskGoal && (
+          <span
+            className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border border-[var(--border)] bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+            title={`Goal: ${taskGoal.title}`}
+          >
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ background: goalHex(taskGoal.color) }}
+            />
+            <span className="truncate max-w-[80px] sm:max-w-[120px]">{taskGoal.title}</span>
+          </span>
         )}
         {!hidePipelineTag && (
           <PillDropdown
