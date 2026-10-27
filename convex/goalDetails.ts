@@ -2,25 +2,12 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { buildPreset } from "./recurrence";
 
-/**
- * Goal-details backend.
- *
- * Session isolation (handoff spec §6):
- *   - Signed-in owner sees rows where `sessionId === undefined`.
- *   - Guests see rows where `sessionId === actualSessionId`.
- *   - Every mutation re-reads the target row and throws if the caller does not
- *     own it. Convex IDs are not unguessable enough to rely on that alone.
- *
- * The `||vip_` suffix is stripped before comparisons so a guest whose session
- * string is "<id>||vip_<token>" still matches their own rows.
- */
 function parseSessionId(raw?: string) {
     if (!raw) return { actualSessionId: undefined as string | undefined };
     if (raw.includes("||vip_")) return { actualSessionId: raw.split("||vip_")[0] };
     return { actualSessionId: raw };
 }
 
-/** The sessionId a newly inserted row should be stamped with. */
 function stampSessionId(identity: unknown, actualSessionId: string | undefined) {
     return identity ? undefined : actualSessionId;
 }
@@ -35,13 +22,10 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * DAY_MS;
 
-/** ISO week key, e.g. "2026-W43". Monday-start, Thursday rule. */
 function isoWeekKey(ts: number): string {
     const d = new Date(ts);
-    // Copy to UTC midnight
     const u = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-    // Thursday of this week decides the year
-    const dayNum = (u.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+    const dayNum = (u.getUTCDay() + 6) % 7;
     u.setUTCDate(u.getUTCDate() - dayNum + 3);
     const firstThursday = new Date(Date.UTC(u.getUTCFullYear(), 0, 4));
     const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
@@ -50,10 +34,9 @@ function isoWeekKey(ts: number): string {
     return `${u.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-/** Monday 00:00 local of the week containing `ts`, returned as a timestamp. */
 function weekStartMonday(ts: number): number {
     const d = new Date(ts);
-    const day = (d.getDay() + 6) % 7; // Mon=0..Sun=6
+    const day = (d.getDay() + 6) % 7;
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() - day);
     return d.getTime();
@@ -64,9 +47,37 @@ export const currentWeekKey = query({
     handler: async () => isoWeekKey(Date.now()),
 });
 
-// ---------------------------------------------------------------------------
-// Read
-// ---------------------------------------------------------------------------
+export const getWeeklyCheckInStatus = query({
+    args: { sessionId: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        const { actualSessionId } = parseSessionId(args.sessionId);
+        const now = Date.now();
+        const currentWeek = isoWeekKey(now);
+
+        const allGoals = await ctx.db.query("goals").collect();
+        const activeGoals = allGoals.filter(g => 
+            ownsRow(g, actualSessionId, !!identity) && 
+            g.status === "active"
+        );
+
+        if (activeGoals.length === 0) return { dueCount: 0, totalCount: 0 };
+
+        const allCheckIns = await ctx.db.query("goalCheckIns").collect();
+        const thisWeekCheckIns = allCheckIns.filter(c => 
+            c.weekKey === currentWeek && ownsRow(c, actualSessionId, !!identity)
+        );
+        
+        const checkedInGoalIds = new Set(thisWeekCheckIns.map(c => c.goalId));
+
+        const uncheckedGoals = activeGoals.filter(g => !checkedInGoalIds.has(g._id));
+
+        return {
+            dueCount: uncheckedGoals.length,
+            totalCount: activeGoals.length,
+        };
+    }
+});
 
 export const getGoalDetails = query({
     args: { goalId: v.id("goals"), sessionId: v.optional(v.string()) },
@@ -74,7 +85,6 @@ export const getGoalDetails = query({
         const identity = await ctx.auth.getUserIdentity();
         const { actualSessionId } = parseSessionId(args.sessionId);
 
-        // Ownership gate on the goal itself.
         const goal = await ctx.db.get(args.goalId);
         if (!goal) return null;
         if (!ownsRow(goal, actualSessionId, !!identity)) return null;
@@ -89,7 +99,6 @@ export const getGoalDetails = query({
 
         const milestones = milestonesRaw.sort((a, b) => a.order - b.order);
 
-        // Focus logs for this goal in the last 30 days.
         const now = Date.now();
         const since30 = now - THIRTY_DAYS_MS;
         const focusLogs = await ctx.db
@@ -100,14 +109,12 @@ export const getGoalDetails = query({
 
         const focusSeconds30d = focusLogs.reduce((sum, f) => sum + f.durationSec, 0);
 
-        // Bucket focus seconds by the 8 most recent ISO weeks (oldest first).
         const weeks: { key: string; start: number; seconds: number }[] = [];
         const thisMonday = weekStartMonday(now);
         for (let i = 7; i >= 0; i--) {
             const start = thisMonday - i * WEEK_MS;
             weeks.push({ key: isoWeekKey(start), start, seconds: 0 });
         }
-        // Include older logs in the 30d window that predate the 8-week bucket.
         const bucketByKey = new Map(weeks.map((w) => [w.key, w]));
         for (const log of focusLogs) {
             const key = isoWeekKey(log.startedAt);
@@ -115,7 +122,6 @@ export const getGoalDetails = query({
             if (bucket) bucket.seconds += log.durationSec;
         }
 
-        // Days since last completed linked task.
         const completedTasks = tasks.filter((t) => t.status === "done" && typeof t.completedAt === "number");
         const lastCompletedAt = completedTasks.length
             ? Math.max(...completedTasks.map((t) => t.completedAt as number))
@@ -124,7 +130,6 @@ export const getGoalDetails = query({
             ? null
             : Math.floor((now - lastCompletedAt) / DAY_MS);
 
-        // Rating trend (last 12, oldest first for sparkline rendering).
         const ratingTrend = [...checkIns].reverse().map((c) => ({ weekKey: c.weekKey, rating: c.rating }));
 
         return {
@@ -144,16 +149,6 @@ export const getGoalDetails = query({
     },
 });
 
-// ---------------------------------------------------------------------------
-// Plans (also creates a linked recurring/one-off task — atomic)
-// ---------------------------------------------------------------------------
-
-/**
- * Create a plan and (optionally) the linked task in one transaction.
- *
- * The WOOP create-flow and the GoalChapter "Add plan" button both call this so
- * a plan row is ALWAYS written and the task (if any) is ALWAYS linked back.
- */
 export const createPlanAndTask = mutation({
     args: {
         goalId: v.id("goals"),
@@ -191,6 +186,7 @@ export const createPlanAndTask = mutation({
                 isImportant: true,
                 isForFunsies: false,
                 isFocused: false,
+                isMaintenance: false,
                 status: "todo",
                 listCategory: "Current",
                 isToday: false,
@@ -218,6 +214,7 @@ export const createPlanAndTask = mutation({
                 isImportant: true,
                 isForFunsies: false,
                 isFocused: false,
+                isMaintenance: false,
                 status: "todo",
                 listCategory: "Current",
                 isToday: false,
@@ -252,7 +249,6 @@ export const createPlanAndTask = mutation({
     },
 });
 
-/** Kept for callers that only want the plan row (no task). Not used by the UI. */
 export const createPlan = mutation({
     args: {
         goalId: v.id("goals"),
@@ -290,10 +286,6 @@ export const deletePlan = mutation({
         await ctx.db.delete(args.id);
     },
 });
-
-// ---------------------------------------------------------------------------
-// Milestones
-// ---------------------------------------------------------------------------
 
 export const createMilestone = mutation({
     args: {
@@ -359,14 +351,6 @@ export const deleteMilestone = mutation({
     },
 });
 
-// ---------------------------------------------------------------------------
-// Check-ins
-// ---------------------------------------------------------------------------
-
-/**
- * One check-in per goal per ISO week; editing the same week replaces fields on
- * the existing row. Rating is clamped to -2..2.
- */
 export const upsertCheckIn = mutation({
     args: {
         goalId: v.id("goals"),
@@ -387,7 +371,6 @@ export const upsertCheckIn = mutation({
         const now = Date.now();
         const weekKey = isoWeekKey(now);
 
-        // Look for an existing row for this goal + week owned by this user.
         const existing = await ctx.db
             .query("goalCheckIns")
             .withIndex("by_goal", (q) => q.eq("goalId", args.goalId))
@@ -432,10 +415,6 @@ export const deleteCheckIn = mutation({
     },
 });
 
-// ---------------------------------------------------------------------------
-// Focus logging
-// ---------------------------------------------------------------------------
-
 export const logFocusSegment = mutation({
     args: {
         taskId: v.optional(v.union(v.id("tasks"), v.null())),
@@ -447,14 +426,12 @@ export const logFocusSegment = mutation({
         const identity = await ctx.auth.getUserIdentity();
         const { actualSessionId } = parseSessionId(args.sessionId);
 
-        // If a goalId is supplied, verify the caller can write to it.
         if (args.goalId) {
             const goal = await ctx.db.get(args.goalId);
             if (!goal || !ownsRow(goal, actualSessionId, !!identity)) {
                 throw new Error("Not authorized");
             }
         }
-        // If a taskId is supplied, verify ownership of the task too.
         if (args.taskId) {
             const task = await ctx.db.get(args.taskId);
             if (!task) throw new Error("Task not found");
@@ -473,8 +450,6 @@ export const logFocusSegment = mutation({
         });
     },
 });
-
-// ---------------------------------------------------------------------------
 
 function escapeHtml(s: string): string {
     return s

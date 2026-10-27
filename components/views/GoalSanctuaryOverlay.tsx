@@ -15,6 +15,11 @@ import { GoalEditorModal, type GoalFormValues } from "@/components/views/sanctua
 import { SanctuaryConfirmModal } from "@/components/views/sanctuary/SanctuaryConfirmModal";
 import { SERIF, SOFT_GOAL_CAP, needsReview } from "@/components/views/sanctuary/theme";
 
+import { AlignScreen } from "@/components/views/sanctuary/AlignScreen";
+import { CheckInWizard } from "@/components/views/sanctuary/CheckInWizard";
+
+type SanctuaryTab = "goals" | "align" | "checkin";
+
 export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const sessionId = useGuestSession();
   const goals: any[] =
@@ -29,6 +34,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   );
 
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<SanctuaryTab>("goals");
   const [openGoalId, setOpenGoalId] = useState<string | null>(null);
   const [editor, setEditor] = useState<{ open: boolean; goal: any | null }>({
     open: false,
@@ -45,6 +51,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       setOpenGoalId(null);
       setEditor({ open: false, goal: null });
       setPendingDelete(null);
+      setActiveTab("goals");
     }
   }, [isOpen]);
 
@@ -55,11 +62,12 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       if (pendingDelete) setPendingDelete(null);
       else if (editor.open) setEditor({ open: false, goal: null });
       else if (openGoalId) setOpenGoalId(null);
+      else if (activeTab !== "goals") setActiveTab("goals");
       else onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [isOpen, editor.open, openGoalId, pendingDelete, onClose]);
+  }, [isOpen, editor.open, openGoalId, pendingDelete, activeTab, onClose]);
 
   if (!isOpen || !mounted) return null;
 
@@ -105,7 +113,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           sessionId: sessionId ?? undefined,
         });
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error("Could not save initial plan:", err);
       }
     }
@@ -118,7 +125,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     try {
       await deleteGoal({ id: pendingDelete._id as Id<"goals"> });
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("Could not delete goal:", err);
     } finally {
       setPendingDelete(null);
@@ -131,10 +137,37 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_8%,rgba(236,72,153,0.11),transparent)]" />
 
       <div className="relative mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
+        {/* Top bar with quiet text tabs */}
         <div className="flex items-center justify-between px-6 pt-6 sm:px-10 sm:pt-9">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
-            The Sanctuary
-          </span>
+          <div className="flex items-center gap-6">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
+              The Sanctuary
+            </span>
+            
+            {!openGoal && (
+              <div className="flex items-center gap-4 text-[13px] font-medium">
+                <button
+                  onClick={() => setActiveTab("goals")}
+                  className={`transition-colors ${activeTab === "goals" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+                >
+                  Goals
+                </button>
+                <button
+                  onClick={() => setActiveTab("align")}
+                  className={`transition-colors ${activeTab === "align" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+                >
+                  Align
+                </button>
+                <button
+                  onClick={() => setActiveTab("checkin")}
+                  className={`transition-colors ${activeTab === "checkin" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+                >
+                  Check-in
+                </button>
+              </div>
+            )}
+          </div>
+          
           <button
             type="button"
             onClick={onClose}
@@ -160,7 +193,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
               }
               sessionId={sessionId ?? undefined}
             />
-          ) : (
+          ) : activeTab === "goals" ? (
             <div className="animate-in fade-in duration-500">
               <header className="max-w-3xl">
                 <h1
@@ -233,6 +266,14 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 </section>
               )}
             </div>
+          ) : activeTab === "align" ? (
+            <AlignScreen sessionId={sessionId ?? undefined} />
+          ) : (
+            <CheckInWizard 
+              sessionId={sessionId ?? undefined} 
+              goals={activeGoals} 
+              onFinish={() => setActiveTab("goals")} 
+            />
           )}
         </div>
       </div>

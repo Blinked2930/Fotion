@@ -45,6 +45,7 @@ export const createTask = mutation({
     isImportant: v.boolean(),
     isForFunsies: v.boolean(),
     isFocused: v.optional(v.boolean()),
+    isMaintenance: v.optional(v.boolean()),
     status: v.optional(v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done"))),
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     isToday: v.optional(v.boolean()),
@@ -73,6 +74,7 @@ export const createTask = mutation({
     return await ctx.db.insert("tasks", {
       ...args,
       isFocused: args.isFocused ?? false,
+      isMaintenance: args.isMaintenance ?? false,
       status: args.status ?? "todo",
       listCategory: initialCategory,
       isToday: args.isToday ?? false,
@@ -92,6 +94,7 @@ export const updateTask = mutation({
     isImportant: v.optional(v.boolean()),
     isForFunsies: v.optional(v.boolean()),
     isFocused: v.optional(v.boolean()),
+    isMaintenance: v.optional(v.boolean()),
     status: v.optional(v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done"))),
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     isToday: v.optional(v.boolean()),
@@ -114,9 +117,6 @@ export const updateTask = mutation({
   handler: async (ctx, args) => {
     const { id, sessionId, ...fields } = args;
 
-    // The recurrence fields always move together. If the caller sends null for
-    // any of them, the task is being detached from its chain, so all three are
-    // REMOVED from the document (patching a field with `undefined` deletes it).
     const clearingRecurrence =
       fields.recurrenceRule === null ||
       fields.recurringGroupId === null ||
@@ -129,7 +129,6 @@ export const updateTask = mutation({
     if (fields.status === "done") {
       const prevTask = await ctx.db.get(id);
       if (prevTask && prevTask.status !== "done") {
-        // A task detached in this same call must not spawn a successor.
         const rec = effectiveRecurrence(prevTask);
         if (!clearingRecurrence && prevTask.recurringGroupId && rec) {
           const completedAt =
@@ -143,7 +142,6 @@ export const updateTask = mutation({
           });
 
           if (next) {
-            // Guard against duplicates (done -> undone -> done again).
             const siblings = await ctx.db
               .query("tasks")
               .filter(q => q.eq(q.field("recurringGroupId"), prevTask.recurringGroupId))
@@ -157,8 +155,6 @@ export const updateTask = mutation({
             );
 
             if (!duplicate) {
-              // Sharing fields are NOT copied: a duplicated shareToken would
-              // make getTaskByShareToken ambiguous.
               const {
                 _id,
                 _creationTime,
@@ -234,9 +230,6 @@ export const updateTask = mutation({
       }
     }
 
-    // Build the patch. Fields the caller did not send (undefined) are skipped
-    // so they are left untouched. Other nulls (doOnDate, projectId, ...) are
-    // written as null, which the schema allows.
     const patchFields: Record<string, any> = {};
     for (const [key, value] of Object.entries(fields)) {
       if (value === undefined) continue;
@@ -270,7 +263,6 @@ export const touchBaseTasks = mutation({
 export const deleteTask = mutation({
   args: { id: v.id("tasks") },
   handler: async (ctx, args) => {
-    // Idempotent: deleting something that is already gone is not an error.
     const existing = await ctx.db.get(args.id);
     if (existing) {
       await ctx.db.delete(args.id);
@@ -354,6 +346,7 @@ export const createManyTasks = mutation({
         isImportant: v.boolean(),
         isForFunsies: v.boolean(),
         isFocused: v.optional(v.boolean()),
+        isMaintenance: v.optional(v.boolean()),
         status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
         listCategory: v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe")),
         isToday: v.boolean(),
@@ -381,6 +374,7 @@ export const createManyTasks = mutation({
       const id = await ctx.db.insert("tasks", {
         ...task,
         isFocused: task.isFocused ?? false,
+        isMaintenance: task.isMaintenance ?? false,
         lastContactedAt: initialContact,
         sessionId: taskSessionId
       });

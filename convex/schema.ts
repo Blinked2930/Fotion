@@ -11,7 +11,7 @@ export default defineSchema({
     category: v.optional(v.string()),
     color: v.optional(v.string()),
     sessionId: v.optional(v.string()),
-    
+
     reviewCycle: v.optional(v.union(v.literal("weekly"), v.literal("monthly"), v.literal("quarterly"), v.literal("annual"), v.literal("none"))),
     lastReviewedAt: v.optional(v.union(v.number(), v.null())),
 
@@ -77,6 +77,7 @@ export default defineSchema({
     isImportant: v.boolean(),
     isForFunsies: v.boolean(),
     isFocused: v.optional(v.boolean()),
+    isMaintenance: v.optional(v.boolean()), // <-- NEW
     status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     isToday: v.optional(v.boolean()),
