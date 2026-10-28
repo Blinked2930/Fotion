@@ -24,6 +24,7 @@ export function QuarterlyReviewWizard({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [decisions, setDecisions] = useState<Record<string, { rating: number; decision: Decision }>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isAdjusting, setIsAdjusting] = useState(false);
 
   if (!reviewData) {
     return (
@@ -81,8 +82,10 @@ export function QuarterlyReviewWizard({
 
   const handleNext = async () => {
     if (currentDecision.decision === "adjust") {
+      setIsAdjusting(true);
       // Hand off to the parent overlay to open the edit modal
       await onAdjustGoal(goal);
+      setIsAdjusting(false);
     }
     advance();
   };
@@ -166,7 +169,7 @@ export function QuarterlyReviewWizard({
           </div>
           <div className="mt-2 flex items-center gap-1">
             {current.ratingTrend.length > 0 ? (
-              current.ratingTrend.map((r, i) => (
+              current.ratingTrend.map((r: any, i: number) => (
                 <span key={i} className="h-2 w-2 rounded-full" style={{ background: ratingColor(r.rating) }} />
               ))
             ) : (
@@ -251,17 +254,17 @@ export function QuarterlyReviewWizard({
       <div className="mt-12 flex items-center justify-between border-t border-black/[0.06] pt-6 dark:border-white/[0.08]">
         <button
           onClick={() => currentIndex > 0 && setCurrentIndex(i => i - 1)}
-          disabled={currentIndex === 0 || isSaving}
+          disabled={currentIndex === 0 || isSaving || isAdjusting}
           className="rounded-full px-5 py-3 text-sm font-medium text-zinc-500 transition-colors hover:bg-black/5 hover:text-[var(--foreground)] dark:hover:bg-white/10 disabled:opacity-30"
         >
           Previous
         </button>
         <button
           onClick={handleNext}
-          disabled={isSaving}
+          disabled={isSaving || isAdjusting}
           className="flex items-center gap-2 rounded-full bg-[var(--foreground)] px-8 py-3 text-sm font-semibold text-[var(--background)] shadow-lg transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
         >
-          {isSaving ? "Saving..." : isLast ? "Finish Review" : "Next Goal"} <ArrowRight className="h-4 w-4" />
+          {isSaving ? "Saving..." : isAdjusting ? "Waiting for edits..." : isLast ? "Finish Review" : "Next Goal"} <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     </div>
