@@ -6,13 +6,13 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Fotion',
     description: 'Lightning-fast task triage.',
     display: 'standalone',
-    // These paint the PWA status bar and splash screen. They were #191919
-    // (dark) even in light mode, which is why the installed app showed a
-    // black status bar over the Sanctuary's cream background. Now they
-    // match the task UI's --background so the seam disappears. The Sanctuary
-    // overlay overrides this at runtime via data-sanctuary="open".
-    background_color: '#ffffff',
-    theme_color: '#ffffff',
+    // Must match viewport.themeColor in app/layout.tsx so installed PWAs on
+    // iOS (which reads the manifest for the status bar when standalone) get
+    // the same colors as browser tabs. Previously this said #191919 for both
+    // modes, which is why the status bar was permanently near-black no
+    // matter what theme or section you were in.
+    background_color: '#f6f2ea',
+    theme_color: '#f6f2ea',
     icons: [
       {
         src: '/favicon.ico',
