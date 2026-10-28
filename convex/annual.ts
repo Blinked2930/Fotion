@@ -129,6 +129,49 @@ export const isSolsticeReviewDue = query({
     },
 });
 
+// NEW: Lists every completed annual review for this session, sorted by year
+// descending (most recent first). Used by the "Past years" picker in the Year
+// tab so historical reviews are actually reachable from the UI.
+export const listCompletedAnnualReviews = query({
+    args: { sessionId: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        const { actualSessionId } = parseSessionId(args.sessionId);
+        const isSignedIn = !!identity;
+
+        const allReviews = await ctx.db.query("reviews")
+            .filter(q => q.eq(q.field("type"), "annual"))
+            .collect();
+
+        const visible = allReviews.filter(
+            (r) =>
+                ownsRow(r, actualSessionId, isSignedIn) &&
+                r.status === "complete" &&
+                typeof r.periodKey === "string"
+        );
+
+        // Deduplicate defensively: if two "complete" reviews exist for the same
+        // periodKey (from a race during ensureAnnualReview before a unique index
+        // is added), keep only the most recently completed one.
+        const byPeriod = new Map<string, typeof visible[number]>();
+        for (const r of visible) {
+            const prev = byPeriod.get(r.periodKey);
+            const rCompletedAt = r.completedAt ?? 0;
+            const prevCompletedAt = prev?.completedAt ?? 0;
+            if (!prev || rCompletedAt > prevCompletedAt) {
+                byPeriod.set(r.periodKey, r);
+            }
+        }
+
+        return Array.from(byPeriod.values())
+            .map((r) => ({
+                periodKey: r.periodKey,
+                completedAt: r.completedAt ?? null,
+            }))
+            .sort((a, b) => b.periodKey.localeCompare(a.periodKey));
+    },
+});
+
 export const getAnnualReviewData = query({
     args: { periodKey: v.string(), sessionId: v.optional(v.string()) },
     handler: async (ctx, args) => {
@@ -173,7 +216,7 @@ export const getAnnualReviewData = query({
         const yearEnd = new Date(yearNum, 11, 31, 23, 59, 59).getTime();
 
         const allFocusLogs = await ctx.db.query("focusLogs").collect();
-        const visibleFocusLogs = allFocusLogs.filter(f => 
+        const visibleFocusLogs = allFocusLogs.filter(f =>
             ownsRow(f, actualSessionId, isSignedIn) &&
             f.startedAt >= yearStart &&
             f.startedAt <= yearEnd
@@ -213,7 +256,7 @@ export const getAnnualReviewData = query({
         const quarterlyReviews = await ctx.db.query("reviews")
             .filter(q => q.eq(q.field("type"), "quarterly"))
             .collect();
-        const visibleQuarterlyReviews = quarterlyReviews.filter(r => 
+        const visibleQuarterlyReviews = quarterlyReviews.filter(r =>
             ownsRow(r, actualSessionId, isSignedIn) &&
             r.periodKey.startsWith(String(yearNum))
         );
@@ -224,7 +267,7 @@ export const getAnnualReviewData = query({
         }));
 
         const allCheckIns = await ctx.db.query("goalCheckIns").collect();
-        const visibleCheckIns = allCheckIns.filter(c => 
+        const visibleCheckIns = allCheckIns.filter(c =>
             ownsRow(c, actualSessionId, isSignedIn) &&
             c.createdAt >= yearStart &&
             c.createdAt <= yearEnd
@@ -240,7 +283,7 @@ export const getAnnualReviewData = query({
             .map(([weekKey, { sum, count }]) => ({ weekKey, avg: sum / count }))
             .sort((a, b) => a.weekKey.localeCompare(b.weekKey));
 
-        const unfinishedGoals = visibleGoals.filter(g => 
+        const unfinishedGoals = visibleGoals.filter(g =>
             (g.status === "active" || g.status === "paused") &&
             g.targetDate && g.targetDate <= yearEnd
         );
@@ -279,8 +322,8 @@ export const ensureAnnualReview = mutation({
         const isSignedIn = !!identity;
 
         const existing = await ctx.db.query("reviews")
-            .filter(q => 
-                q.eq(q.field("type"), "annual") && 
+            .filter(q =>
+                q.eq(q.field("type"), "annual") &&
                 q.eq(q.field("periodKey"), args.periodKey)
             )
             .collect();

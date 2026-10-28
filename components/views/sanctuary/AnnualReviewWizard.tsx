@@ -12,10 +12,12 @@ export function AnnualReviewWizard({
   sessionId,
   periodKey,
   onFinish,
+  readOnly = false,
 }: {
   sessionId?: string;
   periodKey: string;
   onFinish: () => void;
+  readOnly?: boolean;
 }) {
   const data = useQuery(api.annual.getAnnualReviewData, { periodKey, sessionId });
   const ensureReview = useMutation(api.annual.ensureAnnualReview);
@@ -32,10 +34,10 @@ export function AnnualReviewWizard({
     if (!data) return;
     if (data.review) {
       setReviewId(data.review._id);
-    } else {
+    } else if (!readOnly) {
       ensureReview({ periodKey, sessionId }).then((id) => setReviewId(id as Id<"reviews">));
     }
-  }, [data, periodKey, sessionId, ensureReview]);
+  }, [data, periodKey, sessionId, ensureReview, readOnly]);
 
   useEffect(() => {
     if (!data) return;
@@ -84,10 +86,12 @@ export function AnnualReviewWizard({
   const isLastPrompt = isLastPromptOfSection && isLastSection;
 
   const handleAnswerChange = (text: string) => {
+    if (readOnly) return;
     setLocalAnswers((prev) => ({ ...prev, [currentPrompt.id]: text }));
   };
 
   const saveCurrentAnswer = async () => {
+    if (readOnly) return;
     if (!reviewId) return;
     const text = localAnswers[currentPrompt.id] || "";
     try {
@@ -98,6 +102,18 @@ export function AnnualReviewWizard({
   };
 
   const handleNext = async () => {
+    if (readOnly) {
+      // Read-only is a browsing view; "Next" just advances the cursor.
+      if (isLastPrompt) {
+        onFinish();
+      } else if (isLastPromptOfSection) {
+        setCurrentSectionIndex((i) => i + 1);
+        setCurrentPromptIndex(0);
+      } else {
+        setCurrentPromptIndex((i) => i + 1);
+      }
+      return;
+    }
     setSaving(true);
     await saveCurrentAnswer();
     setSaving(false);
@@ -264,14 +280,25 @@ export function AnnualReviewWizard({
       </h2>
 
       <div className="mt-8">
-        <TipTapEditor
-          key={currentPrompt.id}
-          content={localAnswers[currentPrompt.id] || ""}
-          onChange={handleAnswerChange}
-          placeholder={
-            currentPrompt.kind === "short" ? "A short answer…" : "Take your time with this one…"
-          }
-        />
+        {readOnly ? (
+          <div
+            className="prose prose-sm prose-zinc max-w-none text-[15px] text-zinc-700 dark:prose-invert dark:text-zinc-300"
+            dangerouslySetInnerHTML={{
+              __html:
+                localAnswers[currentPrompt.id] ||
+                '<em class="text-zinc-400">No answer was recorded for this prompt.</em>',
+            }}
+          />
+        ) : (
+          <TipTapEditor
+            key={currentPrompt.id}
+            content={localAnswers[currentPrompt.id] || ""}
+            onChange={handleAnswerChange}
+            placeholder={
+              currentPrompt.kind === "short" ? "A short answer…" : "Take your time with this one…"
+            }
+          />
+        )}
       </div>
 
       {lastYearAnswer && lastYearAnswer.text && data && (
@@ -299,10 +326,18 @@ export function AnnualReviewWizard({
         </button>
         <button
           onClick={handleNext}
-          disabled={saving || !reviewId}
+          disabled={!readOnly && (saving || !reviewId)}
           className="flex items-center gap-2 rounded-full bg-[var(--foreground)] px-8 py-3 text-sm font-semibold text-[var(--background)] shadow-lg transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
         >
-          {saving ? "Saving..." : isLastPrompt ? "Finish Year" : "Next"}{" "}
+          {readOnly
+            ? isLastPrompt
+              ? "Close"
+              : "Next"
+            : saving
+            ? "Saving..."
+            : isLastPrompt
+            ? "Finish Year"
+            : "Next"}{" "}
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>

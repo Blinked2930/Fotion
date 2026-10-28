@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Sparkles, ChevronRight, ArrowLeft } from "lucide-react";
+import { X, Plus, Sparkles, ChevronRight, ArrowLeft, BookOpen } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -31,6 +31,14 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   const quarterlyStatus = useQuery(api.quarterly.isQuarterlyReviewDue, { sessionId: sessionId ?? undefined });
   const solsticeStatus = useQuery(api.annual.isSolsticeReviewDue, { sessionId: sessionId ?? undefined });
 
+  // Historical annual reviews (completed only), for the Past years picker.
+  // Rendered only inside the Year tab and only when there's at least one prior
+  // year — the current year is handled by the main Year UI.
+  const completedAnnualReviews = useQuery(
+    api.annual.listCompletedAnnualReviews,
+    { sessionId: sessionId ?? undefined }
+  );
+
   const createGoal = useOfflineSyncMutation(api.goals.createGoal, "createGoal");
   const updateGoal = useOfflineSyncMutation(api.goals.updateGoal, "updateGoal");
   const deleteGoal = useOfflineSyncMutation(api.goals.deleteGoal, "deleteGoal");
@@ -50,6 +58,10 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   // True when the user explicitly starts / re-opens the annual review outside
   // of the solstice window (testing, early start, or editing a completed year).
   const [annualForced, setAnnualForced] = useState(false);
+  // Set when the user opens a past year from the "Past years" picker. When set,
+  // the Year tab renders the wizard in read-only mode for that periodKey, with
+  // a banner to return to the current year.
+  const [historicalPeriodKey, setHistoricalPeriodKey] = useState<string | null>(null);
 
   // Lets the quarterly review genuinely wait for the goal editor: the promise
   // returned from onAdjustGoal resolves when the editor is saved or closed.
@@ -74,6 +86,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       setPendingDelete(null);
       setActiveTab("goals");
       setAnnualForced(false);
+      setHistoricalPeriodKey(null);
       if (adjustResolver.current) {
         adjustResolver.current();
         adjustResolver.current = null;
@@ -81,9 +94,13 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   }, [isOpen]);
 
-  // Leaving the Year tab always drops the "forced" early/edit mode.
+  // Leaving the Year tab always drops the "forced" early/edit mode and the
+  // historical review view.
   useEffect(() => {
-    if (activeTab !== "year") setAnnualForced(false);
+    if (activeTab !== "year") {
+      setAnnualForced(false);
+      setHistoricalPeriodKey(null);
+    }
   }, [activeTab]);
 
   // One-step-back navigation, shared by the Back button and Escape.
@@ -98,6 +115,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       if (e.key !== "Escape") return;
       if (pendingDelete) setPendingDelete(null);
       else if (editor.open) closeEditor();
+      else if (historicalPeriodKey) setHistoricalPeriodKey(null);
       else if (openGoalId) setOpenGoalId(null);
       else if (activeTab !== "goals") setActiveTab("goals");
       else onClose();
@@ -105,7 +123,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, editor.open, openGoalId, pendingDelete, activeTab, onClose]);
+  }, [isOpen, editor.open, openGoalId, pendingDelete, activeTab, historicalPeriodKey, onClose]);
 
   if (!isOpen || !mounted) return null;
 
@@ -127,6 +145,15 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   // year's solstice key so the review can be started/tested at any time.
   const annualPeriodKey =
     solsticeStatus?.periodKey || `${new Date().getFullYear()}-solstice`;
+
+  // The periodKey the Year tab should render. When browsing a past year, it's
+  // the historical key; otherwise it's the current-year key.
+  const effectiveYearKey = historicalPeriodKey ?? annualPeriodKey;
+
+  // Past years: completed reviews for this session, excluding whichever year
+  // is currently active (so we don't duplicate the current year card).
+  const pastYears =
+    (completedAnnualReviews ?? []).filter((r) => r.periodKey !== annualPeriodKey);
 
   const handleSave = async (v: GoalFormValues) => {
     if (editor.goal) {
@@ -186,6 +213,10 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   // IMPORTANT: this is a plain render function, NOT a component.
   // Declaring it as a component inside the overlay made React remount every
   // row on each re-render, which swallowed clicks.
+  //
+  // Now rendered inside a responsive grid (1 / 2 / 3 columns) so the paused,
+  // completed, and retired sections read as tidy card grids instead of one
+  // long full-width row per goal.
   const renderInactiveGoalRow = (goal: any) => (
     <button
       key={goal._id}
@@ -195,14 +226,14 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
         e.stopPropagation();
         setOpenGoalId(goal._id);
       }}
-      className="group relative flex min-h-11 w-full cursor-pointer touch-manipulation items-center justify-between gap-3 rounded-2xl border border-transparent bg-transparent px-4 py-3 text-left outline-none transition-all duration-200 hover:border-black/[0.06] hover:bg-white/50 focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-[0.995] dark:hover:border-white/[0.08] dark:hover:bg-white/[0.03]"
+      className="group relative flex min-h-11 w-full min-w-0 cursor-pointer touch-manipulation items-center justify-between gap-3 rounded-xl border border-black/[0.06] bg-white/40 px-4 py-3 text-left outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-black/[0.1] hover:bg-white/70 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-[0.995] dark:border-white/[0.08] dark:bg-white/[0.02] dark:hover:border-white/[0.14] dark:hover:bg-white/[0.05]"
     >
       <div className="flex min-w-0 items-center gap-3">
         <span
           className="h-2 w-2 shrink-0 rounded-full opacity-70"
           style={{ background: goalHex(goal.color) }}
         />
-        <span className={`${SERIF} truncate text-[16px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400 dark:group-hover:text-[var(--foreground)]`}>
+        <span className={`${SERIF} truncate text-[15px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400 dark:group-hover:text-[var(--foreground)]`}>
           {goal.title}
         </span>
       </div>
@@ -384,7 +415,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Paused
                   </h3>
-                  <div className="mt-3 grid gap-1">
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {pausedGoals.map((g) => renderInactiveGoalRow(g))}
                   </div>
                 </section>
@@ -395,7 +426,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Completed
                   </h3>
-                  <div className="mt-3 grid gap-1">
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {completedGoals.map((g) => renderInactiveGoalRow(g))}
                   </div>
                 </section>
@@ -406,7 +437,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Retired
                   </h3>
-                  <div className="mt-3 grid gap-1">
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {retiredGoals.map((g) => renderInactiveGoalRow(g))}
                   </div>
                 </section>
@@ -434,6 +465,33 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           ) : !solsticeStatus ? (
             <div className="flex h-64 items-center justify-center">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 motion-reduce:animate-none" />
+            </div>
+          ) : historicalPeriodKey ? (
+            // Read-only view of a past year. The banner makes it obvious you're
+            // not looking at the current year, with a one-click way back.
+            <div className="mx-auto flex w-full max-w-3xl flex-col">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/[0.06] bg-white/40 px-4 py-3 dark:border-white/[0.08] dark:bg-white/[0.02]">
+                <span className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-300">
+                  <BookOpen className="h-4 w-4 text-zinc-400" />
+                  Reading <span className="font-semibold">{historicalPeriodKey}</span>
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <AnnualReviewExport periodKey={historicalPeriodKey} sessionId={sessionId ?? undefined} />
+                  <button
+                    type="button"
+                    onClick={() => setHistoricalPeriodKey(null)}
+                    className="inline-flex min-h-9 touch-manipulation items-center rounded-full px-4 py-2 text-[12px] font-medium text-zinc-500 outline-none transition-all hover:bg-black/5 hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-95 motion-reduce:transition-none dark:hover:bg-white/10"
+                  >
+                    Back to current year
+                  </button>
+                </div>
+              </div>
+              <AnnualReviewWizard
+                sessionId={sessionId ?? undefined}
+                periodKey={historicalPeriodKey}
+                onFinish={() => setHistoricalPeriodKey(null)}
+                readOnly
+              />
             </div>
           ) : annualForced || (solsticeStatus.due && !solsticeStatus.completed) ? (
             <div className="flex flex-col gap-6">
@@ -471,6 +529,32 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   <AnnualReviewExport periodKey={annualPeriodKey} sessionId={sessionId ?? undefined} />
                 </div>
               </header>
+
+              {pastYears.length > 0 && (
+                <section className="mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+                    Past years
+                  </h3>
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {pastYears.map((r) => (
+                      <button
+                        key={r.periodKey}
+                        type="button"
+                        onClick={() => setHistoricalPeriodKey(r.periodKey)}
+                        className="group flex min-h-11 w-full min-w-0 touch-manipulation items-center justify-between gap-3 rounded-xl border border-black/[0.06] bg-white/40 px-4 py-3 text-left outline-none transition-all hover:-translate-y-0.5 hover:border-black/[0.1] hover:bg-white/70 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-[0.995] dark:border-white/[0.08] dark:bg-white/[0.02] dark:hover:border-white/[0.14] dark:hover:bg-white/[0.05]"
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <BookOpen className="h-4 w-4 shrink-0 text-zinc-400" />
+                          <span className={`${SERIF} truncate text-[15px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400 dark:group-hover:text-[var(--foreground)]`}>
+                            {r.periodKey}
+                          </span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 motion-reduce:transition-none" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           ) : (
             <div className="mx-auto flex w-full max-w-2xl flex-col">
@@ -490,6 +574,32 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   Begin early
                 </button>
               </header>
+
+              {pastYears.length > 0 && (
+                <section className="mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+                    Past years
+                  </h3>
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {pastYears.map((r) => (
+                      <button
+                        key={r.periodKey}
+                        type="button"
+                        onClick={() => setHistoricalPeriodKey(r.periodKey)}
+                        className="group flex min-h-11 w-full min-w-0 touch-manipulation items-center justify-between gap-3 rounded-xl border border-black/[0.06] bg-white/40 px-4 py-3 text-left outline-none transition-all hover:-translate-y-0.5 hover:border-black/[0.1] hover:bg-white/70 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-[0.995] dark:border-white/[0.08] dark:bg-white/[0.02] dark:hover:border-white/[0.14] dark:hover:bg-white/[0.05]"
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <BookOpen className="h-4 w-4 shrink-0 text-zinc-400" />
+                          <span className={`${SERIF} truncate text-[15px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400 dark:group-hover:text-[var(--foreground)]`}>
+                            {r.periodKey}
+                          </span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 motion-reduce:transition-none" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </div>
