@@ -138,33 +138,28 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   };
 
-  // Div-based clickable row — immune to form/button edge cases
+  // Bulletproof clickable row — plain button with pointer-events-auto
   const InactiveGoalRow = ({ goal }: { goal: any }) => (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => setOpenGoalId(goal._id)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          setOpenGoalId(goal._id);
-        }
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpenGoalId(goal._id);
       }}
-      className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-transparent px-4 py-3 outline-none transition-all duration-200 hover:border-black/[0.06] hover:bg-white/50 focus-visible:border-zinc-400 focus-visible:bg-white/50 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.03] dark:focus-visible:border-white/30 dark:focus-visible:bg-white/[0.03]"
+      className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-transparent bg-transparent px-4 py-3 text-left outline-none pointer-events-auto transition-all duration-200 hover:border-black/[0.06] hover:bg-white/50 active:scale-[0.995] dark:hover:border-white/[0.08] dark:hover:bg-white/[0.03]"
     >
       <div className="flex min-w-0 items-center gap-3">
         <span
           className="h-2 w-2 shrink-0 rounded-full opacity-70"
           style={{ background: goalHex(goal.color) }}
         />
-        <span
-          className={`${SERIF} truncate text-[16px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400 dark:group-hover:text-[var(--foreground)]`}
-        >
+        <span className={`${SERIF} truncate text-[16px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400 dark:group-hover:text-[var(--foreground)]`}>
           {goal.title}
         </span>
       </div>
       <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
-    </div>
+    </button>
   );
 
   return createPortal(
@@ -173,7 +168,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_8%,rgba(236,72,153,0.11),transparent)]" />
 
       <div className="relative mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
-        {/* Top bar with quiet text tabs */}
         <div className="flex items-center justify-between px-6 pt-6 sm:px-10 sm:pt-9">
           <div className="flex items-center gap-6">
             <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
@@ -293,7 +287,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 </div>
               )}
 
-              {/* PAUSED SECTION */}
               {pausedGoals.length > 0 && (
                 <section className="mt-16 border-t border-black/[0.07] pt-8 dark:border-white/10">
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
@@ -307,7 +300,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 </section>
               )}
 
-              {/* COMPLETED SECTION */}
               {completedGoals.length > 0 && (
                 <section className="mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
@@ -321,7 +313,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 </section>
               )}
 
-              {/* RETIRED SECTION */}
               {retiredGoals.length > 0 && (
                 <section className="mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
