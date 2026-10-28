@@ -27,7 +27,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   const sessionId = useGuestSession();
   const goals: any[] =
     useOfflineQuery(api.goals.getGoals, { sessionId: sessionId ?? undefined }, "getGoals") || [];
-  
+
   const quarterlyStatus = useQuery(api.quarterly.isQuarterlyReviewDue, { sessionId: sessionId ?? undefined });
   const solsticeStatus = useQuery(api.annual.isSolsticeReviewDue, { sessionId: sessionId ?? undefined });
 
@@ -113,7 +113,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   const pausedGoals = goals.filter((g) => g.status === "paused");
   const completedGoals = goals.filter((g) => g.status === "completed");
   const retiredGoals = goals.filter((g) => g.status === "retired");
-  
+
   const dueCount = activeGoals.filter(needsReview).length;
   const openGoal = openGoalId ? goals.find((g) => g._id === openGoalId) : null;
   const reviewDue = quarterlyStatus?.due;
@@ -195,7 +195,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
         e.stopPropagation();
         setOpenGoalId(goal._id);
       }}
-      className="group relative flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-transparent bg-transparent px-4 py-3 text-left outline-none transition-all duration-200 hover:border-black/[0.06] hover:bg-white/50 focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-[0.995] dark:hover:border-white/[0.08] dark:hover:bg-white/[0.03]"
+      className="group relative flex min-h-11 w-full cursor-pointer touch-manipulation items-center justify-between gap-3 rounded-2xl border border-transparent bg-transparent px-4 py-3 text-left outline-none transition-all duration-200 hover:border-black/[0.06] hover:bg-white/50 focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-[0.995] dark:hover:border-white/[0.08] dark:hover:bg-white/[0.03]"
     >
       <div className="flex min-w-0 items-center gap-3">
         <span
@@ -229,7 +229,10 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_8%,rgba(236,72,153,0.11),transparent)]" />
 
       <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
-        <div className="flex flex-wrap items-center justify-between gap-y-3 px-6 pt-6 sm:px-10 sm:pt-9">
+        {/* Header: safe-area aware on all four sides so the close/back button,
+            section nav, and "The Sanctuary" label never collide with the
+            notch, dynamic island, or rounded display corners. */}
+        <div className="flex flex-wrap items-center justify-between gap-y-3 px-[max(1.5rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-10 sm:pt-9">
           <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
             The Sanctuary
           </span>
@@ -239,7 +242,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
               type="button"
               onClick={onClose}
               aria-label="Close Sanctuary"
-              className="order-2 rounded-full p-3 text-zinc-500 outline-none transition-all hover:bg-black/5 hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-95 motion-reduce:transition-none dark:hover:bg-white/10 sm:order-3"
+              className="order-2 flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 outline-none transition-all hover:bg-black/5 hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-95 motion-reduce:transition-none dark:hover:bg-white/10 sm:order-3 sm:h-auto sm:w-auto sm:p-3"
             >
               <X className="h-5 w-5" />
             </button>
@@ -248,7 +251,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
               type="button"
               onClick={goBackOneLevel}
               aria-label="Back to goals"
-              className="order-2 inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium text-zinc-500 outline-none transition-all hover:bg-black/5 hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-95 motion-reduce:transition-none dark:hover:bg-white/10 sm:order-3"
+              className="order-2 inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium text-zinc-500 outline-none transition-all hover:bg-black/5 hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-95 motion-reduce:transition-none dark:hover:bg-white/10 sm:order-3"
             >
               <ArrowLeft className="h-4 w-4" />
               {openGoal ? "All goals" : "Back"}
@@ -258,24 +261,39 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           {!openGoal && (
             <nav
               aria-label="Sanctuary sections"
-              className="order-3 flex w-full items-center gap-4 overflow-x-auto text-[13px] font-medium sm:order-2 sm:w-auto sm:flex-1 sm:pl-6"
+              className="order-3 flex w-full items-center gap-4 overflow-x-auto text-[13px] font-medium [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:order-2 sm:w-auto sm:flex-1 sm:pl-6"
             >
-              <button onClick={() => setActiveTab("goals")} className={tabClass("goals")}>
+              <button
+                onClick={() => setActiveTab("goals")}
+                className={`${tabClass("goals")} inline-flex min-h-11 touch-manipulation items-center`}
+              >
                 Goals
               </button>
-              <button onClick={() => setActiveTab("align")} className={tabClass("align")}>
+              <button
+                onClick={() => setActiveTab("align")}
+                className={`${tabClass("align")} inline-flex min-h-11 touch-manipulation items-center`}
+              >
                 Align
               </button>
-              <button onClick={() => setActiveTab("checkin")} className={tabClass("checkin")}>
+              <button
+                onClick={() => setActiveTab("checkin")}
+                className={`${tabClass("checkin")} inline-flex min-h-11 touch-manipulation items-center`}
+              >
                 Check-in
               </button>
-              <button onClick={() => setActiveTab("review")} className={`relative flex items-center gap-1.5 ${tabClass("review")}`}>
+              <button
+                onClick={() => setActiveTab("review")}
+                className={`relative flex min-h-11 touch-manipulation items-center gap-1.5 ${tabClass("review")}`}
+              >
                 Review
                 {reviewDue && (
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" />
                 )}
               </button>
-              <button onClick={() => setActiveTab("year")} className={`relative flex items-center gap-1.5 ${tabClass("year")}`}>
+              <button
+                onClick={() => setActiveTab("year")}
+                className={`relative flex min-h-11 touch-manipulation items-center gap-1.5 ${tabClass("year")}`}
+              >
                 Year
                 {solsticeStatus?.due && (
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 motion-reduce:animate-none" />
@@ -285,7 +303,13 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           )}
         </div>
 
-        <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-28 pt-8 sm:px-10">
+        {/* Scroll body: horizontal + bottom safe-area insets so cards, lists,
+            and the wizard footer never slide under the home indicator or the
+            display's rounded corners. `overscroll-contain` keeps the rubber-
+            band from propagating to the page behind the portal. */}
+        <div
+          className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-[max(1.5rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-8 pb-[max(7rem,calc(4rem+env(safe-area-inset-bottom)))] sm:px-10"
+        >
           {openGoal ? (
             <GoalChapter
               goal={openGoal}
@@ -322,7 +346,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 <button
                   type="button"
                   onClick={() => setEditor({ open: true, goal: null })}
-                  className="mt-8 inline-flex items-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-semibold text-[var(--background)] shadow-lg outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none"
+                  className="mt-8 inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-semibold text-[var(--background)] shadow-lg outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none"
                 >
                   <Plus className="h-4 w-4" /> New goal
                 </button>
@@ -391,10 +415,10 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           ) : activeTab === "align" ? (
             <AlignScreen sessionId={sessionId ?? undefined} />
           ) : activeTab === "checkin" ? (
-            <CheckInWizard 
-              sessionId={sessionId ?? undefined} 
-              goals={activeGoals} 
-              onFinish={() => setActiveTab("goals")} 
+            <CheckInWizard
+              sessionId={sessionId ?? undefined}
+              goals={activeGoals}
+              onFinish={() => setActiveTab("goals")}
             />
           ) : activeTab === "review" ? (
             <QuarterlyReviewWizard
@@ -440,7 +464,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   <button
                     type="button"
                     onClick={() => setAnnualForced(true)}
-                    className="inline-flex items-center rounded-full bg-[var(--foreground)] px-5 py-2.5 text-sm font-semibold text-[var(--background)] outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none"
+                    className="inline-flex min-h-11 touch-manipulation items-center rounded-full bg-[var(--foreground)] px-5 py-2.5 text-sm font-semibold text-[var(--background)] outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none"
                   >
                     Edit review
                   </button>
@@ -461,7 +485,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 <button
                   type="button"
                   onClick={() => setAnnualForced(true)}
-                  className="mt-6 inline-flex items-center rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-semibold text-[var(--background)] shadow-lg outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none"
+                  className="mt-6 inline-flex min-h-11 touch-manipulation items-center rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-semibold text-[var(--background)] shadow-lg outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none"
                 >
                   Begin early
                 </button>
