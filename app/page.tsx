@@ -22,7 +22,7 @@ import { GoalSanctuaryOverlay } from "@/components/views/GoalSanctuaryOverlay";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff, Clock } from "lucide-react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
 import { PushPromptModal } from "@/components/ui/PushPromptModal";
@@ -294,6 +294,7 @@ function HomeContent() {
 
   const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks") || [];
   const allGoals = useOfflineQuery(api.goals.getGoals, { sessionId: guestSessionId ?? undefined }, "getGoals") || [];
+  const checkInStatus = useQuery(api.goalDetails.getWeeklyCheckInStatus, { sessionId: guestSessionId ?? undefined });
 
   const actualSessionId = guestSessionId?.split("||vip_")[0];
   const focusedTasks = (allTasks.filter((t: any) => {
@@ -364,7 +365,8 @@ function HomeContent() {
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
-    if (saved && saved !== "Goals") setActiveView(saved);
+    // Guard against the old "Goals" view
+    if (saved && (saved as string) !== "Goals") setActiveView(saved);
 
     const vipParam = searchParams.get("vip");
     const sessionParam = searchParams.get("session");
@@ -456,8 +458,6 @@ function HomeContent() {
     }
   };
 
-  // We no longer block rendering with a spinner unless auth specifically blocks it. 
-  // Local cache handles the data loading instantly.
   if (!isOffline && !isLoaded) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
@@ -588,11 +588,15 @@ function HomeContent() {
 
             <button 
               onClick={() => setIsGoalSanctuaryOpen(true)} 
-              className={`flex items-center gap-1.5 text-sm font-medium transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 relative ${goalsNeedingReviewCount > 0 ? 'text-[var(--foreground)]' : 'text-zinc-500 hover:text-[var(--foreground)]'}`}
+              className={`flex items-center gap-1.5 text-sm font-medium transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 relative ${
+                goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 ? 'text-[var(--foreground)]' : 'text-zinc-500 hover:text-[var(--foreground)]'
+              }`}
             >
-              <Target className={`w-4 h-4 ${goalsNeedingReviewCount > 0 ? 'text-amber-500' : ''}`} /> 
+              <Target className={`w-4 h-4 ${goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 ? 'text-amber-500' : ''}`} /> 
               <span className="hidden sm:inline">Goals <span className="text-[10px] text-zinc-400 font-normal ml-0.5 border border-[var(--border)] rounded px-1 py-0.5">G</span></span>
-              {goalsNeedingReviewCount > 0 && (
+              
+              {/* Combined single indicator dot for reviews OR check-ins */}
+              {(goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0) && (
                   <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-amber-500 border border-white dark:border-[#121212] -translate-y-1/2 translate-x-1/2" />
               )}
             </button>
@@ -621,7 +625,6 @@ function HomeContent() {
           <div className="mt-4 flex-1">
             {!isMounted ? (
               <div className="flex items-center justify-center h-64">
-                {/* Fallback spinner only if cache is completely empty */}
                 <Loader2 className="w-6 h-6 animate-spin text-zinc-300 dark:text-zinc-700" />
               </div>
             ) : (

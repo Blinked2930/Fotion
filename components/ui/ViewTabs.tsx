@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LayoutGrid, ListTodo, Calendar, Database, FolderGit2, Target } from "lucide-react";
+import { LayoutGrid, ListTodo, Calendar, Database, FolderGit2 } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-export type ViewType = "Matrix" | "Pipelines" | "Today" | "Projects" | "Goals" | "Raw Data";
+export type ViewType = "Matrix" | "Pipelines" | "Today" | "Projects" | "Raw Data";
 
 const defaultTabs: { id: ViewType; icon: any; label: string }[] = [
   { id: "Today", icon: Calendar, label: "Today" },
   { id: "Pipelines", icon: ListTodo, label: "Pipelines" },
   { id: "Projects", icon: FolderGit2, label: "Projects" },
-  { id: "Goals", icon: Target, label: "Goals" },
   { id: "Matrix", icon: LayoutGrid, label: "Matrix" },
   { id: "Raw Data", icon: Database, label: "Raw Data" },
 ];
@@ -30,14 +29,17 @@ export function ViewTabs({
   const [draggedTab, setDraggedTab] = useState<ViewType | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // FIX: Hydrate from localStorage for INSTANT rendering, bypassing the database load delay
+  // Hydrate from localStorage for INSTANT rendering, bypassing the database load delay
   useEffect(() => {
     const cached = localStorage.getItem("fotion-tab-order");
     if (cached) {
       try {
-        const order = JSON.parse(cached) as ViewType[];
-        const reordered = order.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
-        const missing = defaultTabs.filter(t => !order.includes(t.id));
+        const order = JSON.parse(cached) as string[];
+        // Filter out "Goals" in case it was saved in an old session
+        const validOrder = order.filter(id => id !== "Goals") as ViewType[];
+        
+        const reordered = validOrder.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
+        const missing = defaultTabs.filter(t => !validOrder.includes(t.id));
         setTabs([...reordered, ...missing]);
       } catch (e) {
         console.error("Failed to parse cached tabs");
@@ -49,13 +51,16 @@ export function ViewTabs({
   // When Convex Cloud finally loads, ensure we are perfectly synced and update the cache
   useEffect(() => {
     if (preferences?.tabOrder) {
-      const order = preferences.tabOrder as ViewType[];
-      const reordered = order.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
-      const missing = defaultTabs.filter(t => !order.includes(t.id));
+      const order = preferences.tabOrder as string[];
+      // Filter out "Goals" in case it was saved in an old session
+      const validOrder = order.filter(id => id !== "Goals") as ViewType[];
+
+      const reordered = validOrder.map(id => defaultTabs.find(t => t.id === id)).filter(Boolean) as typeof defaultTabs;
+      const missing = defaultTabs.filter(t => !validOrder.includes(t.id));
       const finalTabs = [...reordered, ...missing];
 
       setTabs(finalTabs);
-      localStorage.setItem("fotion-tab-order", JSON.stringify(preferences.tabOrder));
+      localStorage.setItem("fotion-tab-order", JSON.stringify(validOrder));
     }
   }, [preferences?.tabOrder]);
 
