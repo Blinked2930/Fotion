@@ -28,29 +28,28 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    // "black-translucent" lets the html/body background show through the
-    // iOS status bar inset instead of forcing an opaque black band. Kept
-    // here so installed PWAs on iOS still let the Sanctuary's cream edge
-    // show through under the status bar.
     statusBarStyle: "black-translucent",
     title: "Fotion",
   },
 };
 
-// This static fallback is what the browser paints on the very first frame,
-// before ThemeColorSync mounts. It matches the Sanctuary palette so the
-// initial paint is never jarring. ThemeColorSync then takes over reactively
-// on the client.
+// Deliberately NO `themeColor` here.
+//
+// `viewport.themeColor` writes static <meta name="theme-color"> tags at
+// build time. On mobile, browsers honor the FIRST matching meta tag in
+// <head> — so any static tag would always win over the runtime updates
+// from ThemeColorSync, which is exactly why the status bar was locked to
+// cream (i.e. "white") even in dark mode.
+//
+// ThemeColorSync now owns the meta tag entirely. It mounts with the app,
+// reads the current theme, and writes the correct color before first
+// paint. There is no static fallback to fight with it.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f2ea" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c0c12" },
-  ],
 };
 
 export default function RootLayout({

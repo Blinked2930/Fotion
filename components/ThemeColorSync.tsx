@@ -6,21 +6,21 @@ import { useTheme } from "next-themes";
 /**
  * Reactively updates <meta name="theme-color"> to match the active theme.
  *
- * Why this exists:
- *   The status bar / address bar color on mobile is controlled by the
- *   `theme-color` meta tag. Next's `viewport.themeColor` API writes a static
- *   value at render time, which means it cannot react to a runtime dark-mode
- *   toggle. This component keeps the meta tag in sync with `next-themes` so
- *   the bar flips cream -> near-black (and back) as soon as the user toggles
- *   the theme.
+ * This component is now the SINGLE owner of the theme-color meta tag.
+ * `viewport.themeColor` in layout.tsx was removed on purpose: it wrote
+ * static tags at build time, and mobile browsers honor the FIRST matching
+ * tag in <head>. That meant the static cream value always won, and the
+ * status bar appeared "permanently white" in dark mode.
  *
- * Known limitations (browser-level, not fixable from our side):
- *   - iOS 26 Safari tabs: the OS stopped honoring `theme-color` at all in
- *     tabs. Installed PWAs still respect it, so this works there.
- *   - Recent Chrome PWA releases: a regression causes installed PWAs to
- *     ignore dynamic `theme-color` updates. Chrome tabs work fine.
- *   - Everywhere else (Android Chrome tabs, desktop Chrome/Edge, Samsung
- *     Internet, Firefox), this update is instant and reliable.
+ * By owning the tag exclusively here, we can guarantee that:
+ *   - Exactly one theme-color tag exists.
+ *   - Its content reflects the current resolved theme at all times.
+ *   - The tag is updated instantly (same tick) whenever the theme changes.
+ *
+ * Known platform limitations (not fixable from our side):
+ *   - iOS 26 Safari tabs: ignores theme-color entirely.
+ *   - Recent Chrome PWA builds: regressed, ignore dynamic updates.
+ *   - Everywhere else: instant.
  */
 
 const LIGHT = "#f6f2ea"; // Sanctuary cream
@@ -32,43 +32,45 @@ export function ThemeColorSync() {
   useEffect(() => {
     if (typeof document === "undefined") return;
 
-    // Find or create the theme-color meta tag.
-    let meta = document.querySelector<HTMLMetaElement>(
-      'meta[name="theme-color"]'
+    // Find every existing theme-color meta tag. If more than one exists
+    // (which can happen if the browser cached an old build, or if a
+    // previous layout.tsx static tag is still in the DOM after HMR), we
+    // collapse them down to one.
+    const existing = Array.from(
+      document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
     );
-    if (!meta) {
+
+    let meta: HTMLMetaElement;
+    if (existing.length === 0) {
       meta = document.createElement("meta");
       meta.setAttribute("name", "theme-color");
       document.head.appendChild(meta);
+    } else {
+      meta = existing[0];
+      // Remove any duplicates so the browser has only one tag to read.
+      for (let i = 1; i < existing.length; i++) {
+        existing[i].remove();
+      }
     }
 
     const apply = () => {
       const isDark = document.documentElement.classList.contains("dark");
-      meta!.setAttribute("content", isDark ? DARK : LIGHT);
+      meta.setAttribute("content", isDark ? DARK : LIGHT);
     };
 
-    // 1. Apply immediately using the current <html class> — this covers both
-    //    the initial mount and any resolvedTheme change that has already
-    //    been committed to the DOM.
     apply();
 
-    // 2. Also observe <html class> mutations. This catches the edge case
-    //    where a non-next-themes code path flips the class (e.g. a manual
-    //    `document.documentElement.classList.toggle("dark")`) without going
-    //    through resolvedTheme. Cheap — mutations only fire on theme change.
+    // Observe <html class="dark"> toggles. This is the single source of
+    // truth for our theme, since next-themes uses class="dark" on <html>
+    // (attribute="class" in ThemeProvider). We don't rely solely on
+    // `resolvedTheme` because that can lag behind the DOM on first paint.
     const observer = new MutationObserver(apply);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class"],
     });
 
-    return () => {
-      observer.disconnect();
-      // On unmount, restore the manifest's default so a stale dark value
-      // doesn't persist through a full page reload (e.g. HMR, back/forward
-      // cache) before this effect remounts.
-      meta!.setAttribute("content", LIGHT);
-    };
+    return () => observer.disconnect();
   }, [resolvedTheme]);
 
   return null;
