@@ -26,7 +26,7 @@ export type GoalFormValues = {
 
 const label = "mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500";
 const field =
-  "w-full rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-[15px] text-[var(--foreground)] outline-none transition-colors focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.04] dark:focus:border-white/30";
+  "w-full min-h-11 rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-[16px] text-[var(--foreground)] outline-none transition-colors focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.04] dark:focus:border-white/30 sm:text-[15px]";
 
 export function GoalEditorModal({
   initial,
@@ -75,19 +75,19 @@ export function GoalEditorModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[300] flex items-end justify-center bg-black/50 backdrop-blur-md animate-in fade-in duration-200 sm:items-center sm:p-4"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-black/10 bg-[#f8f5ef] p-7 shadow-2xl animate-in zoom-in-95 duration-200 dark:border-white/10 dark:bg-[#15151c] sm:p-9">
+      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-black/10 bg-[#f8f5ef] p-5 shadow-2xl animate-in zoom-in-95 duration-200 dark:border-white/10 dark:bg-[#15151c] sm:rounded-[28px] sm:p-9">
         {step === "wish" ? (
-          <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+          <div className="space-y-5 animate-in fade-in slide-in-from-left-4 sm:space-y-6">
             <div>
               <h3
-                className={`${SERIF} text-3xl font-medium tracking-tight text-[var(--foreground)]`}
+                className={`${SERIF} text-2xl font-medium tracking-tight text-[var(--foreground)] sm:text-3xl`}
               >
                 {initial ? "Edit goal" : "Wish & Outcome"}
               </h3>
-              <p className="mt-2 text-[14px] text-zinc-500 dark:text-zinc-400">
+              <p className="mt-2 text-[13px] text-zinc-500 dark:text-zinc-400 sm:text-[14px]">
                 {initial
                   ? "Refine the goal."
                   : "Start with what you want, and what the best possible outcome looks like."}
@@ -120,8 +120,14 @@ export function GoalEditorModal({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-5">
-              <div>
+            {/*
+              On mobile the Horizon / Cadence pair stacks so the labels and
+              pickers have full width. On sm+ they share a two-column row.
+              min-w-0 on each cell prevents the picker/sanctuary select from
+              pushing its sibling out of the grid.
+            */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+              <div className="min-w-0">
                 <label className={label}>Horizon</label>
                 <div className="flex h-[46px] items-center">
                   <CustomDatePicker
@@ -132,7 +138,7 @@ export function GoalEditorModal({
                   />
                 </div>
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className={label}>Review Cadence</label>
                 <SanctuarySelect<ReviewCycle>
                   value={reviewCycle}
@@ -143,9 +149,18 @@ export function GoalEditorModal({
               </div>
             </div>
 
+            {/*
+              Colour & Category:
+              - Mobile: swatches on their own row, category select on the next
+                row, both full width. This was the "Personal dropdown way too
+                far to the right" issue — the previous fixed-width category
+                column next to 5 swatches didn't leave room on narrow screens.
+              - sm+: back to side-by-side with the swatches taking the natural
+                space they need and the select getting a comfortable minimum.
+            */}
             <div>
               <label className={label}>Colour & Category</label>
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div className="flex gap-2">
                   {Object.entries(GOAL_COLORS).map(([key, c]) => (
                     <button
@@ -153,7 +168,7 @@ export function GoalEditorModal({
                       type="button"
                       aria-label={c.label}
                       onClick={() => setColor(key)}
-                      className={`h-8 w-8 rounded-full transition-transform ${
+                      className={`h-9 w-9 touch-manipulation rounded-full transition-transform focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8f5ef] dark:focus-visible:ring-offset-[#15151c] ${
                         color === key
                           ? "scale-110 ring-2 ring-offset-2 ring-offset-[#f8f5ef] dark:ring-offset-[#15151c]"
                           : "opacity-70 hover:opacity-100"
@@ -162,7 +177,7 @@ export function GoalEditorModal({
                     />
                   ))}
                 </div>
-                <div className="w-[150px]">
+                <div className="w-full min-w-0 sm:w-auto sm:min-w-[140px]">
                   <SanctuarySelect<string>
                     value={category}
                     options={GOAL_CATEGORIES.map((c) => ({ value: c, label: c }))}
@@ -173,11 +188,11 @@ export function GoalEditorModal({
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 sm:pt-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-black/5 dark:hover:bg-white/10"
+                className="min-h-11 rounded-full px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-black/5 dark:hover:bg-white/10"
               >
                 Cancel
               </button>
@@ -186,17 +201,17 @@ export function GoalEditorModal({
                   type="button"
                   onClick={() => submit(false)}
                   disabled={!title.trim() || saving}
-                  className="rounded-full bg-[var(--foreground)] px-6 py-2.5 text-sm font-semibold text-[var(--background)] shadow-md transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
+                  className="min-h-11 rounded-full bg-[var(--foreground)] px-6 py-2.5 text-sm font-semibold text-[var(--background)] shadow-md transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
                 >
                   Save changes
                 </button>
               ) : (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => submit(true)}
                     disabled={!title.trim() || saving}
-                    className="rounded-full px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-black/5 dark:hover:bg-white/10"
+                    className="min-h-11 rounded-full px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-black/5 dark:hover:bg-white/10"
                   >
                     Skip the ritual
                   </button>
@@ -204,7 +219,7 @@ export function GoalEditorModal({
                     type="button"
                     onClick={() => setStep("plan")}
                     disabled={!title.trim()}
-                    className="rounded-full bg-[var(--foreground)] px-6 py-2.5 text-sm font-semibold text-[var(--background)] shadow-md transition-all hover:opacity-90 flex items-center gap-2"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-2.5 text-sm font-semibold text-[var(--background)] shadow-md transition-all hover:opacity-90"
                   >
                     Next <ArrowRight className="w-4 h-4" />
                   </button>
@@ -213,14 +228,14 @@ export function GoalEditorModal({
             </div>
           </div>
         ) : (
-          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+          <div className="space-y-5 animate-in fade-in slide-in-from-right-4 sm:space-y-6">
             <div>
               <h3
-                className={`${SERIF} text-3xl font-medium tracking-tight text-[var(--foreground)]`}
+                className={`${SERIF} text-2xl font-medium tracking-tight text-[var(--foreground)] sm:text-3xl`}
               >
                 Obstacle & If-Then
               </h3>
-              <p className="mt-2 text-[14px] text-zinc-500 dark:text-zinc-400">
+              <p className="mt-2 text-[13px] text-zinc-500 dark:text-zinc-400 sm:text-[14px]">
                 Name the main obstacle, then write the plan that gets past it.
               </p>
             </div>
@@ -228,7 +243,7 @@ export function GoalEditorModal({
             <div>
               <label className={label}>The Obstacle (when / where)</label>
               <div className="relative">
-                <span className="absolute left-4 top-3 text-[15px] font-semibold text-zinc-400">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-zinc-400">
                   If
                 </span>
                 <input
@@ -244,7 +259,7 @@ export function GoalEditorModal({
             <div>
               <label className={label}>The Action</label>
               <div className="relative">
-                <span className="absolute left-4 top-3 text-[15px] font-semibold text-zinc-400">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-zinc-400">
                   Then I will
                 </span>
                 <input
@@ -263,7 +278,7 @@ export function GoalEditorModal({
                 type="checkbox"
                 checked={makeRepeat}
                 onChange={(e) => setMakeRepeat(e.target.checked)}
-                className="w-4 h-4 rounded border-zinc-300 text-[var(--foreground)] focus:ring-[var(--foreground)]"
+                className="h-4 w-4 rounded border-zinc-300 text-[var(--foreground)] focus:ring-[var(--foreground)]"
               />
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-[var(--foreground)]">
@@ -275,11 +290,11 @@ export function GoalEditorModal({
               </div>
             </label>
 
-            <div className="flex justify-between items-center pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 sm:pt-4">
               <button
                 type="button"
                 onClick={() => setStep("wish")}
-                className="rounded-full px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-black/5 dark:hover:bg-white/10"
+                className="min-h-11 rounded-full px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-black/5 dark:hover:bg-white/10"
               >
                 Back
               </button>
@@ -287,7 +302,7 @@ export function GoalEditorModal({
                 type="button"
                 onClick={() => submit(false)}
                 disabled={saving}
-                className="rounded-full bg-[var(--foreground)] px-6 py-2.5 text-sm font-semibold text-[var(--background)] shadow-md transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
+                className="min-h-11 rounded-full bg-[var(--foreground)] px-6 py-2.5 text-sm font-semibold text-[var(--background)] shadow-md transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
               >
                 {trigger.trim() && action.trim() ? "Create goal & plan" : "Create goal"}
               </button>

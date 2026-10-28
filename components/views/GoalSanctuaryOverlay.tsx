@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Sparkles, ChevronRight, ArrowLeft, BookOpen } from "lucide-react";
+import { X, Plus, Sparkles, ChevronRight, ArrowLeft, BookOpen, Trash2, RotateCcw } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -21,7 +21,7 @@ import { QuarterlyReviewWizard } from "@/components/views/sanctuary/QuarterlyRev
 import { AnnualReviewWizard } from "@/components/views/sanctuary/AnnualReviewWizard";
 import { AnnualReviewExport } from "@/components/views/sanctuary/AnnualReviewExport";
 
-type SanctuaryTab = "goals" | "align" | "checkin" | "review" | "year";
+type SanctuaryTab = "goals" | "align" | "week" | "quarter" | "year";
 
 export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const sessionId = useGuestSession();
@@ -30,10 +30,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
 
   const quarterlyStatus = useQuery(api.quarterly.isQuarterlyReviewDue, { sessionId: sessionId ?? undefined });
   const solsticeStatus = useQuery(api.annual.isSolsticeReviewDue, { sessionId: sessionId ?? undefined });
-
-  // Historical annual reviews (completed only), for the Past years picker.
-  // Rendered only inside the Year tab and only when there's at least one prior
-  // year — the current year is handled by the main Year UI.
   const completedAnnualReviews = useQuery(
     api.annual.listCompletedAnnualReviews,
     { sessionId: sessionId ?? undefined }
@@ -55,16 +51,9 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     goal: null,
   });
   const [pendingDelete, setPendingDelete] = useState<any | null>(null);
-  // True when the user explicitly starts / re-opens the annual review outside
-  // of the solstice window (testing, early start, or editing a completed year).
   const [annualForced, setAnnualForced] = useState(false);
-  // Set when the user opens a past year from the "Past years" picker. When set,
-  // the Year tab renders the wizard in read-only mode for that periodKey, with
-  // a banner to return to the current year.
   const [historicalPeriodKey, setHistoricalPeriodKey] = useState<string | null>(null);
 
-  // Lets the quarterly review genuinely wait for the goal editor: the promise
-  // returned from onAdjustGoal resolves when the editor is saved or closed.
   const adjustResolver = useRef<(() => void) | null>(null);
 
   const closeEditor = () => {
@@ -78,6 +67,22 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Set a data attribute on <html> while the overlay is open so globals.css
+  // can repaint the body background with the Sanctuary's cream/dark palette
+  // — that's what fixes the top-of-screen safe-area line inside the Goals
+  // tab (it was painting the task UI's white/near-black instead).
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (isOpen) {
+      document.documentElement.setAttribute("data-sanctuary", "open");
+    } else {
+      document.documentElement.removeAttribute("data-sanctuary");
+    }
+    return () => {
+      document.documentElement.removeAttribute("data-sanctuary");
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -94,8 +99,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   }, [isOpen]);
 
-  // Leaving the Year tab always drops the "forced" early/edit mode and the
-  // historical review view.
   useEffect(() => {
     if (activeTab !== "year") {
       setAnnualForced(false);
@@ -103,7 +106,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   }, [activeTab]);
 
-  // One-step-back navigation, shared by the Back button and Escape.
   const goBackOneLevel = () => {
     if (openGoalId) setOpenGoalId(null);
     else if (activeTab !== "goals") setActiveTab("goals");
@@ -136,22 +138,11 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   const openGoal = openGoalId ? goals.find((g) => g._id === openGoalId) : null;
   const reviewDue = quarterlyStatus?.due;
 
-  // At the top level the button closes the Sanctuary. Anywhere deeper (an open
-  // goal, or any tab other than Goals) it steps back instead, so a stray click
-  // while in the middle of a review never throws you out of the Sanctuary.
   const atHome = !openGoal && activeTab === "goals";
 
-  // Annual review period: prefer the server's key; fall back to the current
-  // year's solstice key so the review can be started/tested at any time.
   const annualPeriodKey =
     solsticeStatus?.periodKey || `${new Date().getFullYear()}-solstice`;
 
-  // The periodKey the Year tab should render. When browsing a past year, it's
-  // the historical key; otherwise it's the current-year key.
-  const effectiveYearKey = historicalPeriodKey ?? annualPeriodKey;
-
-  // Past years: completed reviews for this session, excluding whichever year
-  // is currently active (so we don't duplicate the current year card).
   const pastYears =
     (completedAnnualReviews ?? []).filter((r) => r.periodKey !== annualPeriodKey);
 
@@ -210,35 +201,68 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   };
 
-  // IMPORTANT: this is a plain render function, NOT a component.
-  // Declaring it as a component inside the overlay made React remount every
-  // row on each re-render, which swallowed clicks.
-  //
-  // Now rendered inside a responsive grid (1 / 2 / 3 columns) so the paused,
-  // completed, and retired sections read as tidy card grids instead of one
-  // long full-width row per goal.
+  const handleReactivate = async (goal: any) => {
+    try {
+      await updateGoal({ id: goal._id as Id<"goals">, status: "active" });
+    } catch (err) {
+      console.error("Could not reactivate goal:", err);
+    }
+  };
+
+  // Row for paused / completed / retired goals. Now exposes two actions
+  // inline (Reactivate, Delete) so you no longer have to open the goal to
+  // manage it — previously only active goals had a delete affordance.
   const renderInactiveGoalRow = (goal: any) => (
-    <button
+    <div
       key={goal._id}
-      type="button"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setOpenGoalId(goal._id);
-      }}
-      className="group relative flex min-h-11 w-full min-w-0 cursor-pointer touch-manipulation items-center justify-between gap-3 rounded-xl border border-black/[0.06] bg-white/40 px-4 py-3 text-left outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-black/[0.1] hover:bg-white/70 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-[0.995] dark:border-white/[0.08] dark:bg-white/[0.02] dark:hover:border-white/[0.14] dark:hover:bg-white/[0.05]"
+      className="group relative flex min-h-11 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-black/[0.06] bg-white/40 px-3 py-2 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-black/[0.1] hover:bg-white/70 hover:shadow-sm dark:border-white/[0.08] dark:bg-white/[0.02] dark:hover:border-white/[0.14] dark:hover:bg-white/[0.05]"
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpenGoalId(goal._id);
+        }}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 rounded-md py-1"
+      >
         <span
           className="h-2 w-2 shrink-0 rounded-full opacity-70"
           style={{ background: goalHex(goal.color) }}
         />
-        <span className={`${SERIF} truncate text-[15px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400 dark:group-hover:text-[var(--foreground)]`}>
+        <span className={`${SERIF} min-w-0 truncate text-[15px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400 dark:group-hover:text-[var(--foreground)]`}>
           {goal.title}
         </span>
+      </button>
+      <div className="flex shrink-0 items-center gap-0.5">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleReactivate(goal);
+          }}
+          aria-label="Reactivate goal"
+          title="Reactivate"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-black/5 hover:text-[var(--foreground)] active:bg-black/5 dark:hover:bg-white/10 dark:active:bg-white/10 sm:h-8 sm:w-8"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setPendingDelete(goal);
+          }}
+          aria-label="Delete goal"
+          title="Delete"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500 active:bg-red-500/10 dark:hover:bg-red-500/10 dark:active:bg-red-500/10 sm:h-8 sm:w-8"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 motion-reduce:transition-none" />
-    </button>
+    </div>
   );
 
   const tabClass = (tab: SanctuaryTab) =>
@@ -249,7 +273,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }`;
 
   const yearHeading = (title: string) => (
-    <h1 className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
+    <h1 className={`${SERIF} text-4xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
       {title}
     </h1>
   );
@@ -260,9 +284,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_8%,rgba(236,72,153,0.11),transparent)]" />
 
       <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
-        {/* Header: safe-area aware on all four sides so the close/back button,
-            section nav, and "The Sanctuary" label never collide with the
-            notch, dynamic island, or rounded display corners. */}
         <div className="flex flex-wrap items-center justify-between gap-y-3 px-[max(1.5rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-10 sm:pt-9">
           <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
             The Sanctuary
@@ -281,7 +302,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
             <button
               type="button"
               onClick={goBackOneLevel}
-              aria-label="Back to goals"
+              aria-label="Back"
               className="order-2 inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium text-zinc-500 outline-none transition-all hover:bg-black/5 hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-95 motion-reduce:transition-none dark:hover:bg-white/10 sm:order-3"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -307,16 +328,17 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 Align
               </button>
               <button
-                onClick={() => setActiveTab("checkin")}
-                className={`${tabClass("checkin")} inline-flex min-h-11 touch-manipulation items-center`}
+                onClick={() => setActiveTab("week")}
+                className={`relative flex min-h-11 touch-manipulation items-center gap-1.5 ${tabClass("week")}`}
               >
-                Check-in
+                Week
+                {(reviewDue || (quarterlyStatus?.due)) && false}
               </button>
               <button
-                onClick={() => setActiveTab("review")}
-                className={`relative flex min-h-11 touch-manipulation items-center gap-1.5 ${tabClass("review")}`}
+                onClick={() => setActiveTab("quarter")}
+                className={`relative flex min-h-11 touch-manipulation items-center gap-1.5 ${tabClass("quarter")}`}
               >
-                Review
+                Quarter
                 {reviewDue && (
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" />
                 )}
@@ -334,13 +356,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           )}
         </div>
 
-        {/* Scroll body: horizontal + bottom safe-area insets so cards, lists,
-            and the wizard footer never slide under the home indicator or the
-            display's rounded corners. `overscroll-contain` keeps the rubber-
-            band from propagating to the page behind the portal. */}
-        <div
-          className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-[max(1.5rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-8 pb-[max(7rem,calc(4rem+env(safe-area-inset-bottom)))] sm:px-10"
-        >
+        <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-[max(1.5rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-8 pb-[max(7rem,calc(4rem+env(safe-area-inset-bottom)))] sm:px-10">
           {openGoal ? (
             <GoalChapter
               goal={openGoal}
@@ -358,9 +374,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           ) : activeTab === "goals" ? (
             <div className="animate-in fade-in duration-500 motion-reduce:animate-none">
               <header className="max-w-3xl">
-                <h1
-                  className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}
-                >
+                <h1 className={`${SERIF} text-4xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
                   Where you&rsquo;re headed.
                 </h1>
                 <p className="mt-5 text-[15px] text-zinc-500 dark:text-zinc-400">
@@ -445,13 +459,13 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
             </div>
           ) : activeTab === "align" ? (
             <AlignScreen sessionId={sessionId ?? undefined} />
-          ) : activeTab === "checkin" ? (
+          ) : activeTab === "week" ? (
             <CheckInWizard
               sessionId={sessionId ?? undefined}
               goals={activeGoals}
               onFinish={() => setActiveTab("goals")}
             />
-          ) : activeTab === "review" ? (
+          ) : activeTab === "quarter" ? (
             <QuarterlyReviewWizard
               sessionId={sessionId ?? undefined}
               onFinish={() => setActiveTab("goals")}
@@ -467,8 +481,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 motion-reduce:animate-none" />
             </div>
           ) : historicalPeriodKey ? (
-            // Read-only view of a past year. The banner makes it obvious you're
-            // not looking at the current year, with a one-click way back.
             <div className="mx-auto flex w-full max-w-3xl flex-col">
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/[0.06] bg-white/40 px-4 py-3 dark:border-white/[0.08] dark:bg-white/[0.02]">
                 <span className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-300">

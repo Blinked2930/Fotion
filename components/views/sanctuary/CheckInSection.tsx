@@ -4,7 +4,17 @@ import { useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { SERIF, describeWeekKey, ratingColor, scaleLongLabel, scaleShortLabel } from "./theme";
+import {
+    SERIF,
+    describeWeekKey,
+    ratingColor,
+    ratingPillClass,
+    ratingPillStyle,
+    ratingTextColor,
+    RATING_VALUES,
+    scaleLongLabel,
+    scaleShortLabel,
+} from "./theme";
 
 export function CheckInSection({
     goal,
@@ -66,7 +76,9 @@ export function CheckInSection({
     return (
         <div>
             <div className="mb-5 flex items-baseline justify-between">
-                <h3 className={`${SERIF} text-2xl font-medium text-[var(--foreground)]`}>Check-ins</h3>
+                <h3 className={`${SERIF} text-xl font-medium text-[var(--foreground)] sm:text-2xl`}>
+                    Check-ins
+                </h3>
                 <span className="text-[12px] text-zinc-500">
                     {existingThisWeek ? "Editing this week" : `Week ${currentWeek.slice(5)}`}
                 </span>
@@ -74,29 +86,37 @@ export function CheckInSection({
 
             <Sparkline entries={timeline} />
 
-            <div className="mt-6 space-y-4 rounded-2xl border border-black/[0.06] bg-white/40 p-5 dark:border-white/[0.08] dark:bg-white/[0.02]">
+            <div className="mt-6 space-y-4 rounded-2xl border border-black/[0.06] bg-white/40 p-4 dark:border-white/[0.08] dark:bg-white/[0.02] sm:p-5">
                 <div>
                     <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                         This week
                     </div>
+                    {/*
+                      Shared rating primitive, `size="sm"` for the denser card
+                      context. Same shape, colors, and selected state as the
+                      weekly check-in wizard and the quarterly review wizard.
+                      Long custom scale text is shown BELOW the row in the
+                      italic line, not crammed into the pill — that was the
+                      unreadable bit the user flagged.
+                    */}
                     <div className="flex flex-wrap gap-1.5">
-                        {[-2, -1, 0, 1, 2].map((r) => {
+                        {RATING_VALUES.map((r) => {
                             const selected = rating === r;
-                            const label = scaleLongLabel(r + 2, scale[r + 2]);
                             return (
                                 <button
                                     key={r}
                                     type="button"
                                     onClick={() => setRating(r)}
-                                    title={label}
-                                    className={`flex min-w-10 items-center justify-center rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors ${
-                                        selected
-                                            ? "border-transparent text-white shadow-sm"
-                                            : "border-black/10 bg-white/60 text-zinc-600 hover:bg-white dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300"
-                                    }`}
-                                    style={selected ? { background: ratingColor(r) } : undefined}
+                                    title={scaleLongLabel(r + 2, scale[r + 2])}
+                                    className={ratingPillClass(selected, "sm")}
+                                    style={ratingPillStyle(selected, r)}
                                 >
-                                    {scaleShortLabel(r + 2)}
+                                    <span
+                                        className="text-[12px] font-bold leading-none sm:text-[13px]"
+                                        style={selected ? { color: ratingTextColor(r) } : undefined}
+                                    >
+                                        {scaleShortLabel(r + 2)}
+                                    </span>
                                 </button>
                             );
                         })}
@@ -115,7 +135,7 @@ export function CheckInSection({
                         value={obstacle}
                         onChange={(e) => setObstacle(e.target.value)}
                         placeholder="What got in the way?"
-                        className="w-full rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-[14px] text-[var(--foreground)] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.03] dark:focus:border-white/30"
+                        className="min-h-11 w-full rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-[15px] text-[var(--foreground)] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.03] dark:focus:border-white/30 sm:text-[14px]"
                     />
                 </label>
 
@@ -128,7 +148,7 @@ export function CheckInSection({
                         value={nextAction}
                         onChange={(e) => setNextAction(e.target.value)}
                         placeholder="One concrete thing for next week"
-                        className="w-full rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-[14px] text-[var(--foreground)] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.03] dark:focus:border-white/30"
+                        className="min-h-11 w-full rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-[15px] text-[var(--foreground)] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.03] dark:focus:border-white/30 sm:text-[14px]"
                     />
                 </label>
 
@@ -141,7 +161,7 @@ export function CheckInSection({
                         onChange={(e) => setNote(e.target.value)}
                         rows={2}
                         placeholder="Anything worth remembering"
-                        className="w-full resize-none rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-[14px] text-[var(--foreground)] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.03] dark:focus:border-white/30"
+                        className="w-full resize-none rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-[15px] text-[var(--foreground)] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.03] dark:focus:border-white/30 sm:text-[14px]"
                     />
                 </label>
 
@@ -152,7 +172,7 @@ export function CheckInSection({
                         type="button"
                         onClick={submit}
                         disabled={saving}
-                        className="rounded-full bg-[var(--foreground)] px-5 py-2 text-[13px] font-semibold text-[var(--background)] shadow-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                        className="min-h-11 rounded-full bg-[var(--foreground)] px-5 py-2 text-[13px] font-semibold text-[var(--background)] shadow-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
                     >
                         {saving ? "Saving…" : existingThisWeek ? "Update this week" : "Save check-in"}
                     </button>

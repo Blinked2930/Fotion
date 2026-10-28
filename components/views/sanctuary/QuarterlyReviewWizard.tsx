@@ -4,7 +4,16 @@ import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { SERIF, goalHex, ratingColor, ratingTextColor, scaleShortLabel, formatMinutes } from "./theme";
+import {
+  SERIF,
+  goalHex,
+  ratingPillClass,
+  ratingPillStyle,
+  ratingTextColor,
+  RATING_VALUES,
+  scaleShortLabel,
+  formatMinutes,
+} from "./theme";
 import { ArrowRight, Target, Clock, TrendingUp, AlertTriangle, CheckCircle2, PauseCircle, XCircle } from "lucide-react";
 
 type Decision = "keep" | "adjust" | "pause" | "complete" | "retire";
@@ -114,25 +123,20 @@ export function QuarterlyReviewWizard({
     }
   };
 
-  const scale = Array.isArray(goal.scale) && goal.scale.length === 5 ? goal.scale : ["", "", "", "", ""];
-
   return (
     <div className="mx-auto flex w-full max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-500 flex-col">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
-          Quarterly Review · {periodKey}
-          <span className="block text-[10px] normal-case tracking-normal text-zinc-400 mt-0.5">
-            Goal {currentIndex + 1} of {goals.length}
+      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3 sm:mb-8">
+        <div className="flex flex-col">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Quarterly review
           </span>
-        </span>
-        <div className="hidden gap-1 sm:flex">
-          {goals.map((_, i) => (
-            <span
-              key={i}
-              className={`h-1.5 w-6 rounded-full ${i === currentIndex ? "bg-[var(--foreground)]" : i < currentIndex ? "bg-zinc-400" : "bg-zinc-200 dark:bg-zinc-800"}`}
-            />
-          ))}
+          <span className={`${SERIF} mt-1 text-2xl font-medium text-[var(--foreground)] sm:text-3xl`}>
+            {periodKey}
+          </span>
         </div>
+        <span className="text-[12px] font-medium tabular-nums text-zinc-500">
+          Goal {currentIndex + 1} of {goals.length}
+        </span>
       </div>
 
       <div className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
@@ -148,7 +152,6 @@ export function QuarterlyReviewWizard({
         </p>
       )}
 
-      {/* Metric strip — stacks gracefully on narrow screens */}
       <div className="mt-6 grid grid-cols-1 gap-3 rounded-2xl border border-black/[0.06] bg-white/40 p-4 dark:border-white/[0.08] dark:bg-white/[0.02] sm:mt-10 sm:grid-cols-3 sm:gap-4 sm:p-5">
         <div>
           <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -172,9 +175,10 @@ export function QuarterlyReviewWizard({
           </div>
           <div className="mt-1.5 flex items-center gap-1 sm:mt-2">
             {current.ratingTrend.length > 0 ? (
-              current.ratingTrend.map((r: any, i: number) => (
-                <span key={i} className="h-2 w-2 rounded-full" style={{ background: ratingColor(r.rating) }} />
-              ))
+              current.ratingTrend.map((r: any, i: number) => {
+                const c = r.rating <= -2 ? "#dc2626" : r.rating === -1 ? "#ea580c" : r.rating === 0 ? "#71717a" : r.rating === 1 ? "#16a34a" : "#047857";
+                return <span key={i} className="h-2 w-2 rounded-full" style={{ background: c }} />;
+              })
             ) : (
               <span className="text-[13px] text-zinc-500">No check-ins</span>
             )}
@@ -201,49 +205,27 @@ export function QuarterlyReviewWizard({
           Overall rating this quarter
         </label>
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
-          {[-2, -1, 0, 1, 2].map((r) => {
+          {RATING_VALUES.map((r) => {
             const selected = currentDecision.rating === r;
             return (
               <button
                 key={r}
                 onClick={() => handleRatingChange(r)}
-                className={`flex min-h-[44px] flex-1 min-w-0 flex-col items-center justify-center rounded-xl border px-2 py-2 transition-all active:scale-[0.97] sm:min-w-12 sm:flex-none sm:rounded-2xl sm:px-4 sm:py-3 ${
-                  selected
-                    ? "border-transparent shadow-md sm:scale-105"
-                    : "border-black/10 bg-white/60 text-zinc-600 hover:bg-white dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300"
-                }`}
-                style={
-                  selected
-                    ? { background: ratingColor(r), color: ratingTextColor(r) }
-                    : undefined
-                }
+                className={ratingPillClass(selected, "sm")}
+                style={ratingPillStyle(selected, r)}
               >
                 <span
-                  className="text-base font-bold leading-none sm:text-xl"
+                  className="text-sm font-bold leading-none sm:text-base"
                   style={selected ? { color: ratingTextColor(r) } : undefined}
                 >
                   {scaleShortLabel(r + 2)}
                 </span>
-                {scale[r + 2] && (
-                  <span
-                    className="mt-0.5 line-clamp-1 text-center text-[9px] font-medium opacity-90 sm:mt-1 sm:text-[10px]"
-                    style={selected ? { color: ratingTextColor(r) } : undefined}
-                  >
-                    {scale[r + 2]}
-                  </span>
-                )}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/*
-        Decision buttons are intentionally SMALLER than the rating buttons.
-        Previously they were tall cards with h-5 icons which read as
-        overbearing, especially on mobile. Now they're compact pills that
-        stack in a 2x3 / 3x2 grid at narrow widths and a single row on sm+.
-      */}
       <div className="mt-8 sm:mt-10">
         <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
           Decision for next quarter
@@ -262,7 +244,7 @@ export function QuarterlyReviewWizard({
               <button
                 key={opt.id}
                 onClick={() => handleDecisionChange(opt.id)}
-                className={`flex min-h-[40px] touch-manipulation items-center justify-center gap-1.5 rounded-full border px-2 py-1.5 text-[12px] font-semibold transition-all active:scale-[0.97] sm:min-h-[44px] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px] ${
+                className={`flex min-h-[40px] touch-manipulation items-center justify-center gap-1.5 rounded-xl border px-2 py-1.5 text-[12px] font-semibold transition-all active:scale-[0.97] sm:min-h-[44px] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px] ${
                   selected
                     ? "border-[var(--foreground)] bg-[var(--foreground)] text-[var(--background)]"
                     : "border-black/10 bg-white/60 text-zinc-600 hover:bg-white dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300"
@@ -289,7 +271,7 @@ export function QuarterlyReviewWizard({
           disabled={isSaving || isAdjusting}
           className="flex items-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-2.5 text-sm font-semibold text-[var(--background)] shadow-lg transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 sm:px-8 sm:py-3"
         >
-          {isSaving ? "Saving..." : isAdjusting ? "Waiting for edits..." : isLast ? "Finish Review" : "Next Goal"}{" "}
+          {isSaving ? "Saving..." : isAdjusting ? "Waiting for edits..." : isLast ? "Finish review" : "Next goal"}{" "}
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>

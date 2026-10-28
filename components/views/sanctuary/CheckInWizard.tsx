@@ -4,7 +4,15 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { SERIF, goalHex, ratingColor, ratingTextColor, scaleLongLabel, scaleShortLabel } from "./theme";
+import {
+  SERIF,
+  goalHex,
+  ratingPillClass,
+  ratingPillStyle,
+  ratingTextColor,
+  RATING_VALUES,
+  scaleShortLabel,
+} from "./theme";
 import { ArrowRight, Check } from "lucide-react";
 
 export function CheckInWizard({
@@ -43,10 +51,6 @@ export function CheckInWizard({
 
   const currentGoal = goals[currentIndex];
   const isLast = currentIndex === goals.length - 1;
-  const scale =
-    Array.isArray(currentGoal.scale) && currentGoal.scale.length === 5
-      ? currentGoal.scale
-      : ["", "", "", "", ""];
 
   const handleNext = async () => {
     setIsSaving(true);
@@ -92,10 +96,10 @@ export function CheckInWizard({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
         <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
           <span className="sm:hidden">
-            Step {currentIndex + 1} / {goals.length}
+            Week check-in · {currentIndex + 1} / {goals.length}
           </span>
           <span className="hidden sm:inline">
-            Weekly Check-in ({currentIndex + 1} of {goals.length})
+            Weekly check-in · {currentIndex + 1} of {goals.length}
           </span>
         </span>
         <div className="hidden gap-1 sm:flex">
@@ -134,41 +138,26 @@ export function CheckInWizard({
             How did this week go?
           </label>
           {/*
-            The rating buttons render white text on a coloured background when
-            selected. ratingColor() returns darker tones now (red-600, etc.),
-            so the white text is legible. We also add an inner white ring on
-            the selected button so the label reads clearly against any custom
-            scale text the user writes.
+            Shared rating primitive: identical shape to the check-in section
+            inside a goal chapter and to the quarterly review rating row.
+            Only the short -2..+2 label is shown; the long custom text is
+            dropped because it was unreadable at small sizes.
           */}
           <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
-            {[-2, -1, 0, 1, 2].map((r) => {
+            {RATING_VALUES.map((r) => {
               const selected = rating === r;
               return (
                 <button
                   key={r}
                   onClick={() => setRating(r)}
-                  className={`flex min-h-[52px] min-w-0 touch-manipulation flex-col items-center justify-center rounded-xl border px-1 py-2 transition-all active:scale-[0.97] sm:min-w-12 sm:rounded-2xl sm:px-4 sm:py-3 ${
-                    selected
-                      ? "border-transparent shadow-md sm:scale-105"
-                      : "border-black/10 bg-white/60 text-zinc-600 hover:bg-white dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300"
-                  }`}
-                  style={
-                    selected
-                      ? { background: ratingColor(r), color: ratingTextColor(r) }
-                      : undefined
-                  }
+                  className={ratingPillClass(selected, "md")}
+                  style={ratingPillStyle(selected, r)}
                 >
                   <span
                     className="text-base font-bold leading-none sm:text-xl"
                     style={selected ? { color: ratingTextColor(r) } : undefined}
                   >
                     {scaleShortLabel(r + 2)}
-                  </span>
-                  <span
-                    className="mt-1 line-clamp-2 text-center text-[9px] font-medium leading-tight opacity-90 sm:mt-1 sm:text-[10px]"
-                    style={selected ? { color: ratingTextColor(r) } : undefined}
-                  >
-                    {scaleLongLabel(r + 2, scale[r + 2])}
                   </span>
                 </button>
               );

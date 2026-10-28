@@ -58,7 +58,7 @@ export function TipTapEditor({ content = "", onChange, placeholder = "Start typi
             const text = view.state.doc.textContent;
             const lastSlash = text.lastIndexOf("/");
             const query = text.slice(lastSlash + 1);
-            
+
             if (lastSlash === -1 || query.length <= 1) {
               setSlashMenu({ show: false, query: "" });
             } else {
@@ -113,9 +113,19 @@ export function TipTapEditor({ content = "", onChange, placeholder = "Start typi
 
   return (
     <div className="relative">
+      {/*
+        - bg-[var(--background)] / border-[var(--border)] so the editor is
+          readable in dark mode (previously hardcoded bg-white).
+        - [&_.ProseMirror>*:first-child]:mt-0 kills the prose top margin on
+          the first paragraph, so the text sits at the top of the box rather
+          than floating below an invisible gap. This was the "text sits too
+          low in the yearly review" issue.
+        - [&_.ProseMirror]:outline-none so the browser focus ring doesn't
+          add a 1px white inset on top of our focus-within ring.
+      */}
       <EditorContent
         editor={editor}
-        className="prose prose-zinc max-w-none min-h-[200px] p-4 bg-white rounded-lg border border-zinc-200 focus-within:border-zinc-400 focus-within:ring-1 focus-within:ring-zinc-400 outline-none [&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]_li]:flex [&_ul[data-type=taskList]_li_label]:mr-2 [&_ul[data-type=taskList]_li>div]:flex-1"
+        className="prose prose-zinc dark:prose-invert max-w-none min-h-[200px] p-4 sm:p-5 bg-[var(--background)] rounded-lg border border-[var(--border)] focus-within:border-zinc-400 focus-within:ring-1 focus-within:ring-zinc-400 outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror>*:first-child]:mt-0 [&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]_li]:flex [&_ul[data-type=taskList]_li_label]:mr-2 [&_ul[data-type=taskList]_li>div]:flex-1"
       />
       {slashMenu.show && (
         <div className="absolute left-4 top-8">
