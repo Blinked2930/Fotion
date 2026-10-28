@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Sparkles } from "lucide-react";
+import { X, Plus, Sparkles, ChevronRight } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -14,7 +14,7 @@ import { GoalCard } from "@/components/views/sanctuary/GoalCard";
 import { GoalChapter } from "@/components/views/sanctuary/GoalChapter";
 import { GoalEditorModal, type GoalFormValues } from "@/components/views/sanctuary/GoalEditorModal";
 import { SanctuaryConfirmModal } from "@/components/views/sanctuary/SanctuaryConfirmModal";
-import { SERIF, SOFT_GOAL_CAP, needsReview } from "@/components/views/sanctuary/theme";
+import { SERIF, SOFT_GOAL_CAP, needsReview, goalHex } from "@/components/views/sanctuary/theme";
 import { AlignScreen } from "@/components/views/sanctuary/AlignScreen";
 import { CheckInWizard } from "@/components/views/sanctuary/CheckInWizard";
 import { QuarterlyReviewWizard } from "@/components/views/sanctuary/QuarterlyReviewWizard";
@@ -74,7 +74,9 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
 
   if (!isOpen || !mounted) return null;
 
+  // Filter the goals into their buckets
   const activeGoals = goals.filter((g) => !g.status || g.status === "active");
+  const pausedGoals = goals.filter((g) => g.status === "paused");
   const completedGoals = goals.filter((g) => g.status === "completed");
   const retiredGoals = goals.filter((g) => g.status === "retired");
   
@@ -136,6 +138,25 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       setPendingDelete(null);
     }
   };
+
+  // Helper to render the interactive rows for inactive goal states
+  const InactiveGoalRow = ({ goal, actionLabel }: { goal: any; actionLabel: string }) => (
+    <button
+      onClick={() => setOpenGoalId(goal._id)}
+      className="group flex w-full items-center justify-between rounded-xl border border-transparent px-3 py-2.5 text-left transition-all hover:border-black/[0.05] hover:bg-white/40 dark:hover:border-white/[0.05] dark:hover:bg-white/[0.02]"
+    >
+      <div className="flex items-center gap-3">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: goalHex(goal.color) }} />
+        <span className={`${SERIF} text-[16px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400`}>
+          {goal.title}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-400">{actionLabel}</span>
+        <ChevronRight className="h-4 w-4 text-zinc-400" />
+      </div>
+    </button>
+  );
 
   return createPortal(
     <div className="fixed inset-0 z-[240] animate-in fade-in duration-500">
@@ -263,39 +284,45 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 </div>
               )}
 
-              {completedGoals.length > 0 && (
+              {/* PAUSED SECTION */}
+              {pausedGoals.length > 0 && (
                 <section className="mt-16 border-t border-black/[0.07] pt-8 dark:border-white/10">
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
-                    Completed
+                    Paused
                   </h3>
-                  <ul className="mt-4 space-y-2">
-                    {completedGoals.map((g) => (
-                      <li
-                        key={g._id}
-                        className={`${SERIF} text-lg text-zinc-500 line-through decoration-zinc-400/50`}
-                      >
-                        {g.title}
-                      </li>
+                  <div className="mt-3 grid gap-1">
+                    {pausedGoals.map((g) => (
+                      <InactiveGoalRow key={g._id} goal={g} actionLabel="Resume" />
                     ))}
-                  </ul>
+                  </div>
                 </section>
               )}
 
+              {/* COMPLETED SECTION */}
+              {completedGoals.length > 0 && (
+                <section className="mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+                    Completed
+                  </h3>
+                  <div className="mt-3 grid gap-1">
+                    {completedGoals.map((g) => (
+                      <InactiveGoalRow key={g._id} goal={g} actionLabel="View" />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* RETIRED SECTION */}
               {retiredGoals.length > 0 && (
                 <section className="mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Retired
                   </h3>
-                  <ul className="mt-4 space-y-2">
+                  <div className="mt-3 grid gap-1">
                     {retiredGoals.map((g) => (
-                      <li
-                        key={g._id}
-                        className={`${SERIF} text-lg text-zinc-400 opacity-60 line-through decoration-zinc-300`}
-                      >
-                        {g.title}
-                      </li>
+                      <InactiveGoalRow key={g._id} goal={g} actionLabel="View" />
                     ))}
-                  </ul>
+                  </div>
                 </section>
               )}
             </div>
@@ -312,10 +339,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
               sessionId={sessionId ?? undefined}
               onFinish={() => setActiveTab("goals")}
               onAdjustGoal={async (goal) => {
-                // Open the editor modal, await its close, then continue
                 setEditor({ open: true, goal });
-                // The wizard will advance immediately; the modal is visual-only
-                // (data already saved via saveQuarterlyReview)
               }}
             />
           )}
