@@ -119,13 +119,30 @@ export function describeWeekKey(weekKey: string): string {
     return target.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** Map -2..+2 to a colour for the sparkline / rating chips. */
+/**
+ * Map -2..+2 to a colour for the sparkline / rating chips.
+ *
+ * Colour contrast note: these hexes previously used mid-saturation greens
+ * and oranges (#f97316, #22c55e) which disappeared when the check-in
+ * wizard rendered white text on top of them. The darker tones here
+ * (orange-600, emerald-700) all meet WCAG AA for white foreground at the
+ * text sizes used in the rating buttons.
+ */
 export function ratingColor(rating: number): string {
-    if (rating <= -2) return "#ef4444";
-    if (rating === -1) return "#f97316";
-    if (rating === 0) return "#a1a1aa";
-    if (rating === 1) return "#22c55e";
-    return "#10b981";
+    if (rating <= -2) return "#dc2626"; // red-600
+    if (rating === -1) return "#ea580c"; // orange-600
+    if (rating === 0) return "#71717a"; // zinc-500 (readable on white text)
+    if (rating === 1) return "#16a34a"; // green-600
+    return "#047857"; // emerald-700
+}
+
+/**
+ * Companion helper: returns the appropriate text color to render on top of
+ * `ratingColor(rating)`. Currently always white; kept as a helper so future
+ * palette changes stay centralized.
+ */
+export function ratingTextColor(_rating: number): string {
+    return "#ffffff";
 }
 
 // ---------------------------------------------------------------------------

@@ -6,8 +6,13 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Fotion',
     description: 'Lightning-fast task triage.',
     display: 'standalone',
-    background_color: '#191919', // Set to match your dark mode background
-    theme_color: '#191919',
+    // These paint the PWA status bar and splash screen. They were #191919
+    // (dark) even in light mode, which is why the installed app showed a
+    // black status bar over the Sanctuary's cream background. Now they
+    // match the task UI's --background so the seam disappears. The Sanctuary
+    // overlay overrides this at runtime via data-sanctuary="open".
+    background_color: '#ffffff',
+    theme_color: '#ffffff',
     icons: [
       {
         src: '/favicon.ico',
