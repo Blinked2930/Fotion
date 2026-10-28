@@ -141,15 +141,22 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   };
 
-  const InactiveGoalRow = ({ goal }: { goal: any }) => (
+  // IMPORTANT: this is a plain render function, NOT a component.
+  // Previously `InactiveGoalRow` was declared as a component inside the
+  // overlay, so every re-render (e.g. any Convex query update) created a new
+  // component type and React unmounted/remounted every row. A remount between
+  // mousedown and mouseup swallows the click, which is why rows felt
+  // "almost unclickable".
+  const renderInactiveGoalRow = (goal: any) => (
     <button
+      key={goal._id}
       type="button"
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
         setOpenGoalId(goal._id);
       }}
-      className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-transparent bg-transparent px-4 py-3 text-left outline-none pointer-events-auto transition-all duration-200 hover:border-black/[0.06] hover:bg-white/50 active:scale-[0.995] dark:hover:border-white/[0.08] dark:hover:bg-white/[0.03]"
+      className="group relative flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-transparent bg-transparent px-4 py-3 text-left outline-none transition-all duration-200 hover:border-black/[0.06] hover:bg-white/50 focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-[0.995] dark:hover:border-white/[0.08] dark:hover:bg-white/[0.03]"
     >
       <div className="flex min-w-0 items-center gap-3">
         <span
@@ -166,10 +173,10 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
 
   return createPortal(
     <div className="fixed inset-0 z-[240] animate-in fade-in duration-500">
-      <div className="absolute inset-0 bg-[#f6f2ea] dark:bg-[#0c0c12]" />
-      <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_8%,rgba(236,72,153,0.11),transparent)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[#f6f2ea] dark:bg-[#0c0c12]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_8%,rgba(236,72,153,0.11),transparent)]" />
 
-      <div className="relative mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
+      <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
         <div className="flex items-center justify-between px-6 pt-6 sm:px-10 sm:pt-9">
           <div className="flex items-center gap-6">
             <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
@@ -228,7 +235,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-28 pt-8 sm:px-10">
+        <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-28 pt-8 sm:px-10">
           {openGoal ? (
             <GoalChapter
               goal={openGoal}
@@ -299,40 +306,34 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
               )}
 
               {pausedGoals.length > 0 && (
-                <section className="mt-16 border-t border-black/[0.07] pt-8 dark:border-white/10">
+                <section className="relative z-10 mt-16 border-t border-black/[0.07] pt-8 dark:border-white/10">
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Paused
                   </h3>
                   <div className="mt-3 grid gap-1">
-                    {pausedGoals.map((g) => (
-                      <InactiveGoalRow key={g._id} goal={g} />
-                    ))}
+                    {pausedGoals.map((g) => renderInactiveGoalRow(g))}
                   </div>
                 </section>
               )}
 
               {completedGoals.length > 0 && (
-                <section className="mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
+                <section className="relative z-10 mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Completed
                   </h3>
                   <div className="mt-3 grid gap-1">
-                    {completedGoals.map((g) => (
-                      <InactiveGoalRow key={g._id} goal={g} />
-                    ))}
+                    {completedGoals.map((g) => renderInactiveGoalRow(g))}
                   </div>
                 </section>
               )}
 
               {retiredGoals.length > 0 && (
-                <section className="mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
+                <section className="relative z-10 mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Retired
                   </h3>
                   <div className="mt-3 grid gap-1">
-                    {retiredGoals.map((g) => (
-                      <InactiveGoalRow key={g._id} goal={g} />
-                    ))}
+                    {retiredGoals.map((g) => renderInactiveGoalRow(g))}
                   </div>
                 </section>
               )}
@@ -353,28 +354,41 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 setEditor({ open: true, goal });
               }}
             />
+          ) : !solsticeStatus ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600" />
+            </div>
+          ) : solsticeStatus.completed ? (
+            <div className="mx-auto flex w-full max-w-2xl flex-col">
+              <header className="max-w-3xl">
+                <h1 className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
+                  The year, in review.
+                </h1>
+                <p className="mt-5 text-[15px] text-zinc-500 dark:text-zinc-400">
+                  {solsticeStatus.periodKey} is complete. You can re-read it or export it.
+                </p>
+                <div className="mt-6">
+                  <AnnualReviewExport periodKey={solsticeStatus.periodKey} sessionId={sessionId ?? undefined} />
+                </div>
+              </header>
+            </div>
+          ) : !solsticeStatus.due || !solsticeStatus.periodKey ? (
+            <div className="mx-auto flex w-full max-w-2xl flex-col">
+              <header className="max-w-3xl">
+                <h1 className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
+                  Not yet.
+                </h1>
+                <p className={`${SERIF} mt-5 text-lg italic text-zinc-500 dark:text-zinc-400`}>
+                  The annual review happens on the winter solstice (December 21). It&rsquo;s not yet time.
+                </p>
+              </header>
+            </div>
           ) : (
-            solsticeStatus?.completed ? (
-              <div className="mx-auto flex w-full max-w-2xl flex-col">
-                <header className="max-w-3xl">
-                  <h1 className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
-                    The year, in review.
-                  </h1>
-                  <p className="mt-5 text-[15px] text-zinc-500 dark:text-zinc-400">
-                    {solsticeStatus.periodKey} is complete. You can re-read it or export it.
-                  </p>
-                  <div className="mt-6">
-                    <AnnualReviewExport periodKey={solsticeStatus.periodKey} sessionId={sessionId ?? undefined} />
-                  </div>
-                </header>
-              </div>
-            ) : (
-              <AnnualReviewWizard
-                sessionId={sessionId ?? undefined}
-                periodKey={solsticeStatus?.periodKey ?? ""}
-                onFinish={() => setActiveTab("goals")}
-              />
-            )
+            <AnnualReviewWizard
+              sessionId={sessionId ?? undefined}
+              periodKey={solsticeStatus.periodKey}
+              onFinish={() => setActiveTab("goals")}
+            />
           )}
         </div>
       </div>

@@ -21,6 +21,9 @@ export function TipTapEditor({ content = "", onChange, placeholder = "Start typi
   }>({ show: false, query: "" });
 
   const editor = useEditor({
+    // Required for Next App Router + React 19: avoids rendering the editor
+    // synchronously during SSR / portal mount (hydration mismatch / crash).
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: {
