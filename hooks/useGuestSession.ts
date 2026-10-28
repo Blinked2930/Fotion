@@ -10,11 +10,17 @@ export function useGuestSession() {
   useEffect(() => {
     if (!isLoaded) return;
 
-    // FIX: Total Admin Isolation. 
+    // FIX: Total Admin Isolation.
     // If you are signed in, nuke all guest tokens and abort.
+    // NOTE: the localStorage cleanup is deferred to a microtask so it does not
+    // run synchronously during the same tick that Clerk's sign-in modal is
+    // trying to close itself. Clearing storage synchronously here was racing
+    // the modal's close transition and leaving it stuck on its spinner.
     if (isSignedIn) {
-      localStorage.removeItem("fotion-session-id");
-      localStorage.removeItem("fotion-vip-token");
+      setTimeout(() => {
+        localStorage.removeItem("fotion-session-id");
+        localStorage.removeItem("fotion-vip-token");
+      }, 0);
       setSessionString(null);
       return;
     }
@@ -28,7 +34,7 @@ export function useGuestSession() {
 
       const vipToken = localStorage.getItem("fotion-vip-token");
       let baseId = localStorage.getItem("fotion-session-id");
-      
+
       if (vipToken) {
         if (!baseId || !baseId.startsWith("vip_guest_")) {
           baseId = `vip_guest_${Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
