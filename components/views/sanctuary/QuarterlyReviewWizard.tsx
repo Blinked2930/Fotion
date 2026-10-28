@@ -5,16 +5,18 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { SERIF, goalHex, ratingColor, scaleShortLabel, formatMinutes } from "./theme";
-import { ArrowRight, Target, Clock, TrendingUp, AlertTriangle, CheckCircle2, PauseCircle, Archive, XCircle } from "lucide-react";
+import { ArrowRight, Target, Clock, TrendingUp, AlertTriangle, CheckCircle2, PauseCircle, XCircle } from "lucide-react";
 
 type Decision = "keep" | "adjust" | "pause" | "complete" | "retire";
 
 export function QuarterlyReviewWizard({
   sessionId,
   onFinish,
+  onAdjustGoal,
 }: {
   sessionId?: string;
   onFinish: () => void;
+  onAdjustGoal: (goal: any) => Promise<void> | void;
 }) {
   const reviewData = useQuery(api.quarterly.getQuarterlyReviewData, { sessionId });
   const saveReview = useMutation(api.quarterly.saveQuarterlyReview);
@@ -69,7 +71,7 @@ export function QuarterlyReviewWizard({
     }));
   };
 
-  const handleNext = () => {
+  const advance = () => {
     if (isLast) {
       handleSave();
     } else {
@@ -77,10 +79,17 @@ export function QuarterlyReviewWizard({
     }
   };
 
+  const handleNext = async () => {
+    if (currentDecision.decision === "adjust") {
+      // Hand off to the parent overlay to open the edit modal
+      await onAdjustGoal(goal);
+    }
+    advance();
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Fill in defaults for any goals that were not explicitly decided
       const goalDecisions = goals.map(g => {
         const d = decisions[g.goal._id];
         return {
@@ -134,7 +143,6 @@ export function QuarterlyReviewWizard({
         </p>
       )}
 
-      {/* Evidence panel */}
       <div className="mt-10 grid grid-cols-3 gap-4 rounded-2xl border border-black/[0.06] bg-white/40 p-5 dark:border-white/[0.08] dark:bg-white/[0.02]">
         <div>
           <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -182,7 +190,6 @@ export function QuarterlyReviewWizard({
         </div>
       )}
 
-      {/* Rating */}
       <div className="mt-10">
         <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
           Overall rating this quarter
@@ -209,7 +216,6 @@ export function QuarterlyReviewWizard({
         </div>
       </div>
 
-      {/* Decision */}
       <div className="mt-10">
         <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
           Decision for next quarter
@@ -242,7 +248,6 @@ export function QuarterlyReviewWizard({
         </div>
       </div>
 
-      {/* Nav */}
       <div className="mt-12 flex items-center justify-between border-t border-black/[0.06] pt-6 dark:border-white/[0.08]">
         <button
           onClick={() => currentIndex > 0 && setCurrentIndex(i => i - 1)}

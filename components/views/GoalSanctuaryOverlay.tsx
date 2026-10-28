@@ -76,6 +76,8 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
 
   const activeGoals = goals.filter((g) => !g.status || g.status === "active");
   const completedGoals = goals.filter((g) => g.status === "completed");
+  const retiredGoals = goals.filter((g) => g.status === "retired");
+  
   const dueCount = activeGoals.filter(needsReview).length;
   const openGoal = openGoalId ? goals.find((g) => g._id === openGoalId) : null;
   const reviewDue = quarterlyStatus?.due;
@@ -278,6 +280,24 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   </ul>
                 </section>
               )}
+
+              {retiredGoals.length > 0 && (
+                <section className="mt-12 border-t border-black/[0.07] pt-8 dark:border-white/10">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+                    Retired
+                  </h3>
+                  <ul className="mt-4 space-y-2">
+                    {retiredGoals.map((g) => (
+                      <li
+                        key={g._id}
+                        className={`${SERIF} text-lg text-zinc-400 opacity-60 line-through decoration-zinc-300`}
+                      >
+                        {g.title}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
             </div>
           ) : activeTab === "align" ? (
             <AlignScreen sessionId={sessionId ?? undefined} />
@@ -291,6 +311,12 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
             <QuarterlyReviewWizard
               sessionId={sessionId ?? undefined}
               onFinish={() => setActiveTab("goals")}
+              onAdjustGoal={async (goal) => {
+                // Open the editor modal, await its close, then continue
+                setEditor({ open: true, goal });
+                // The wizard will advance immediately; the modal is visual-only
+                // (data already saved via saveQuarterlyReview)
+              }}
             />
           )}
         </div>
