@@ -9,6 +9,7 @@
  */
 
 import type * as alignment from "../alignment.js";
+import type * as annual from "../annual.js";
 import type * as crons from "../crons.js";
 import type * as debugTasks from "../debugTasks.js";
 import type * as demo from "../demo.js";
@@ -31,6 +32,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   alignment: typeof alignment;
+  annual: typeof annual;
   crons: typeof crons;
   debugTasks: typeof debugTasks;
   demo: typeof demo;

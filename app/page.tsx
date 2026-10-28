@@ -276,7 +276,6 @@ function HomeContent() {
     }
   }, []);
 
-  // Global hotkey for Goal Sanctuary
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key.toLowerCase() === 'g') {
@@ -296,6 +295,7 @@ function HomeContent() {
   const allGoals = useOfflineQuery(api.goals.getGoals, { sessionId: guestSessionId ?? undefined }, "getGoals") || [];
   const checkInStatus = useQuery(api.goalDetails.getWeeklyCheckInStatus, { sessionId: guestSessionId ?? undefined });
   const quarterlyStatus = useQuery(api.quarterly.isQuarterlyReviewDue, { sessionId: guestSessionId ?? undefined });
+  const solsticeStatus = useQuery(api.annual.isSolsticeReviewDue, { sessionId: guestSessionId ?? undefined });
 
   const actualSessionId = guestSessionId?.split("||vip_")[0];
   const focusedTasks = (allTasks.filter((t: any) => {
@@ -316,7 +316,6 @@ function HomeContent() {
 
   const totalTouchBaseCount = staleWaitingCount + staleSomedayCount;
 
-  // Calculate if any goals need review to show an indicator dot
   const goalsNeedingReviewCount = allGoals.filter((goal: any) => {
     if (!goal.reviewCycle || goal.reviewCycle === "none" || goal.status === "archived") return false;
     if (!goal.lastReviewedAt) return true;
@@ -366,7 +365,6 @@ function HomeContent() {
 
   useEffect(() => {
     const saved = localStorage.getItem("fotion-active-view") as ViewType;
-    // Guard against the old "Goals" view
     if (saved && (saved as string) !== "Goals") setActiveView(saved);
 
     const vipParam = searchParams.get("vip");
@@ -590,14 +588,13 @@ function HomeContent() {
             <button 
               onClick={() => setIsGoalSanctuaryOpen(true)} 
               className={`flex items-center gap-1.5 text-sm font-medium transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 relative ${
-                goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due ? 'text-[var(--foreground)]' : 'text-zinc-500 hover:text-[var(--foreground)]'
+                goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due || solsticeStatus?.due ? 'text-[var(--foreground)]' : 'text-zinc-500 hover:text-[var(--foreground)]'
               }`}
             >
-              <Target className={`w-4 h-4 ${goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due ? 'text-amber-500' : ''}`} /> 
+              <Target className={`w-4 h-4 ${goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due || solsticeStatus?.due ? 'text-amber-500' : ''}`} /> 
               <span className="hidden sm:inline">Goals <span className="text-[10px] text-zinc-400 font-normal ml-0.5 border border-[var(--border)] rounded px-1 py-0.5">G</span></span>
               
-              {/* Combined single indicator dot for reviews OR check-ins OR quarterly */}
-              {(goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due) && (
+              {(goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due || solsticeStatus?.due) && (
                   <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-amber-500 border border-white dark:border-[#121212] -translate-y-1/2 translate-x-1/2" />
               )}
             </button>

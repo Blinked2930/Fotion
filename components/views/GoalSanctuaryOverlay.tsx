@@ -18,8 +18,10 @@ import { SERIF, SOFT_GOAL_CAP, needsReview, goalHex } from "@/components/views/s
 import { AlignScreen } from "@/components/views/sanctuary/AlignScreen";
 import { CheckInWizard } from "@/components/views/sanctuary/CheckInWizard";
 import { QuarterlyReviewWizard } from "@/components/views/sanctuary/QuarterlyReviewWizard";
+import { AnnualReviewWizard } from "@/components/views/sanctuary/AnnualReviewWizard";
+import { AnnualReviewExport } from "@/components/views/sanctuary/AnnualReviewExport";
 
-type SanctuaryTab = "goals" | "align" | "checkin" | "review";
+type SanctuaryTab = "goals" | "align" | "checkin" | "review" | "year";
 
 export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const sessionId = useGuestSession();
@@ -27,6 +29,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     useOfflineQuery(api.goals.getGoals, { sessionId: sessionId ?? undefined }, "getGoals") || [];
   
   const quarterlyStatus = useQuery(api.quarterly.isQuarterlyReviewDue, { sessionId: sessionId ?? undefined });
+  const solsticeStatus = useQuery(api.annual.isSolsticeReviewDue, { sessionId: sessionId ?? undefined });
 
   const createGoal = useOfflineSyncMutation(api.goals.createGoal, "createGoal");
   const updateGoal = useOfflineSyncMutation(api.goals.updateGoal, "updateGoal");
@@ -138,7 +141,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   };
 
-  // Bulletproof clickable row — plain button with pointer-events-auto
   const InactiveGoalRow = ({ goal }: { goal: any }) => (
     <button
       type="button"
@@ -201,6 +203,15 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   Review
                   {reviewDue && (
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab("year")}
+                  className={`relative flex items-center gap-1.5 transition-colors ${activeTab === "year" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+                >
+                  Year
+                  {solsticeStatus?.due && (
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                   )}
                 </button>
               </div>
@@ -334,7 +345,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
               goals={activeGoals} 
               onFinish={() => setActiveTab("goals")} 
             />
-          ) : (
+          ) : activeTab === "review" ? (
             <QuarterlyReviewWizard
               sessionId={sessionId ?? undefined}
               onFinish={() => setActiveTab("goals")}
@@ -342,6 +353,28 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 setEditor({ open: true, goal });
               }}
             />
+          ) : (
+            solsticeStatus?.completed ? (
+              <div className="mx-auto flex w-full max-w-2xl flex-col">
+                <header className="max-w-3xl">
+                  <h1 className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
+                    The year, in review.
+                  </h1>
+                  <p className="mt-5 text-[15px] text-zinc-500 dark:text-zinc-400">
+                    {solsticeStatus.periodKey} is complete. You can re-read it or export it.
+                  </p>
+                  <div className="mt-6">
+                    <AnnualReviewExport periodKey={solsticeStatus.periodKey} sessionId={sessionId ?? undefined} />
+                  </div>
+                </header>
+              </div>
+            ) : (
+              <AnnualReviewWizard
+                sessionId={sessionId ?? undefined}
+                periodKey={solsticeStatus?.periodKey ?? ""}
+                onFinish={() => setActiveTab("goals")}
+              />
+            )
           )}
         </div>
       </div>
