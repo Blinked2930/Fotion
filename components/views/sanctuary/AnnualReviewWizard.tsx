@@ -44,8 +44,27 @@ export function AnnualReviewWizard({
     setLocalAnswers(init);
   }, [data]);
 
+  // IMPORTANT: All Hooks must run on every render, in the same order, before
+  // any conditional early return. Previously the `useMemo` for lastYearAnswer
+  // was placed below the `if (!template) return <Loading />` guard, which
+  // caused React error #310 ("Rendered more hooks than during the previous
+  // render") the moment the wizard mounted with data still loading.
+  //
+  // We resolve the current section/prompt defensively here (possibly null) so
+  // the useMemo can safely derive from them on every render, and only bail
+  // out of the render body *after* all Hooks have run.
+
   const template = data?.template ?? null;
-  if (!template) {
+  const currentSection = template ? template.sections[currentSectionIndex] : null;
+  const currentPrompt = currentSection ? currentSection.prompts[currentPromptIndex] : null;
+
+  const lastYearAnswer = useMemo(() => {
+    if (!data?.lastYear?.answers) return null;
+    if (!currentPrompt) return null;
+    return data.lastYear.answers.find((a) => a.promptId === currentPrompt.id) ?? null;
+  }, [data, currentPrompt]);
+
+  if (!template || !currentSection || !currentPrompt) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600" />
@@ -53,25 +72,19 @@ export function AnnualReviewWizard({
     );
   }
 
-  const currentSection = template.sections[currentSectionIndex];
-  const currentPrompt = currentSection.prompts[currentPromptIndex];
   const totalPrompts = template.sections.reduce((sum, s) => sum + s.prompts.length, 0);
-  const promptsSoFar = template.sections
-    .slice(0, currentSectionIndex)
-    .reduce((sum, s) => sum + s.prompts.length, 0) + currentPromptIndex;
+  const promptsSoFar =
+    template.sections
+      .slice(0, currentSectionIndex)
+      .reduce((sum, s) => sum + s.prompts.length, 0) + currentPromptIndex;
   const progress = Math.round(((promptsSoFar + 1) / totalPrompts) * 100);
 
   const isLastPromptOfSection = currentPromptIndex === currentSection.prompts.length - 1;
   const isLastSection = currentSectionIndex === template.sections.length - 1;
   const isLastPrompt = isLastPromptOfSection && isLastSection;
 
-  const lastYearAnswer = useMemo(() => {
-    if (!data?.lastYear?.answers) return null;
-    return data.lastYear.answers.find(a => a.promptId === currentPrompt.id);
-  }, [data, currentPrompt]);
-
   const handleAnswerChange = (text: string) => {
-    setLocalAnswers(prev => ({ ...prev, [currentPrompt.id]: text }));
+    setLocalAnswers((prev) => ({ ...prev, [currentPrompt.id]: text }));
   };
 
   const saveCurrentAnswer = async () => {
@@ -92,21 +105,21 @@ export function AnnualReviewWizard({
       await completeReview({ reviewId: reviewId!, sessionId });
       onFinish();
     } else if (isLastPromptOfSection) {
-      setCurrentSectionIndex(i => i + 1);
+      setCurrentSectionIndex((i) => i + 1);
       setCurrentPromptIndex(0);
     } else {
-      setCurrentPromptIndex(i => i + 1);
+      setCurrentPromptIndex((i) => i + 1);
     }
   };
 
   const handlePrev = () => {
     if (currentPromptIndex === 0) {
       if (currentSectionIndex > 0) {
-        setCurrentSectionIndex(i => i - 1);
+        setCurrentSectionIndex((i) => i - 1);
         setCurrentPromptIndex(template.sections[currentSectionIndex - 1].prompts.length - 1);
       }
     } else {
-      setCurrentPromptIndex(i => i - 1);
+      setCurrentPromptIndex((i) => i - 1);
     }
   };
 
@@ -115,8 +128,14 @@ export function AnnualReviewWizard({
     if (!evidence) return null;
 
     const evidencePrompts = [
-      "expected-not-completed", "still-important", "lessons", "system-success",
-      "valuable-time", "happiness", "success-by-end", "advice-12mo",
+      "expected-not-completed",
+      "still-important",
+      "lessons",
+      "system-success",
+      "valuable-time",
+      "happiness",
+      "success-by-end",
+      "advice-12mo",
     ];
     if (!evidencePrompts.includes(currentPrompt.id)) return null;
 
@@ -165,11 +184,14 @@ export function AnnualReviewWizard({
           <div>
             <div className="flex items-center gap-1.5 text-[12px] font-medium text-amber-700 dark:text-amber-400">
               <AlertTriangle className="h-3.5 w-3.5" />
-              {evidence.unfinishedGoals.length} unfinished {evidence.unfinishedGoals.length === 1 ? "goal" : "goals"}
+              {evidence.unfinishedGoals.length} unfinished{" "}
+              {evidence.unfinishedGoals.length === 1 ? "goal" : "goals"}
             </div>
             <ul className="mt-1 space-y-0.5">
               {evidence.unfinishedGoals.slice(0, 5).map((g) => (
-                <li key={g._id} className="text-[12px] text-zinc-500">· {g.title}</li>
+                <li key={g._id} className="text-[12px] text-zinc-500">
+                  · {g.title}
+                </li>
               ))}
             </ul>
           </div>
@@ -179,7 +201,8 @@ export function AnnualReviewWizard({
           <div>
             <div className="flex items-center gap-1.5 text-[12px] font-medium text-amber-700 dark:text-amber-400">
               <AlertTriangle className="h-3.5 w-3.5" />
-              {evidence.overdueTasks.length} overdue {evidence.overdueTasks.length === 1 ? "task" : "tasks"}
+              {evidence.overdueTasks.length} overdue{" "}
+              {evidence.overdueTasks.length === 1 ? "task" : "tasks"}
             </div>
           </div>
         )}
@@ -190,8 +213,21 @@ export function AnnualReviewWizard({
             <span className="text-[12px] text-zinc-500">Weekly goal ratings: </span>
             <div className="flex items-center gap-0.5">
               {evidence.weeklyRatingTrend.slice(-20).map((w, i) => {
-                const color = w.avg <= -1 ? "#ef4444" : w.avg <= 0 ? "#f97316" : w.avg <= 1 ? "#22c55e" : "#10b981";
-                return <span key={i} className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />;
+                const color =
+                  w.avg <= -1
+                    ? "#ef4444"
+                    : w.avg <= 0
+                    ? "#f97316"
+                    : w.avg <= 1
+                    ? "#22c55e"
+                    : "#10b981";
+                return (
+                  <span
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ background: color }}
+                  />
+                );
               })}
             </div>
           </div>
@@ -221,7 +257,9 @@ export function AnnualReviewWizard({
         />
       </div>
 
-      <h2 className={`${SERIF} text-3xl font-medium leading-[1.15] tracking-tight text-[var(--foreground)] sm:text-4xl`}>
+      <h2
+        className={`${SERIF} text-3xl font-medium leading-[1.15] tracking-tight text-[var(--foreground)] sm:text-4xl`}
+      >
         {currentPrompt.text}
       </h2>
 
@@ -230,7 +268,9 @@ export function AnnualReviewWizard({
           key={currentPrompt.id}
           content={localAnswers[currentPrompt.id] || ""}
           onChange={handleAnswerChange}
-          placeholder={currentPrompt.kind === "short" ? "A short answer…" : "Take your time with this one…"}
+          placeholder={
+            currentPrompt.kind === "short" ? "A short answer…" : "Take your time with this one…"
+          }
         />
       </div>
 
@@ -253,7 +293,7 @@ export function AnnualReviewWizard({
         <button
           onClick={handlePrev}
           disabled={currentSectionIndex === 0 && currentPromptIndex === 0}
-          className="flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-zinc-500 transition-colors hover:bg-black/5 hover:text-[var(--foreground)] dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-zinc-500 transition-colors hover:bg-black/5 hover:text-[var(--foreground)] dark:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ArrowLeft className="h-4 w-4" /> Previous
         </button>
@@ -262,7 +302,8 @@ export function AnnualReviewWizard({
           disabled={saving || !reviewId}
           className="flex items-center gap-2 rounded-full bg-[var(--foreground)] px-8 py-3 text-sm font-semibold text-[var(--background)] shadow-lg transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
         >
-          {saving ? "Saving..." : isLastPrompt ? "Finish Year" : "Next"} <ArrowRight className="h-4 w-4" />
+          {saving ? "Saving..." : isLastPrompt ? "Finish Year" : "Next"}{" "}
+          <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     </div>
