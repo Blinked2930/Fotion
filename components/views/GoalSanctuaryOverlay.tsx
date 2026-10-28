@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Sparkles, ChevronRight } from "lucide-react";
+import { X, Plus, Sparkles, ChevronRight, ArrowLeft } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -47,6 +47,21 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     goal: null,
   });
   const [pendingDelete, setPendingDelete] = useState<any | null>(null);
+  // True when the user explicitly starts / re-opens the annual review outside
+  // of the solstice window (testing, early start, or editing a completed year).
+  const [annualForced, setAnnualForced] = useState(false);
+
+  // Lets the quarterly review genuinely wait for the goal editor: the promise
+  // returned from onAdjustGoal resolves when the editor is saved or closed.
+  const adjustResolver = useRef<(() => void) | null>(null);
+
+  const closeEditor = () => {
+    setEditor({ open: false, goal: null });
+    if (adjustResolver.current) {
+      adjustResolver.current();
+      adjustResolver.current = null;
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -58,21 +73,38 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       setEditor({ open: false, goal: null });
       setPendingDelete(null);
       setActiveTab("goals");
+      setAnnualForced(false);
+      if (adjustResolver.current) {
+        adjustResolver.current();
+        adjustResolver.current = null;
+      }
     }
   }, [isOpen]);
+
+  // Leaving the Year tab always drops the "forced" early/edit mode.
+  useEffect(() => {
+    if (activeTab !== "year") setAnnualForced(false);
+  }, [activeTab]);
+
+  // One-step-back navigation, shared by the Back button and Escape.
+  const goBackOneLevel = () => {
+    if (openGoalId) setOpenGoalId(null);
+    else if (activeTab !== "goals") setActiveTab("goals");
+  };
 
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (pendingDelete) setPendingDelete(null);
-      else if (editor.open) setEditor({ open: false, goal: null });
+      else if (editor.open) closeEditor();
       else if (openGoalId) setOpenGoalId(null);
       else if (activeTab !== "goals") setActiveTab("goals");
       else onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editor.open, openGoalId, pendingDelete, activeTab, onClose]);
 
   if (!isOpen || !mounted) return null;
@@ -86,6 +118,16 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   const openGoal = openGoalId ? goals.find((g) => g._id === openGoalId) : null;
   const reviewDue = quarterlyStatus?.due;
 
+  // At the top level the button closes the Sanctuary. Anywhere deeper (an open
+  // goal, or any tab other than Goals) it steps back instead, so a stray click
+  // while in the middle of a review never throws you out of the Sanctuary.
+  const atHome = !openGoal && activeTab === "goals";
+
+  // Annual review period: prefer the server's key; fall back to the current
+  // year's solstice key so the review can be started/tested at any time.
+  const annualPeriodKey =
+    solsticeStatus?.periodKey || `${new Date().getFullYear()}-solstice`;
+
   const handleSave = async (v: GoalFormValues) => {
     if (editor.goal) {
       await updateGoal({
@@ -97,7 +139,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
         color: v.color,
         reviewCycle: v.reviewCycle,
       });
-      setEditor({ open: false, goal: null });
+      closeEditor();
       return;
     }
 
@@ -127,7 +169,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       }
     }
 
-    setEditor({ open: false, goal: null });
+    closeEditor();
   };
 
   const confirmDelete = async () => {
@@ -142,11 +184,8 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   };
 
   // IMPORTANT: this is a plain render function, NOT a component.
-  // Previously `InactiveGoalRow` was declared as a component inside the
-  // overlay, so every re-render (e.g. any Convex query update) created a new
-  // component type and React unmounted/remounted every row. A remount between
-  // mousedown and mouseup swallows the click, which is why rows felt
-  // "almost unclickable".
+  // Declaring it as a component inside the overlay made React remount every
+  // row on each re-render, which swallowed clicks.
   const renderInactiveGoalRow = (goal: any) => (
     <button
       key={goal._id}
@@ -167,72 +206,83 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           {goal.title}
         </span>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 motion-reduce:transition-none" />
     </button>
   );
 
+  const tabClass = (tab: SanctuaryTab) =>
+    `rounded-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-zinc-400 ${
+      activeTab === tab
+        ? "text-[var(--foreground)]"
+        : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+    }`;
+
+  const yearHeading = (title: string) => (
+    <h1 className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
+      {title}
+    </h1>
+  );
+
   return createPortal(
-    <div className="fixed inset-0 z-[240] animate-in fade-in duration-500">
+    <div className="fixed inset-0 z-[240] animate-in fade-in duration-500 motion-reduce:animate-none">
       <div className="pointer-events-none absolute inset-0 bg-[#f6f2ea] dark:bg-[#0c0c12]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_8%,rgba(236,72,153,0.11),transparent)]" />
 
       <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
-        <div className="flex items-center justify-between px-6 pt-6 sm:px-10 sm:pt-9">
-          <div className="flex items-center gap-6">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
-              The Sanctuary
-            </span>
-            
-            {!openGoal && (
-              <div className="flex items-center gap-4 text-[13px] font-medium">
-                <button
-                  onClick={() => setActiveTab("goals")}
-                  className={`transition-colors ${activeTab === "goals" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
-                >
-                  Goals
-                </button>
-                <button
-                  onClick={() => setActiveTab("align")}
-                  className={`transition-colors ${activeTab === "align" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
-                >
-                  Align
-                </button>
-                <button
-                  onClick={() => setActiveTab("checkin")}
-                  className={`transition-colors ${activeTab === "checkin" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
-                >
-                  Check-in
-                </button>
-                <button
-                  onClick={() => setActiveTab("review")}
-                  className={`relative flex items-center gap-1.5 transition-colors ${activeTab === "review" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
-                >
-                  Review
-                  {reviewDue && (
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setActiveTab("year")}
-                  className={`relative flex items-center gap-1.5 transition-colors ${activeTab === "year" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
-                >
-                  Year
-                  {solsticeStatus?.due && (
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-          
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close Sanctuary"
-            className="rounded-full p-3 text-zinc-500 transition-all hover:bg-black/5 hover:text-[var(--foreground)] active:scale-95 dark:hover:bg-white/10"
-          >
-            <X className="h-5 w-5" />
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-y-3 px-6 pt-6 sm:px-10 sm:pt-9">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
+            The Sanctuary
+          </span>
+
+          {atHome ? (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close Sanctuary"
+              className="order-2 rounded-full p-3 text-zinc-500 outline-none transition-all hover:bg-black/5 hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-95 motion-reduce:transition-none dark:hover:bg-white/10 sm:order-3"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={goBackOneLevel}
+              aria-label="Back to goals"
+              className="order-2 inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium text-zinc-500 outline-none transition-all hover:bg-black/5 hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-zinc-400 active:scale-95 motion-reduce:transition-none dark:hover:bg-white/10 sm:order-3"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {openGoal ? "All goals" : "Back"}
+            </button>
+          )}
+
+          {!openGoal && (
+            <nav
+              aria-label="Sanctuary sections"
+              className="order-3 flex w-full items-center gap-4 overflow-x-auto text-[13px] font-medium sm:order-2 sm:w-auto sm:flex-1 sm:pl-6"
+            >
+              <button onClick={() => setActiveTab("goals")} className={tabClass("goals")}>
+                Goals
+              </button>
+              <button onClick={() => setActiveTab("align")} className={tabClass("align")}>
+                Align
+              </button>
+              <button onClick={() => setActiveTab("checkin")} className={tabClass("checkin")}>
+                Check-in
+              </button>
+              <button onClick={() => setActiveTab("review")} className={`relative flex items-center gap-1.5 ${tabClass("review")}`}>
+                Review
+                {reviewDue && (
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" />
+                )}
+              </button>
+              <button onClick={() => setActiveTab("year")} className={`relative flex items-center gap-1.5 ${tabClass("year")}`}>
+                Year
+                {solsticeStatus?.due && (
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 motion-reduce:animate-none" />
+                )}
+              </button>
+            </nav>
+          )}
         </div>
 
         <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-28 pt-8 sm:px-10">
@@ -251,7 +301,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
               sessionId={sessionId ?? undefined}
             />
           ) : activeTab === "goals" ? (
-            <div className="animate-in fade-in duration-500">
+            <div className="animate-in fade-in duration-500 motion-reduce:animate-none">
               <header className="max-w-3xl">
                 <h1
                   className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}
@@ -264,7 +314,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                     : `${activeGoals.length} active ${activeGoals.length === 1 ? "goal" : "goals"}`}
                   {dueCount > 0 && (
                     <span className="ml-3 inline-flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" />
                       {dueCount} due for review
                     </span>
                   )}
@@ -272,7 +322,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 <button
                   type="button"
                   onClick={() => setEditor({ open: true, goal: null })}
-                  className="mt-8 inline-flex items-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-semibold text-[var(--background)] shadow-lg transition-all hover:opacity-90 active:scale-95"
+                  className="mt-8 inline-flex items-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-semibold text-[var(--background)] shadow-lg outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none"
                 >
                   <Plus className="h-4 w-4" /> New goal
                 </button>
@@ -350,45 +400,73 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
             <QuarterlyReviewWizard
               sessionId={sessionId ?? undefined}
               onFinish={() => setActiveTab("goals")}
-              onAdjustGoal={async (goal) => {
-                setEditor({ open: true, goal });
-              }}
+              onAdjustGoal={(goal) =>
+                new Promise<void>((resolve) => {
+                  adjustResolver.current = resolve;
+                  setEditor({ open: true, goal });
+                })
+              }
             />
           ) : !solsticeStatus ? (
             <div className="flex h-64 items-center justify-center">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600" />
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 motion-reduce:animate-none" />
+            </div>
+          ) : annualForced || (solsticeStatus.due && !solsticeStatus.completed) ? (
+            <div className="flex flex-col gap-6">
+              {!solsticeStatus.due && (
+                <p className="mx-auto w-full max-w-2xl rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-[13px] text-amber-700 dark:text-amber-300">
+                  {solsticeStatus.completed
+                    ? "Editing a completed review. Your changes save as you go."
+                    : "Early start. This isn’t the solstice yet, but your answers save as you go and will be waiting on December 21."}
+                </p>
+              )}
+              <AnnualReviewWizard
+                sessionId={sessionId ?? undefined}
+                periodKey={annualPeriodKey}
+                onFinish={() => {
+                  setAnnualForced(false);
+                  setActiveTab("goals");
+                }}
+              />
             </div>
           ) : solsticeStatus.completed ? (
             <div className="mx-auto flex w-full max-w-2xl flex-col">
               <header className="max-w-3xl">
-                <h1 className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
-                  The year, in review.
-                </h1>
+                {yearHeading("The year, in review.")}
                 <p className="mt-5 text-[15px] text-zinc-500 dark:text-zinc-400">
-                  {solsticeStatus.periodKey} is complete. You can re-read it or export it.
+                  {annualPeriodKey} is complete. You can re-read it, edit it, or export it.
                 </p>
-                <div className="mt-6">
-                  <AnnualReviewExport periodKey={solsticeStatus.periodKey} sessionId={sessionId ?? undefined} />
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAnnualForced(true)}
+                    className="inline-flex items-center rounded-full bg-[var(--foreground)] px-5 py-2.5 text-sm font-semibold text-[var(--background)] outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none"
+                  >
+                    Edit review
+                  </button>
+                  <AnnualReviewExport periodKey={annualPeriodKey} sessionId={sessionId ?? undefined} />
                 </div>
               </header>
             </div>
-          ) : !solsticeStatus.due || !solsticeStatus.periodKey ? (
+          ) : (
             <div className="mx-auto flex w-full max-w-2xl flex-col">
               <header className="max-w-3xl">
-                <h1 className={`${SERIF} text-5xl font-medium leading-[1.04] tracking-tight text-[var(--foreground)] sm:text-7xl`}>
-                  Not yet.
-                </h1>
+                {yearHeading("Not yet.")}
                 <p className={`${SERIF} mt-5 text-lg italic text-zinc-500 dark:text-zinc-400`}>
                   The annual review happens on the winter solstice (December 21). It&rsquo;s not yet time.
                 </p>
+                <p className="mt-4 text-[15px] text-zinc-500 dark:text-zinc-400">
+                  You can still begin early. Your answers are saved as you write.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAnnualForced(true)}
+                  className="mt-6 inline-flex items-center rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-semibold text-[var(--background)] shadow-lg outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none"
+                >
+                  Begin early
+                </button>
               </header>
             </div>
-          ) : (
-            <AnnualReviewWizard
-              sessionId={sessionId ?? undefined}
-              periodKey={solsticeStatus.periodKey}
-              onFinish={() => setActiveTab("goals")}
-            />
           )}
         </div>
       </div>
@@ -396,7 +474,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       {editor.open && (
         <GoalEditorModal
           initial={editor.goal}
-          onClose={() => setEditor({ open: false, goal: null })}
+          onClose={closeEditor}
           onSave={handleSave}
         />
       )}
