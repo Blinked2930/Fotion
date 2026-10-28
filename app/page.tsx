@@ -295,6 +295,7 @@ function HomeContent() {
   const allTasks = useOfflineQuery(api.tasks.getTasks, { sessionId: guestSessionId ?? undefined }, "getTasks") || [];
   const allGoals = useOfflineQuery(api.goals.getGoals, { sessionId: guestSessionId ?? undefined }, "getGoals") || [];
   const checkInStatus = useQuery(api.goalDetails.getWeeklyCheckInStatus, { sessionId: guestSessionId ?? undefined });
+  const quarterlyStatus = useQuery(api.quarterly.isQuarterlyReviewDue, { sessionId: guestSessionId ?? undefined });
 
   const actualSessionId = guestSessionId?.split("||vip_")[0];
   const focusedTasks = (allTasks.filter((t: any) => {
@@ -589,14 +590,14 @@ function HomeContent() {
             <button 
               onClick={() => setIsGoalSanctuaryOpen(true)} 
               className={`flex items-center gap-1.5 text-sm font-medium transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 relative ${
-                goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 ? 'text-[var(--foreground)]' : 'text-zinc-500 hover:text-[var(--foreground)]'
+                goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due ? 'text-[var(--foreground)]' : 'text-zinc-500 hover:text-[var(--foreground)]'
               }`}
             >
-              <Target className={`w-4 h-4 ${goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 ? 'text-amber-500' : ''}`} /> 
+              <Target className={`w-4 h-4 ${goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due ? 'text-amber-500' : ''}`} /> 
               <span className="hidden sm:inline">Goals <span className="text-[10px] text-zinc-400 font-normal ml-0.5 border border-[var(--border)] rounded px-1 py-0.5">G</span></span>
               
-              {/* Combined single indicator dot for reviews OR check-ins */}
-              {(goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0) && (
+              {/* Combined single indicator dot for reviews OR check-ins OR quarterly */}
+              {(goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due) && (
                   <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-amber-500 border border-white dark:border-[#121212] -translate-y-1/2 translate-x-1/2" />
               )}
             </button>

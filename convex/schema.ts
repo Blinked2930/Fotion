@@ -14,6 +14,7 @@ export default defineSchema({
 
     reviewCycle: v.optional(v.union(v.literal("weekly"), v.literal("monthly"), v.literal("quarterly"), v.literal("annual"), v.literal("none"))),
     lastReviewedAt: v.optional(v.union(v.number(), v.null())),
+    lastQuarterlyReview: v.optional(v.union(v.number(), v.null())),
 
     kind: v.optional(v.union(v.literal("finish"), v.literal("ongoing"))),
     scale: v.optional(v.array(v.string())),
@@ -77,7 +78,7 @@ export default defineSchema({
     isImportant: v.boolean(),
     isForFunsies: v.boolean(),
     isFocused: v.optional(v.boolean()),
-    isMaintenance: v.optional(v.boolean()), // <-- NEW
+    isMaintenance: v.optional(v.boolean()),
     status: v.union(v.literal("todo"), v.literal("in-progress"), v.literal("done")),
     listCategory: v.optional(v.union(v.literal("Current"), v.literal("Waiting For"), v.literal("Someday Maybe"))),
     isToday: v.optional(v.boolean()),
@@ -103,6 +104,50 @@ export default defineSchema({
     .index("by_goal", ["goalId"])
     .index("by_shareToken", ["shareToken"])
     .index("by_sessionId", ["sessionId"]),
+
+  // --- Reviews (Stage 4) ---
+  reviewTemplates: defineTable({
+    type: v.union(v.literal("quarterly"), v.literal("annual")),
+    sections: v.array(v.object({
+      id: v.string(),
+      title: v.string(),
+      prompts: v.array(v.object({
+        id: v.string(),
+        text: v.string(),
+        kind: v.union(v.literal("long"), v.literal("short")),
+      })),
+    })),
+    sessionId: v.optional(v.string()),
+  }).index("by_sessionId", ["sessionId"]),
+
+  reviews: defineTable({
+    type: v.union(v.literal("quarterly"), v.literal("annual")),
+    periodKey: v.string(), // e.g. "2026-Q4" or "2026-solstice"
+    status: v.union(v.literal("draft"), v.literal("complete")),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    goalSnapshots: v.array(v.object({
+      goalId: v.id("goals"),
+      title: v.string(),
+      rating: v.optional(v.number()),
+      decision: v.union(
+        v.literal("keep"),
+        v.literal("adjust"),
+        v.literal("pause"),
+        v.literal("complete"),
+        v.literal("retire")
+      ),
+    })),
+    sessionId: v.optional(v.string()),
+  }).index("by_sessionId", ["sessionId"]),
+
+  reviewAnswers: defineTable({
+    reviewId: v.id("reviews"),
+    promptId: v.string(),
+    text: v.string(),
+    updatedAt: v.number(),
+    sessionId: v.optional(v.string()),
+  }).index("by_sessionId", ["sessionId"]).index("by_review", ["reviewId"]),
 
   preferences: defineTable({
     userId: v.string(),

@@ -8,22 +8,25 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineSyncMutation, useOfflineQuery } from "@/hooks/useOfflineMutation";
 import { getBrowserTimeZone } from "@/convex/recurrence";
+import { useQuery } from "convex/react";
 
 import { GoalCard } from "@/components/views/sanctuary/GoalCard";
 import { GoalChapter } from "@/components/views/sanctuary/GoalChapter";
 import { GoalEditorModal, type GoalFormValues } from "@/components/views/sanctuary/GoalEditorModal";
 import { SanctuaryConfirmModal } from "@/components/views/sanctuary/SanctuaryConfirmModal";
 import { SERIF, SOFT_GOAL_CAP, needsReview } from "@/components/views/sanctuary/theme";
-
 import { AlignScreen } from "@/components/views/sanctuary/AlignScreen";
 import { CheckInWizard } from "@/components/views/sanctuary/CheckInWizard";
+import { QuarterlyReviewWizard } from "@/components/views/sanctuary/QuarterlyReviewWizard";
 
-type SanctuaryTab = "goals" | "align" | "checkin";
+type SanctuaryTab = "goals" | "align" | "checkin" | "review";
 
 export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const sessionId = useGuestSession();
   const goals: any[] =
     useOfflineQuery(api.goals.getGoals, { sessionId: sessionId ?? undefined }, "getGoals") || [];
+  
+  const quarterlyStatus = useQuery(api.quarterly.isQuarterlyReviewDue, { sessionId: sessionId ?? undefined });
 
   const createGoal = useOfflineSyncMutation(api.goals.createGoal, "createGoal");
   const updateGoal = useOfflineSyncMutation(api.goals.updateGoal, "updateGoal");
@@ -75,6 +78,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   const completedGoals = goals.filter((g) => g.status === "completed");
   const dueCount = activeGoals.filter(needsReview).length;
   const openGoal = openGoalId ? goals.find((g) => g._id === openGoalId) : null;
+  const reviewDue = quarterlyStatus?.due;
 
   const handleSave = async (v: GoalFormValues) => {
     if (editor.goal) {
@@ -163,6 +167,15 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   className={`transition-colors ${activeTab === "checkin" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
                 >
                   Check-in
+                </button>
+                <button
+                  onClick={() => setActiveTab("review")}
+                  className={`relative flex items-center gap-1.5 transition-colors ${activeTab === "review" ? "text-[var(--foreground)]" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+                >
+                  Review
+                  {reviewDue && (
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                  )}
                 </button>
               </div>
             )}
@@ -268,11 +281,16 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
             </div>
           ) : activeTab === "align" ? (
             <AlignScreen sessionId={sessionId ?? undefined} />
-          ) : (
+          ) : activeTab === "checkin" ? (
             <CheckInWizard 
               sessionId={sessionId ?? undefined} 
               goals={activeGoals} 
               onFinish={() => setActiveTab("goals")} 
+            />
+          ) : (
+            <QuarterlyReviewWizard
+              sessionId={sessionId ?? undefined}
+              onFinish={() => setActiveTab("goals")}
             />
           )}
         </div>
