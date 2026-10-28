@@ -4,6 +4,7 @@ import "./globals.css";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ThemeColorSync } from "@/components/ThemeColorSync";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,27 +29,18 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     // "black-translucent" lets the html/body background show through the
-    // iOS status bar inset instead of forcing an opaque black/white band.
-    // Combined with the themeColor below, the status bar now matches the
-    // page (cream in light, near-black in dark) so the Sanctuary's mottled
-    // glow is not cut off at the top edge.
+    // iOS status bar inset instead of forcing an opaque black band. Kept
+    // here so installed PWAs on iOS still let the Sanctuary's cream edge
+    // show through under the status bar.
     statusBarStyle: "black-translucent",
     title: "Fotion",
   },
 };
 
-// The themeColor here is what mobile browsers paint the status-bar area
-// with (in tabs, and as the fallback when the installed PWA's manifest
-// theme_color is ignored). We use the Sanctuary's palette because:
-//   1. Inside the Sanctuary, it makes the glow blend seamlessly into the
-//      status bar — no visible seam.
-//   2. Inside the task UI, cream/near-black is close enough to the task
-//      UI's white/near-black background that the seam is invisible.
-//
-// NOTE: themeColor is not reactive — you cannot change it per-section at
-// runtime. That's a browser limitation. If you ever want a truly reactive
-// status bar color, that would need a native wrapper (Capacitor/Tauri) or
-// the CSS env() approach, which is not universally supported.
+// This static fallback is what the browser paints on the very first frame,
+// before ThemeColorSync mounts. It matches the Sanctuary palette so the
+// initial paint is never jarring. ThemeColorSync then takes over reactively
+// on the client.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -74,6 +66,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[var(--background)]">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ThemeColorSync />
           <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
             <ConvexClientProvider>{children}</ConvexClientProvider>
           </ClerkProvider>
