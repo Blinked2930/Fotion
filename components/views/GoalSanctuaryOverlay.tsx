@@ -138,20 +138,33 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   };
 
-  // Helper for the clickable inactive rows (Paused, Completed, Retired)
+  // Div-based clickable row — immune to form/button edge cases
   const InactiveGoalRow = ({ goal }: { goal: any }) => (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => setOpenGoalId(goal._id)}
-      className="group flex w-full items-center justify-between rounded-xl border border-black/[0.04] bg-white/30 px-4 py-3 text-left transition-all hover:border-black/[0.08] hover:bg-white/60 dark:border-white/[0.04] dark:bg-white/[0.01] dark:hover:border-white/[0.08] dark:hover:bg-white/[0.03]"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setOpenGoalId(goal._id);
+        }
+      }}
+      className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-transparent px-4 py-3 outline-none transition-all duration-200 hover:border-black/[0.06] hover:bg-white/50 focus-visible:border-zinc-400 focus-visible:bg-white/50 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.03] dark:focus-visible:border-white/30 dark:focus-visible:bg-white/[0.03]"
     >
-      <div className="flex items-center gap-3">
-        <span className="h-2 w-2 shrink-0 rounded-full opacity-60" style={{ background: goalHex(goal.color) }} />
-        <span className={`${SERIF} text-[16px] text-zinc-600 dark:text-zinc-400`}>
+      <div className="flex min-w-0 items-center gap-3">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full opacity-70"
+          style={{ background: goalHex(goal.color) }}
+        />
+        <span
+          className={`${SERIF} truncate text-[16px] text-zinc-600 transition-colors group-hover:text-[var(--foreground)] dark:text-zinc-400 dark:group-hover:text-[var(--foreground)]`}
+        >
           {goal.title}
         </span>
       </div>
-      <ChevronRight className="h-4 w-4 text-zinc-400 opacity-50 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />
-    </button>
+      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+    </div>
   );
 
   return createPortal(
@@ -286,7 +299,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Paused
                   </h3>
-                  <div className="mt-3 grid gap-2">
+                  <div className="mt-3 grid gap-1">
                     {pausedGoals.map((g) => (
                       <InactiveGoalRow key={g._id} goal={g} />
                     ))}
@@ -300,7 +313,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Completed
                   </h3>
-                  <div className="mt-3 grid gap-2">
+                  <div className="mt-3 grid gap-1">
                     {completedGoals.map((g) => (
                       <InactiveGoalRow key={g._id} goal={g} />
                     ))}
@@ -314,7 +327,7 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
                     Retired
                   </h3>
-                  <div className="mt-3 grid gap-2">
+                  <div className="mt-3 grid gap-1">
                     {retiredGoals.map((g) => (
                       <InactiveGoalRow key={g._id} goal={g} />
                     ))}
