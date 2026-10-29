@@ -33,17 +33,7 @@ export const metadata: Metadata = {
   },
 };
 
-// Deliberately NO `themeColor` here.
-//
-// `viewport.themeColor` writes static <meta name="theme-color"> tags at
-// build time. On mobile, browsers honor the FIRST matching meta tag in
-// <head> — so any static tag would always win over the runtime updates
-// from ThemeColorSync, which is exactly why the status bar was locked to
-// cream (i.e. "white") even in dark mode.
-//
-// ThemeColorSync now owns the meta tag entirely. It mounts with the app,
-// reads the current theme, and writes the correct color before first
-// paint. There is no static fallback to fight with it.
+// No static themeColor here — ThemeColorSync owns the meta tag at runtime.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -63,7 +53,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-[var(--background)]">
+      <body className="relative min-h-full flex flex-col bg-[var(--background)]">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ThemeColorSync />
           <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>

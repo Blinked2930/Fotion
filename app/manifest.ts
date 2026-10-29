@@ -6,10 +6,6 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Fotion',
     description: 'Lightning-fast task triage.',
     display: 'standalone',
-    // Matches the Sanctuary palette so the initial PWA paint (before the
-    // client-side ThemeColorSync runs) is never jarring, and so installed
-    // PWAs that ignore dynamic theme-color updates still show a coherent
-    // cream color rather than a hardcoded near-black.
     background_color: '#f6f2ea',
     theme_color: '#f6f2ea',
     icons: [

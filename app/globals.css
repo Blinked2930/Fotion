@@ -14,11 +14,16 @@
   --border: #e9e9e7;
 
   /* Sanctuary palette — the reflective overlay uses a warmer cream paper
-     and near-black ink so it reads as a different visual world. Exposed as
-     CSS vars so body/painters can match them and the top-of-screen inset
-     never bleeds the wrong color. */
+     and near-black ink so it reads as a different visual world. */
   --sanctuary-bg-light: #f6f2ea;
   --sanctuary-bg-dark: #0c0c12;
+
+  /* The solid colors used by the top gradient paint layer. These are what
+     Safari's status-bar sampler reads. The gradient itself is layered on
+     top visually but is NOT what Safari samples, which is why the status
+     bar color stays stable across sections and scroll positions. */
+  --top-paint-light: #f6f2ea;
+  --top-paint-dark: #0c0c12;
 }
 
 /* ==========================================
@@ -43,25 +48,135 @@ html, body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  /* The mobile "line across the top" was the browser painting the safe-area
-     inset with the OS default (white in light, black in dark). These two
-     rules paint the inset with the app background so the line disappears,
-     and the html min-height prevents the 1px gap that was showing through
-     in some WebKit builds. */
   min-height: 100dvh;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* When the Sanctuary overlay is open, switch the html/body paint to the
-   Sanctuary palette so the safe-area inset matches the overlay instead of
-   the task UI. The overlay sets data-sanctuary="open" on <html> while
-   mounted (see GoalSanctuaryOverlay). */
-html[data-sanctuary="open"] body {
-  background-color: var(--sanctuary-bg-light);
+/* ==========================================
+   TOP GRADIENT PAINT LAYER
+   ==========================================
+   A fixed strip at the very top of the viewport that paints:
+
+     1. A solid cream (light) / near-black (dark) background-color.
+        This is what iOS Safari samples to tint the status bar. A solid
+        color — not a gradient — because Safari's sampler bails out on
+        gradients and falls back to white, which was the "permanently
+        light top bar" bug.
+
+     2. A soft radial glow overlaid on top of that solid color.
+        This is what the eye sees: a subtle warm bloom bleeding down
+        from the very top edge of the screen, matching the Sanctuary's
+        mottled atmosphere. It fades to transparent by ~220px.
+
+   Because the strip is position:fixed and starts at the top edge, it
+   also sits under the status bar / notch area, so the gradient visually
+   continues to the physical edge of the device on both iOS and Android.
+
+   The section-specific glows (Sanctuary) still render inside their own
+   overlays on top of this; this layer just ensures the very top of the
+   screen always has the "right" color for the status bar and no visible
+   hard seam where the gradient starts.
+*/
+html body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 220px;
+  z-index: 0;
+  pointer-events: none;
+
+  /* Solid base — this is the paint the OS samples for the status bar. */
+  background-color: var(--top-paint-light);
+
+  /* Gradient overlay — what the user actually sees. Layered as a second
+     background-image, on top of the solid background-color above. */
+  background-image:
+    radial-gradient(
+      120% 60% at 20% 0%,
+      rgba(99, 102, 241, 0.14),
+      transparent 60%
+    ),
+    radial-gradient(
+      90% 50% at 90% 0%,
+      rgba(236, 72, 153, 0.10),
+      transparent 55%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 60%,
+      var(--background) 100%
+    );
+
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
-html.dark[data-sanctuary="open"] body {
+
+html.dark body::before {
+  background-color: var(--top-paint-dark);
+  background-image:
+    radial-gradient(
+      120% 60% at 20% 0%,
+      rgba(99, 102, 241, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      90% 50% at 90% 0%,
+      rgba(236, 72, 153, 0.12),
+      transparent 55%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 60%,
+      var(--background) 100%
+    );
+}
+
+/* Inside the Sanctuary, the base solid and the fade target switch to the
+   Sanctuary palette so the gradient blends into the cream/near-black page
+   instead of fading to the task UI's white/near-black. */
+html[data-sanctuary="open"] body::before {
+  background-color: var(--sanctuary-bg-light);
+  background-image:
+    radial-gradient(
+      120% 60% at 20% 0%,
+      rgba(99, 102, 241, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      90% 50% at 90% 0%,
+      rgba(236, 72, 153, 0.13),
+      transparent 55%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 60%,
+      var(--sanctuary-bg-light) 100%
+    );
+}
+html.dark[data-sanctuary="open"] body::before {
   background-color: var(--sanctuary-bg-dark);
+  background-image:
+    radial-gradient(
+      120% 60% at 20% 0%,
+      rgba(99, 102, 241, 0.20),
+      transparent 60%
+    ),
+    radial-gradient(
+      90% 50% at 90% 0%,
+      rgba(236, 72, 153, 0.14),
+      transparent 55%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 60%,
+      var(--sanctuary-bg-dark) 100%
+    );
 }
 
 /* ==========================================
