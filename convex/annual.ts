@@ -15,6 +15,11 @@ function ownsRow(row: { sessionId?: string | null }, actualSessionId: string | u
 
 // The default template, seeded from the spec (§4). Fully editable by writing
 // a reviewTemplates row with type "annual".
+//
+// NOTE: every prompt id must be unique across ALL sections, because answers are
+// stored per promptId. (The Plan section's "more of" prompt used to share the id
+// "more-time" with the Review section, which made the two prompts overwrite each
+// other's answer. It is now "do-more".)
 export const DEFAULT_ANNUAL_TEMPLATE = {
     type: "annual" as const,
     sections: [
@@ -75,7 +80,7 @@ export const DEFAULT_ANNUAL_TEMPLATE = {
                 { id: "false-productive", text: "What do I think is productive that isn't?", kind: "long" as const },
                 { id: "real-productive", text: "What is productive that I don't realise?", kind: "long" as const },
                 { id: "less-time", text: "What do I want to do less of with my time?", kind: "long" as const },
-                { id: "more-time", text: "What do I want to do more of with my time?", kind: "long" as const },
+                { id: "do-more", text: "What do I want to do more of with my time?", kind: "long" as const },
                 { id: "ideal-day", text: "What does an ideal normal day look like? Write it out.", kind: "long" as const },
                 { id: "conversations", text: "What conversations do I need to have?", kind: "long" as const },
                 { id: "habits-start-stop", text: "What are the habits I'm committing to starting and stopping?", kind: "long" as const },
@@ -93,6 +98,8 @@ export const DEFAULT_ANNUAL_TEMPLATE = {
     ],
 };
 
+// The period the server considers "current": from the winter solstice (Dec 21)
+// until the next one, keyed by the year the solstice falls in.
 function currentPeriodKey(): string {
     const now = new Date();
     const year = now.getFullYear();
@@ -102,6 +109,16 @@ function currentPeriodKey(): string {
         now.getMonth() > solsticeMonth ||
         (now.getMonth() === solsticeMonth && now.getDate() >= solsticeDay);
     return `${isAfterSolstice ? year : year - 1}-solstice`;
+}
+
+// The review is "due" from Dec 21 through the end of January (so it doesn't
+// silently stop being due on Jan 1 if it was never finished). Before this,
+// "due" used the whole month of December, which paired December 1-20 with the
+// PREVIOUS year's period key.
+function isInDueWindow(now: Date): boolean {
+    const month = now.getMonth();
+    const day = now.getDate();
+    return (month === 11 && day >= 21) || month === 0;
 }
 
 export const isSolsticeReviewDue = query({
@@ -118,20 +135,17 @@ export const isSolsticeReviewDue = query({
         const visibleReviews = allReviews.filter(r => ownsRow(r, actualSessionId, isSignedIn));
         const thisYear = visibleReviews.find(r => r.periodKey === periodKey && r.status === "complete");
 
-        const now = new Date();
-        const isDecember = now.getMonth() === 11;
-
         return {
-            due: isDecember && !thisYear,
+            due: isInDueWindow(new Date()) && !thisYear,
             periodKey,
             completed: !!thisYear,
         };
     },
 });
 
-// NEW: Lists every completed annual review for this session, sorted by year
-// descending (most recent first). Used by the "Past years" picker in the Year
-// tab so historical reviews are actually reachable from the UI.
+// Lists every completed annual review for this session, sorted by year
+// descending (most recent first). Used by the Year tab so historical reviews
+// are reachable from the UI.
 export const listCompletedAnnualReviews = query({
     args: { sessionId: v.optional(v.string()) },
     handler: async (ctx, args) => {
@@ -179,8 +193,13 @@ export const getAnnualReviewData = query({
         const { actualSessionId } = parseSessionId(args.sessionId);
         const isSignedIn = !!identity;
 
+        // q.and(...) - a plain JS `&&` between two filter expressions would
+        // silently drop the first condition.
         const allReviews = await ctx.db.query("reviews")
-            .filter(q => q.eq(q.field("type"), "annual") && q.eq(q.field("periodKey"), args.periodKey))
+            .filter(q => q.and(
+                q.eq(q.field("type"), "annual"),
+                q.eq(q.field("periodKey"), args.periodKey)
+            ))
             .collect();
         const visibleReviews = allReviews.filter(r => ownsRow(r, actualSessionId, isSignedIn));
         const existingReview = visibleReviews[0] ?? null;
@@ -196,7 +215,10 @@ export const getAnnualReviewData = query({
         const yearNum = parseInt(args.periodKey.split("-")[0], 10);
         const lastYearKey = `${yearNum - 1}-solstice`;
         const lastYearReviews = await ctx.db.query("reviews")
-            .filter(q => q.eq(q.field("type"), "annual") && q.eq(q.field("periodKey"), lastYearKey))
+            .filter(q => q.and(
+                q.eq(q.field("type"), "annual"),
+                q.eq(q.field("periodKey"), lastYearKey)
+            ))
             .collect();
         const visibleLastYearReviews = lastYearReviews.filter(r => ownsRow(r, actualSessionId, isSignedIn));
         const lastYearReview = visibleLastYearReviews[0] ?? null;
@@ -322,10 +344,10 @@ export const ensureAnnualReview = mutation({
         const isSignedIn = !!identity;
 
         const existing = await ctx.db.query("reviews")
-            .filter(q =>
-                q.eq(q.field("type"), "annual") &&
+            .filter(q => q.and(
+                q.eq(q.field("type"), "annual"),
                 q.eq(q.field("periodKey"), args.periodKey)
-            )
+            ))
             .collect();
 
         const mine = existing.find(r => ownsRow(r, actualSessionId, isSignedIn));
@@ -397,5 +419,38 @@ export const completeAnnualReview = mutation({
             completedAt: Date.now(),
         });
         return args.reviewId;
+    },
+});
+
+// Deletes this person's annual review for a period, including every saved
+// answer, so it can be started from scratch. Used for testing and for
+// abandoning a review. Does not touch tasks or goals created from answers.
+export const resetAnnualReview = mutation({
+    args: { periodKey: v.string(), sessionId: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        const { actualSessionId } = parseSessionId(args.sessionId);
+        const isSignedIn = !!identity;
+
+        const reviews = await ctx.db.query("reviews")
+            .filter(q => q.and(
+                q.eq(q.field("type"), "annual"),
+                q.eq(q.field("periodKey"), args.periodKey)
+            ))
+            .collect();
+
+        let deletedReviews = 0;
+        for (const review of reviews) {
+            if (!ownsRow(review, actualSessionId, isSignedIn)) continue;
+
+            const answers = await ctx.db.query("reviewAnswers")
+                .withIndex("by_review", q => q.eq("reviewId", review._id))
+                .collect();
+            for (const a of answers) await ctx.db.delete(a._id);
+
+            await ctx.db.delete(review._id);
+            deletedReviews++;
+        }
+        return deletedReviews;
     },
 });

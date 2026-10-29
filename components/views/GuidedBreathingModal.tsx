@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { X, Play, Pause, RotateCcw, Settings, Wind, Check, Volume2, VolumeX } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  X, Play, Pause, RotateCcw, Settings, Wind, Check, Volume2, VolumeX,
+  Vibrate, VibrateOff, SkipForward,
+} from "lucide-react";
 import { FocusSettings } from "@/lib/focusSettings";
 
 type BreathingPhase = "idle" | "inhale" | "exhale" | "retention" | "recovery" | "complete";
+
+const HAPTICS_KEY = "fotion-breathing-haptics";
 
 const CUE_COLORS = [
   { name: "Cyan", value: "#06b6d4" },
@@ -32,6 +37,7 @@ export function GuidedBreathingModal({
   const [recoverySeconds, setRecoverySeconds] = useState(15);
   const [roundsCompleted, setRoundsCompleted] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(settings.breathingAudioEnabled ?? true);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
 
   // Local settings editable in settings pane
@@ -44,6 +50,9 @@ export function GuidedBreathingModal({
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const animationTimerRef = useRef<any>(null);
+  const hapticsOnRef = useRef(true);
+  const iosSwitchLabelRef = useRef<HTMLLabelElement>(null);
+  const iosSwitchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setCueColor(settings.breathingColor || "#06b6d4");
@@ -52,6 +61,55 @@ export function GuidedBreathingModal({
     setBreathingRatio(settings.breathingRatio || "1:1");
     setSoundEnabled(settings.breathingAudioEnabled ?? true);
   }, [settings]);
+
+  // Haptics preference lives in localStorage so it needs no settings-schema change.
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(HAPTICS_KEY);
+      const on = stored !== "off";
+      setHapticsEnabled(on);
+      hapticsOnRef.current = on;
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Safari on iOS has no navigator.vibrate, but toggling a native
+  // <input type="checkbox" switch> gives a light tap. Mark it as a switch here
+  // because React doesn't forward the non-standard attribute reliably.
+  useEffect(() => {
+    iosSwitchInputRef.current?.setAttribute("switch", "");
+  }, [isOpen]);
+
+  const toggleHaptics = () => {
+    const next = !hapticsEnabled;
+    setHapticsEnabled(next);
+    hapticsOnRef.current = next;
+    try {
+      localStorage.setItem(HAPTICS_KEY, next ? "on" : "off");
+    } catch {
+      /* ignore */
+    }
+    if (next) haptic([30]); // confirm with a tap
+  };
+
+  // pattern: [vibrate, pause, vibrate, pause, ...] in ms (same as navigator.vibrate).
+  const haptic = useCallback((pattern: number[]) => {
+    if (!hapticsOnRef.current || typeof window === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(pattern);
+      return;
+    }
+
+    // iOS best-effort: one switch toggle per "vibrate" slot in the pattern.
+    let t = 0;
+    pattern.forEach((ms, i) => {
+      if (i % 2 === 0) setTimeout(() => iosSwitchLabelRef.current?.click(), t);
+      t += ms;
+    });
+  }, []);
 
   const initAudio = () => {
     if (!audioCtxRef.current) {
@@ -145,22 +203,51 @@ export function GuidedBreathingModal({
     };
   }, [phase, currentBreath, breathCount, inhaleMs, exhaleMs, isOpen]);
 
-  // Retention timer - triggers calm chime ONLY on each minute (60s, 120s, 180s...)
+  // Haptic cue on every phase change: soft tap on inhale, lighter on exhale,
+  // longer buzz when the hold begins, a double pulse for recovery.
+  useEffect(() => {
+    if (!isOpen) return;
+    switch (phase) {
+      case "inhale":
+        haptic([40]);
+        break;
+      case "exhale":
+        haptic([18]);
+        break;
+      case "retention":
+        haptic([160]);
+        break;
+      case "recovery":
+        haptic([90, 70, 90]);
+        break;
+      case "complete":
+        haptic([60, 50, 60, 50, 180]);
+        break;
+      default:
+        break;
+    }
+  }, [phase, isOpen, haptic]);
+
+  // Retention timer (just counts seconds)
   useEffect(() => {
     let interval: any;
     if (phase === "retention") {
       interval = setInterval(() => {
-        setRetentionSeconds((prev) => {
-          const next = prev + 1;
-          if (next > 0 && next % 60 === 0) {
-            playRetentionMinuteChime();
-          }
-          return next;
-        });
+        setRetentionSeconds((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [phase, soundEnabled]);
+  }, [phase]);
+
+  // Calm chime + haptic on each full minute of retention (60s, 120s, 180s...).
+  // Kept out of the state updater so it can't fire twice in React Strict Mode.
+  useEffect(() => {
+    if (phase === "retention" && retentionSeconds > 0 && retentionSeconds % 60 === 0) {
+      playRetentionMinuteChime();
+      haptic([220, 120, 220]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retentionSeconds]);
 
   // Clean Recovery hold timer (Decoupled from phase-switching side effects)
   useEffect(() => {
@@ -196,6 +283,25 @@ export function GuidedBreathingModal({
     setCurrentBreath(1);
     setRetentionSeconds(0);
     setRecoverySeconds(15);
+  };
+
+  // Skip the remaining power breaths and go straight to the exhale hold.
+  const handleSkipToHold = () => {
+    if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+    setRetentionSeconds(0);
+    setPhase("retention");
+  };
+
+  // Leave the exhale hold and take the recovery breath (also logs the hold).
+  const handleStartRecovery = () => {
+    saveRetentionLog(retentionSeconds);
+    setPhase("recovery");
+    setRecoverySeconds(15);
+  };
+
+  // End the 15s recovery hold early; the existing effect completes the round.
+  const handleEndRecoveryEarly = () => {
+    setRecoverySeconds(0);
   };
 
   const handleSaveSettings = () => {
@@ -259,7 +365,7 @@ export function GuidedBreathingModal({
     statusText = "Exhale";
     subText = `${currentBreath} / ${breathCount}`;
   } else if (phase === "retention") {
-    circleScale = "scale-90 opacity-60 animate-pulse";
+    circleScale = "scale-90 opacity-60 animate-pulse motion-reduce:animate-none";
     transitionDuration = "2s";
     statusText = "Exhale Hold";
     subText = "Hold empty lungs • Relax mind & body";
@@ -267,7 +373,7 @@ export function GuidedBreathingModal({
     circleScale = "scale-110 opacity-90";
     transitionDuration = "1s";
     statusText = "Recovery Inhale";
-    subText = "Hold full lungs • Feel the energy"; // Removed the double timer here
+    subText = "Hold full lungs • Feel the energy";
   } else if (phase === "complete") {
     circleScale = "scale-100 opacity-80";
     statusText = "Round Complete";
@@ -280,46 +386,75 @@ export function GuidedBreathingModal({
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   };
 
+  const headerBtn =
+    "p-3 sm:p-2.5 rounded-full bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors";
+
   return (
-    <div className="fixed inset-0 z-[250] bg-black/90 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col justify-between p-6 overflow-hidden select-none">
+    <div
+      className="fixed inset-0 z-[250] bg-black/95 animate-in fade-in duration-300 motion-reduce:animate-none flex flex-col justify-between px-6 overflow-hidden select-none"
+      style={{
+        paddingTop: "calc(var(--sat, 0px) + 1rem)",
+        paddingBottom: "calc(var(--sab, 0px) + 1rem)",
+      }}
+    >
+      {/* Hidden native switch used for the iOS Safari haptic fallback. */}
+      <label
+        ref={iosSwitchLabelRef}
+        aria-hidden
+        className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0"
+      >
+        <input ref={iosSwitchInputRef} type="checkbox" tabIndex={-1} />
+      </label>
+
       {/* Top Header */}
-      <div className="flex items-center justify-between max-w-4xl w-full mx-auto">
+      <div className="relative z-10 flex items-center justify-between max-w-4xl w-full mx-auto">
         <div className="flex items-center gap-2 text-white font-bold tracking-wider uppercase text-xs sm:text-sm">
           <Wind className="w-5 h-5 text-cyan-400" /> Guided Breathing
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={toggleHaptics}
+            aria-label={hapticsEnabled ? "Turn haptics off" : "Turn haptics on"}
+            className={headerBtn}
+            title={hapticsEnabled ? "Haptics on" : "Haptics off"}
+          >
+            {hapticsEnabled ? (
+              <Vibrate className="w-5 h-5 text-cyan-400" />
+            ) : (
+              <VibrateOff className="w-5 h-5 text-zinc-500" />
+            )}
+          </button>
           <button
             onClick={() => {
               const next = !soundEnabled;
               setSoundEnabled(next);
               onUpdateSettings({ ...settings, breathingAudioEnabled: next });
             }}
-            className="p-2.5 rounded-full bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors"
+            aria-label={soundEnabled ? "Mute audio cues" : "Unmute audio cues"}
+            className={headerBtn}
             title={soundEnabled ? "Audio cues active (Minute chime on retention)" : "Audio cues muted"}
           >
             {soundEnabled ? <Volume2 className="w-5 h-5 text-cyan-400" /> : <VolumeX className="w-5 h-5 text-zinc-500" />}
           </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-2.5 rounded-full bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors"
+            aria-label="Breathing settings"
+            className={headerBtn}
             title="Breathing Settings"
           >
             <Settings className="w-5 h-5" />
           </button>
-          <button
-            onClick={onClose}
-            className="p-2.5 rounded-full bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors"
-          >
+          <button onClick={onClose} aria-label="Close breathing" className={headerBtn}>
             <X className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       {/* Main Breathing Area */}
-      <div className="flex-1 flex flex-col items-center justify-center relative my-4 max-w-xl w-full mx-auto text-center">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center relative my-4 max-w-xl w-full mx-auto text-center">
         {showSettings ? (
           /* Inline Settings Screen */
-          <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 text-left space-y-5 animate-in zoom-in-95 duration-200">
+          <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 text-left space-y-5 animate-in zoom-in-95 duration-200 motion-reduce:animate-none">
             <h3 className="text-xl font-bold text-white flex items-center gap-2">
               <Settings className="w-5 h-5 text-cyan-400" /> Breathing Protocol Settings
             </h3>
@@ -329,7 +464,7 @@ export function GuidedBreathingModal({
               <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 block mb-2">
                 Visual Indicator Color
               </label>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {CUE_COLORS.map((c) => (
                   <button
                     key={c.value}
@@ -358,6 +493,24 @@ export function GuidedBreathingModal({
               >
                 <div
                   className={`w-5 h-5 rounded-full bg-white transition-transform ${soundEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                />
+              </button>
+            </div>
+
+            {/* Haptics Toggle */}
+            <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-2xl border border-zinc-700">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                Haptic Cues
+              </span>
+              <button
+                type="button"
+                onClick={toggleHaptics}
+                className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${hapticsEnabled ? "bg-cyan-500" : "bg-zinc-700"
+                  }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white transition-transform ${hapticsEnabled ? "translate-x-5" : "translate-x-0"
                     }`}
                 />
               </button>
@@ -435,7 +588,7 @@ export function GuidedBreathingModal({
         ) : (
           <>
             {/* Visual Expanding / Contracting Circle */}
-            <div className="relative flex items-center justify-center w-64 h-64 sm:w-72 sm:h-72 my-4">
+            <div className="relative flex items-center justify-center w-64 h-64 sm:w-72 sm:h-72 my-4 shrink-0">
               {/* Outer Glowing Ring */}
               <div
                 className="absolute inset-0 rounded-full transition-all ease-in-out blur-xl"
@@ -485,17 +638,33 @@ export function GuidedBreathingModal({
               {subText}
             </p>
 
+            {/* Skip the remaining power breaths */}
+            {(phase === "inhale" || phase === "exhale") && (
+              <button
+                onClick={handleSkipToHold}
+                className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-200 hover:bg-zinc-800 hover:text-white font-bold text-sm transition-all active:scale-95"
+              >
+                <SkipForward className="w-4 h-4" /> Skip to exhale hold
+              </button>
+            )}
+
             {/* Retention Transition Button */}
             {phase === "retention" && (
               <button
-                onClick={() => {
-                  saveRetentionLog(retentionSeconds);
-                  setPhase("recovery");
-                  setRecoverySeconds(15);
-                }}
+                onClick={handleStartRecovery}
                 className="mt-6 px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold rounded-full transition-all shadow-xl active:scale-95 text-sm"
               >
                 Take Recovery Inhale (15s Hold)
+              </button>
+            )}
+
+            {/* End the recovery hold early */}
+            {phase === "recovery" && (
+              <button
+                onClick={handleEndRecoveryEarly}
+                className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-200 hover:bg-zinc-800 hover:text-white font-bold text-sm transition-all active:scale-95"
+              >
+                <SkipForward className="w-4 h-4" /> End hold early
               </button>
             )}
 
@@ -512,7 +681,7 @@ export function GuidedBreathingModal({
       </div>
 
       {/* Bottom Controls */}
-      <div className="flex items-center justify-center gap-4 max-w-md w-full mx-auto pb-4">
+      <div className="relative z-10 flex items-center justify-center gap-4 max-w-md w-full mx-auto">
         {phase === "idle" ? (
           <button
             onClick={handleStart}

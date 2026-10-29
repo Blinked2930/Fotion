@@ -160,16 +160,29 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
     activeTask?.goalId && goals ? goals.find((g: any) => g._id === activeTask.goalId) : null;
 
   return (
-    <div className="fixed inset-0 z-[200] bg-[var(--background)]/95 backdrop-blur-2xl animate-in fade-in duration-300 flex flex-col">
-      <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border)] md:border-none">
-        <div className="flex items-center gap-2 text-[var(--foreground)] font-bold tracking-widest uppercase text-xs sm:text-sm">
-          <Target className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-500" /> Focus Session
+    // Fully opaque (no backdrop blur) so nothing in the header is ever blurred.
+    // The soft colour comes from a gradient wash layer BEHIND the content.
+    <div className="fixed inset-0 z-[200] flex flex-col bg-[var(--background)] animate-in fade-in duration-300 motion-reduce:animate-none">
+      <div
+        aria-hidden
+        className="top-wash-layer pointer-events-none absolute inset-x-0 top-0 h-[calc(var(--sat,0px)+11rem)]"
+      />
+
+      {/* Header: pushed below the notch / status bar with the safe-area inset. */}
+      <div
+        className="relative z-20 shrink-0 flex items-center justify-between gap-2 px-4 sm:px-6 pb-3 sm:pb-4"
+        style={{ paddingTop: "calc(var(--sat, 0px) + 0.75rem)" }}
+      >
+        <div className="flex min-w-0 items-center gap-2 text-[var(--foreground)] font-bold tracking-widest uppercase text-xs sm:text-sm">
+          <Target className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-zinc-500" />
+          <span className="truncate">Focus Session</span>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => setIsBreathingOpen(true)}
-            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all active:scale-95"
+            aria-label="Guided breathing"
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 sm:py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all active:scale-95"
             title="Launch Wim Hof Guided Breathing"
           >
             <Wind className="w-3.5 h-3.5 text-cyan-500" />
@@ -178,7 +191,8 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
 
           <button
             onClick={() => setIsVisualFocusOpen(true)}
-            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all active:scale-95"
+            aria-label="Visual focus exercise"
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 sm:py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all active:scale-95"
             title="Launch Visual Focus Fixation Exercise"
           >
             <Eye className="w-3.5 h-3.5 text-indigo-500" />
@@ -193,7 +207,8 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
               };
               handleSaveSettings(updated);
             }}
-            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all active:scale-95 ${
+            aria-label="Toggle microbreaks"
+            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 sm:py-1.5 rounded-full border transition-all active:scale-95 ${
               focusSettings.microbreaksEnabled
                 ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800"
                 : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border-[var(--border)]"
@@ -206,14 +221,15 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
               }`}
             />
             <span className="hidden sm:inline">Microbreaks</span>
-            <span className="text-[10px] uppercase">
+            <span className="hidden sm:inline text-[10px] uppercase">
               {focusSettings.microbreaksEnabled ? "ON" : "OFF"}
             </span>
           </button>
 
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full text-zinc-500 hover:text-[var(--foreground)] transition-colors ml-1"
+            aria-label="Timer settings"
+            className="p-2.5 sm:p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full text-zinc-500 hover:text-[var(--foreground)] transition-colors"
             title="Custom Timers & Preferences"
           >
             <Sliders className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -221,7 +237,8 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
 
           <button
             onClick={minimize}
-            className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full text-zinc-500 hover:text-[var(--foreground)] transition-colors"
+            aria-label="Close focus session (timer keeps running)"
+            className="p-2.5 sm:p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full text-zinc-500 hover:text-[var(--foreground)] transition-colors"
             title="Minimize overlay"
           >
             <X className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -230,13 +247,14 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
       </div>
 
       {isMicrobreakActive && (
-        <div className="w-full bg-amber-500 text-amber-950 px-4 py-2.5 text-center flex items-center justify-between font-bold text-xs sm:text-sm shadow-lg animate-in slide-in-from-top duration-300 z-30">
+        <div className="relative z-20 w-full bg-amber-500 text-amber-950 px-4 py-2.5 text-center flex items-center justify-between font-bold text-xs sm:text-sm shadow-lg animate-in slide-in-from-top duration-300 motion-reduce:animate-none">
           <div className="flex items-center gap-2 mx-auto">
-            <Zap className="w-4 h-4 fill-current animate-bounce" />
+            <Zap className="w-4 h-4 fill-current animate-bounce motion-reduce:animate-none" />
             <span>MICROBREAK ({microbreakTimeLeft}s) — Rest your eyes and relax gaze.</span>
           </div>
           <button
             onClick={() => session.setIsMicrobreakActive?.(false)}
+            aria-label="Dismiss microbreak"
             className="p-1 rounded-full hover:bg-amber-600/30 text-amber-950 transition-colors"
             title="Dismiss microbreak"
           >
@@ -245,9 +263,12 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row max-w-6xl w-full mx-auto">
-        <div className="flex flex-col justify-center items-center w-full md:flex-1 shrink-0 min-h-[60vh] md:min-h-0 md:h-full p-6 sm:p-8">
-          <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 px-4 py-1.5 rounded-full bg-zinc-100/80 dark:bg-zinc-900/80 border border-[var(--border)] text-xs font-medium text-zinc-500 dark:text-zinc-400 backdrop-blur-sm">
+      <div
+        className="relative z-10 flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row max-w-6xl w-full mx-auto"
+        style={{ paddingBottom: "var(--sab, 0px)" }}
+      >
+        <div className="flex flex-col justify-center items-center w-full md:flex-1 shrink-0 min-h-[55dvh] md:min-h-0 md:h-full p-6 sm:p-8">
+          <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 px-4 py-1.5 rounded-full bg-zinc-100/80 dark:bg-zinc-900/80 border border-[var(--border)] text-xs font-medium text-zinc-500 dark:text-zinc-400">
             <div
               className="flex items-center gap-1.5"
               title={`${focusSettings.longBreakInterval}-session cycle to long break`}
@@ -268,7 +289,7 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
                       isCompleted
                         ? "w-5 bg-[var(--foreground)]"
                         : isActive
-                        ? "w-5 bg-zinc-400 dark:bg-zinc-500 animate-pulse"
+                        ? "w-5 bg-zinc-400 dark:bg-zinc-500 animate-pulse motion-reduce:animate-none"
                         : "w-2 bg-zinc-300 dark:bg-zinc-700"
                     }`}
                   />
@@ -324,6 +345,7 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
           <div className="flex items-center gap-3 sm:gap-4 mb-8 sm:mb-16">
             <button
               onClick={toggleTimer}
+              aria-label={isRunning ? "Pause timer" : "Start timer"}
               className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-transform active:scale-95 shadow-xl ${
                 isRunning
                   ? "bg-zinc-200 dark:bg-zinc-800 text-[var(--foreground)]"
@@ -338,6 +360,7 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
             </button>
             <button
               onClick={resetTimer}
+              aria-label="Reset timer"
               className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-[var(--foreground)]"
             >
               <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -345,7 +368,7 @@ export function FocusSessionOverlay({ session }: { session: FocusSessionApi }) {
           </div>
 
           {activeTask ? (
-            <div className="flex flex-col items-center text-center px-4 animate-in slide-in-from-bottom-4 fade-in">
+            <div className="flex flex-col items-center text-center px-4 animate-in slide-in-from-bottom-4 fade-in motion-reduce:animate-none">
               <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2 sm:mb-3">
                 Currently Focused On
               </span>

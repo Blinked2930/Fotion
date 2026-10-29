@@ -626,20 +626,19 @@ function HomeContent() {
       {/*
         HEADER — safe-area aware in Safari and in iOS PWA standalone.
 
-        Background is FULLY OPAQUE (`bg-[var(--background)]`, no `/95`).
-        The previous 5% transparency was letting the gradient strip
-        underneath show through the header, producing the "slightly
-        blurred header" effect the user reported. Now the header is a
-        solid surface, and the gradient is confined to the safe-area
-        strip above it (see globals.css `html body::before` height:
-        calc(var(--sat) + 48px)).
+        The soft "blurred" look is a pure GRADIENT (`.top-wash`, see
+        globals.css), NOT a backdrop blur. That means:
+          - the colour wash extends up under the notch / status bar
+            (paddingTop: var(--sat)) and fades into the page background,
+            so there is no visible line between the status bar and the header;
+          - the icons and buttons sit on top of it and are never blurred;
+          - it follows light / dark mode through CSS variables.
 
-        No backdrop-blur (WebKit Bug 319479), `isolate` for an explicit
-        stacking context, `min-h-12` so the header grows to accommodate
-        safe-area padding.
+        No backdrop-blur (WebKit Bug 319479). `isolate` gives an explicit
+        stacking context, `min-h-12` lets the header grow with the safe area.
       */}
       <header
-        className="sticky top-0 z-10 isolate bg-[var(--background)] border-b border-[var(--border)]/50 min-h-12"
+        className="sticky top-0 z-10 isolate top-wash min-h-12"
         style={{ paddingTop: "var(--sat, 0.5rem)" }}
       >
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
@@ -748,6 +747,7 @@ function HomeContent() {
       {!focusSession.overlayVisible && !focusSession.shouldShowFloatingWidget && (
         <button
           onClick={focusSession.expand}
+          style={{ marginBottom: "var(--sab, 0px)" }}
           className={`fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-[50] flex items-center gap-2 bg-white dark:bg-[#252525] border border-[var(--border)] text-[var(--foreground)] font-bold px-6 py-3.5 rounded-full shadow-2xl shadow-black/5 transition-all duration-300 active:scale-95 ${isNearFocusButton ? 'sm:opacity-100 sm:translate-y-0' : 'sm:opacity-20 sm:translate-y-2'}`}
         >
           <Target className="w-5 h-5 text-zinc-500" /> Start Focus {focusedTasks.length > 0 ? `(${focusedTasks.length})` : ""}
