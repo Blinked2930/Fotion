@@ -68,10 +68,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     setMounted(true);
   }, []);
 
-  // Set a data attribute on <html> while the overlay is open so globals.css
-  // can repaint the body background with the Sanctuary's cream/dark palette
-  // — that's what fixes the top-of-screen safe-area line inside the Goals
-  // tab (it was painting the task UI's white/near-black instead).
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (isOpen) {
@@ -209,9 +205,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   };
 
-  // Row for paused / completed / retired goals. Now exposes two actions
-  // inline (Reactivate, Delete) so you no longer have to open the goal to
-  // manage it — previously only active goals had a delete affordance.
   const renderInactiveGoalRow = (goal: any) => (
     <div
       key={goal._id}
@@ -280,8 +273,32 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
 
   return createPortal(
     <div className="fixed inset-0 z-[240] animate-in fade-in duration-500 motion-reduce:animate-none">
-      <div className="pointer-events-none absolute inset-0 bg-[#f6f2ea] dark:bg-[#0c0c12]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_8%,rgba(236,72,153,0.11),transparent)]" />
+      {/*
+        BACKGROUND LAYER — architecture explained.
+
+        Previously there were two stacked full-cover divs:
+          1. `bg-[#f6f2ea]` (solid)
+          2. `bg-[radial-gradient(...)]` (glow)
+        with the radial anchored at `at 15% 0%` / `at 95% 8%` — i.e. at
+        the top edge of the viewport. The result was a flat solid band at
+        the top (in the notch / status-bar region) followed by an abrupt
+        start of the glow, which read as a "hard line" between the two.
+
+        Now:
+          - The solid background is on the overlay ROOT itself, extended
+            upward by env(safe-area-inset-top) so it paints through the
+            notch cleanly, matching the body::before strip that also
+            paints through the notch (see globals.css).
+          - The radial glow div is anchored ABOVE the top edge (at 15% -40%
+            and 95% -30%) so what the user sees at the top of the screen is
+            the fade tail of the glow, not its peak. No more flat band,
+            no more hard transition.
+      */}
+      <div
+        className="pointer-events-none absolute inset-x-0 -top-[env(safe-area-inset-top,0px)] bottom-0 bg-[#f6f2ea] dark:bg-[#0c0c12]"
+        style={{ top: "calc(-1 * var(--sat, 0px))" }}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_-40%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_-30%,rgba(236,72,153,0.11),transparent)]" />
 
       <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
         <div className="flex flex-wrap items-center justify-between gap-y-3 px-[max(1.5rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-10 sm:pt-9">
@@ -332,7 +349,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
                 className={`relative flex min-h-11 touch-manipulation items-center gap-1.5 ${tabClass("week")}`}
               >
                 Week
-                {(reviewDue || (quarterlyStatus?.due)) && false}
               </button>
               <button
                 onClick={() => setActiveTab("quarter")}
