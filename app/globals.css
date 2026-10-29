@@ -13,21 +13,15 @@
   --subtle-bg: #f7f6f3;
   --border: #e9e9e7;
 
-  /* Sanctuary palette — the reflective overlay uses a warmer cream paper
-     and near-black ink so it reads as a different visual world. */
   --sanctuary-bg-light: #f6f2ea;
   --sanctuary-bg-dark: #0c0c12;
 
-  /* The solid colors used by the top gradient paint layer. These are what
-     Safari's status-bar sampler reads. The gradient itself is layered on
-     top visually but is NOT what Safari samples, which is why the status
-     bar color stays stable across sections and scroll positions. */
   --top-paint-light: #f6f2ea;
   --top-paint-dark: #0c0c12;
 }
 
 /* ==========================================
-   DARK MODE (Forced Override)
+   DARK MODE
    ========================================== */
 html.dark {
   --background: #191919 !important;
@@ -55,27 +49,29 @@ html, body {
 /* ==========================================
    TOP GRADIENT PAINT LAYER
    ==========================================
-   A fixed strip at the very top of the viewport that paints:
+   A fixed strip at the very top of the viewport painting:
 
-     1. A solid cream (light) / near-black (dark) background-color.
-        This is what iOS Safari samples to tint the status bar. A solid
-        color — not a gradient — because Safari's sampler bails out on
-        gradients and falls back to white, which was the "permanently
-        light top bar" bug.
+     1. A solid base color (cream in light / near-black in dark). This is
+        what iOS Safari samples for the status bar tint. Solid, not a
+        gradient, because Safari's sampler bails out on gradients and
+        falls back to white — the original cause of the "permanently light
+        top bar" bug.
 
-     2. A soft radial glow overlaid on top of that solid color.
-        This is what the eye sees: a subtle warm bloom bleeding down
-        from the very top edge of the screen, matching the Sanctuary's
-        mottled atmosphere. It fades to transparent by ~220px.
+     2. A soft radial glow overlaid on top of that solid base. This is
+        the visual the user sees: a warm bloom bleeding down from the top
+        edge, fading into the page background by ~220px.
 
-   Because the strip is position:fixed and starts at the top edge, it
-   also sits under the status bar / notch area, so the gradient visually
-   continues to the physical edge of the device on both iOS and Android.
+   z-index: -1 places this strip BEHIND all content. This is the fix for
+   the invisible-header bug: previously the strip was at z-index: 0, so a
+   sticky header with backdrop-blur-sm (which creates a compositing layer
+   in Safari 26 per WebKit Bug 319479) would lose the stacking race and
+   paint BEHIND the strip, making it invisible and unclickable.
 
-   The section-specific glows (Sanctuary) still render inside their own
-   overlays on top of this; this layer just ensures the very top of the
-   screen always has the "right" color for the status bar and no visible
-   hard seam where the gradient starts.
+   With the strip at z-index: -1 and the header no longer using
+   backdrop-filter, the header paints on top of the strip, is fully
+   clickable, and Safari still samples the strip's solid base color for
+   the browser chrome tint because the sampler reads the topmost painted
+   pixel at the strip's y-coordinate regardless of z-order.
 */
 html body::before {
   content: "";
@@ -84,14 +80,11 @@ html body::before {
   left: 0;
   right: 0;
   height: 220px;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
 
-  /* Solid base — this is the paint the OS samples for the status bar. */
   background-color: var(--top-paint-light);
 
-  /* Gradient overlay — what the user actually sees. Layered as a second
-     background-image, on top of the solid background-color above. */
   background-image:
     radial-gradient(
       120% 60% at 20% 0%,
@@ -135,9 +128,9 @@ html.dark body::before {
     );
 }
 
-/* Inside the Sanctuary, the base solid and the fade target switch to the
-   Sanctuary palette so the gradient blends into the cream/near-black page
-   instead of fading to the task UI's white/near-black. */
+/* Sanctuary variant: the solid base and fade target switch to the
+   Sanctuary's cream/near-black so the glow blends into the overlay
+   palette instead of the task UI's white/near-black. */
 html[data-sanctuary="open"] body::before {
   background-color: var(--sanctuary-bg-light);
   background-image:

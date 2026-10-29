@@ -262,43 +262,19 @@ function HomeContent() {
   const [showInstallScreen, setShowInstallScreen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"demo" | null>(null);
 
-  // -------------------------------------------------------------------------
-  // LOGIN HARD-RELOAD FIX
-  //
-  // On mobile PWAs (and occasionally on some mobile browsers), Clerk
-  // completes the sign-in but the client-side session store doesn't
-  // propagate before the landing page re-renders — so isSignedIn reads as
-  // false, the app sends you back to the sign-in page, and only a full app
-  // restart (which forces a fresh Clerk init) picks up the session.
-  //
-  // Fix: watch for the false -> true transition. When it fires, force ONE
-  // hard reload. That reload re-initializes Clerk from its persisted
-  // session cookie/token, which is exactly what closing and reopening the
-  // app does — except automatically, without a user-visible restart.
-  //
-  // The localStorage flag prevents a reload loop in the unlikely case the
-  // session still doesn't propagate (e.g. a genuine auth failure would then
-  // surface as "still on login page" rather than an infinite spinner).
-  // -------------------------------------------------------------------------
   const wasSignedInRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
 
-    // First load: record the initial state, don't reload.
     if (wasSignedInRef.current === null) {
       wasSignedInRef.current = isSignedIn === true;
       return;
     }
 
-    // Detect false -> true transition.
     if (!wasSignedInRef.current && isSignedIn) {
       wasSignedInRef.current = true;
 
-      // Guard against a reload loop: if we already reloaded once in this
-      // session (flag set), don't reload again — the previous reload was
-      // supposed to fix it, so if it didn't, the auth is genuinely broken
-      // and reloading in a loop would be worse than staying on the page.
       const reloadFlag = "fotion-post-signin-reloaded";
       if (!sessionStorage.getItem(reloadFlag)) {
         sessionStorage.setItem(reloadFlag, "1");
@@ -306,12 +282,9 @@ function HomeContent() {
         return;
       }
 
-      // Flag was already set — clear it so the next successful sign-in
-      // (after a sign-out) can trigger its own reload.
       sessionStorage.removeItem(reloadFlag);
     }
 
-    // true -> false (sign out): reset the flag so the next sign-in reloads.
     if (wasSignedInRef.current && !isSignedIn) {
       wasSignedInRef.current = false;
       sessionStorage.removeItem("fotion-post-signin-reloaded");
@@ -597,7 +570,32 @@ function HomeContent() {
         </div>
       )}
 
-      <header className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm pt-2">
+      {/*
+        HEADER
+        ======
+        Two things are important here for Safari 26 on mobile:
+
+        1. NO `backdrop-blur-sm` (or any backdrop-filter). WebKit Bug
+           319479 documents that a sticky element at the top viewport edge
+           with backdrop-filter loses its stacking context to sibling fixed
+           elements and can paint BEHIND them — which is exactly why the
+           header was invisible before. We now use a near-solid background
+           color instead of a blur.
+
+        2. `bg-[var(--background)]/95` gives a subtle translucency at 95%
+           opacity so the gradient behind is faintly visible at the edges
+           of the header, without needing blur. The gradient strip sits at
+           z-index: -1 (behind this header), so the header paints on top
+           and is fully clickable.
+
+        3. `isolation: isolate` ensures the header establishes its own
+           stacking context, so its z-10 is compared against siblings
+           (main, modals, focus widgets) rather than leaking into the
+           body::before strip's context.
+      */}
+      <header
+        className="sticky top-0 z-10 isolate bg-[var(--background)]/95 border-b border-[var(--border)]/50 pt-2"
+      >
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3 text-[15px]">
             <span className="font-semibold text-[var(--foreground)] tracking-tight">Fotion</span>
@@ -620,12 +618,6 @@ function HomeContent() {
 
             <ExportButton />
 
-            {/*
-              Touch Base: numeric badge replaced with a small yellow dot to
-              match the Goals button's unread indicator. The count is still
-              available inside the modal; the header just shows "there's
-              something to do" via the dot.
-            */}
             <button
               onClick={() => setIsTouchBaseOpen(true)}
               className={`relative flex items-center gap-1.5 text-xs sm:text-sm font-medium transition-colors px-2 py-1 rounded-md ${
