@@ -40,11 +40,6 @@ const DoubleSpaceFix = Extension.create({
   },
 });
 
-/**
- * CustomTaskItem
- *
- * Overrides Enter so checked state is always correct.
- */
 const CustomTaskItem = TaskItem.extend({
   addKeyboardShortcuts() {
     const parentShortcuts = this.parent?.() || {};
@@ -57,7 +52,6 @@ const CustomTaskItem = TaskItem.extend({
         const { selection } = editor.state;
         const { $from } = selection;
 
-        // Find the enclosing taskItem
         let itemDepth = -1;
         for (let d = $from.depth; d > 0; d--) {
           if ($from.node(d).type.name === typeName) {
@@ -65,7 +59,7 @@ const CustomTaskItem = TaskItem.extend({
             break;
           }
         }
-        if (itemDepth === -1) return false; // not in a task item -> let other handlers run
+        if (itemDepth === -1) return false;
 
         const item = $from.node(itemDepth);
         const itemPos = $from.before(itemDepth);
@@ -74,18 +68,15 @@ const CustomTaskItem = TaskItem.extend({
         const isEmptyItem =
           item.childCount === 1 && (item.firstChild?.content.size ?? 0) === 0;
 
-        // Default behaviour for empty items (lift out of list) and range selections
         if (isEmptyItem || !selection.empty) {
           return editor.commands.splitListItem(typeName);
         }
 
-        // Cursor at the very start of the item's first paragraph?
         const atStart =
           $from.depth === itemDepth + 1 &&
           $from.index(itemDepth) === 0 && $from.parentOffset === 0;
 
         if (atStart) {
-          // Insert a fresh unchecked item ABOVE. Original item is untouched.
           return editor
             .chain()
             .command(({ tr }) => {
@@ -98,17 +89,14 @@ const CustomTaskItem = TaskItem.extend({
             .run();
         }
 
-        // Middle / end: split, then explicitly set both nodes by position.
         return editor
           .chain()
           .command(({ tr, commands }) => {
             if (!commands.splitListItem(typeName)) return false;
 
-            // Upper node still starts at itemPos after the split.
             const upper = tr.doc.nodeAt(itemPos);
             if (!upper || upper.type.name !== typeName) return true;
 
-            // Lower node = the task item that now contains the cursor.
             let lowerPos = -1;
             const $after = tr.selection.$from;
             for (let d = $after.depth; d > 0; d--) {
@@ -369,19 +357,29 @@ function PaneContent() {
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
+  // Prevent the browser from scrolling to a focused checkbox inside the
+  // editor. This is what caused the pane to "jump down then back up" when
+  // toggling a task-list checkbox: the browser scrolled to the newly focused
+  // input, then the re-render pushed the layout back, then the scroll anchor
+  // was released. Both mousedown (desktop) and touchstart (mobile) are
+  // intercepted for every checkbox inside the pane.
   useEffect(() => {
-    const preventFocusScroll = (e: MouseEvent) => {
+    const preventFocusScroll = (e: Event) => {
       const target = e.target as HTMLElement;
       if (
-        target?.matches('.tiptap input[type="checkbox"]') &&
+        target?.matches('input[type="checkbox"]') &&
         paneRef.current &&
         paneRef.current.contains(target)
       ) {
         e.preventDefault();
       }
     };
-    document.addEventListener('mousedown', preventFocusScroll);
-    return () => document.removeEventListener('mousedown', preventFocusScroll);
+    document.addEventListener('mousedown', preventFocusScroll, true);
+    document.addEventListener('touchstart', preventFocusScroll, { passive: false, capture: true });
+    return () => {
+      document.removeEventListener('mousedown', preventFocusScroll, true);
+      document.removeEventListener('touchstart', preventFocusScroll, true);
+    };
   }, []);
 
   useEffect(() => {
@@ -448,20 +446,14 @@ function PaneContent() {
     editorStateRef.current = { taskId: displayTaskId, needsToAccept };
   }, [displayTaskId, needsToAccept]);
 
-  // Always-fresh reference to the mutation so editor callbacks never go stale.
   const updateTaskRef = useRef(updateTask);
   useEffect(() => {
     updateTaskRef.current = updateTask;
   });
 
-  // --- Editor <-> Convex sync bookkeeping ---------------------------------
-  // Which task's content is currently loaded in the editor.
   const loadedTaskIdRef = useRef<string | null>(null);
-  // Editor has local edits that haven't been saved yet.
   const dirtyRef = useRef(false);
-  // Last HTML we know matches what's stored on the server.
   const lastSavedHtmlRef = useRef("");
-  // Number of description saves currently in flight.
   const pendingSavesRef = useRef(0);
 
   const editor = useEditor({
@@ -480,7 +472,7 @@ function PaneContent() {
 
       const html = editor.getHTML();
       dirtyRef.current = false;
-      if (html === lastSavedHtmlRef.current) return; // nothing changed, don't save
+      if (html === lastSavedHtmlRef.current) return;
 
       lastSavedHtmlRef.current = html;
       pendingSavesRef.current += 1;
@@ -504,7 +496,6 @@ function PaneContent() {
   useEffect(() => {
     if (!editor) return;
 
-    // No task (yet) for the displayed id -> clear the editor.
     if (!task || task._id !== displayTaskId) {
       loadedTaskIdRef.current = null;
       dirtyRef.current = false;
@@ -515,7 +506,6 @@ function PaneContent() {
 
     const incoming = task.description || "";
 
-    // 1) A different task was opened -> load it fresh.
     if (loadedTaskIdRef.current !== task._id) {
       editor.commands.setContent(incoming, { emitUpdate: false });
       loadedTaskIdRef.current = task._id;
@@ -524,13 +514,9 @@ function PaneContent() {
       return;
     }
 
-    // 2) Same task, server data changed. Never clobber what the user is doing:
-    //    skip while they're editing, have unsaved changes, or a save is in flight
-    //    (that update is just our own save echoing back).
     if (dirtyRef.current || editor.isFocused || pendingSavesRef.current > 0) return;
     if (incoming === lastSavedHtmlRef.current) return;
 
-    // 3) Genuine remote change while the editor is idle -> apply it.
     if (editor.getHTML() !== incoming) {
       editor.commands.setContent(incoming, { emitUpdate: false });
     }
@@ -635,7 +621,7 @@ function PaneContent() {
   return (
     <>
       <style>{`
-        .tiptap { min-height: 150px; outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; cursor: text; }
+        .tiptap { min-height: 150px; outline: none !important; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%; cursor: text; scroll-margin-top: 24px; }
         .tiptap * { max-width: 100%; }
         .tiptap ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
         .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
@@ -644,13 +630,13 @@ function PaneContent() {
         .tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; margin-bottom: 0.25rem; }
         .tiptap ul[data-type="taskList"] li > label { margin-right: 0.5rem; user-select: none; }
         .tiptap p.is-editor-empty:first-child::before { color: #a1a1aa; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
-        .tiptap input[type="checkbox"] { appearance: none; background-color: transparent; margin: 0; font: inherit; color: currentColor; width: 1.15em; height: 1.15em; border: 1px solid #d4d4d8; border-radius: 0.25em; display: grid; place-content: center; cursor: pointer; }
+        .tiptap input[type="checkbox"] { appearance: none; background-color: transparent; margin: 0; font: inherit; color: currentColor; width: 1.15em; height: 1.15em; border: 1px solid #d4d4d8; border-radius: 0.25em; display: grid; place-content: center; cursor: pointer; scroll-margin-top: 24px; }
         .tiptap input[type="checkbox"]::before { content: ""; width: 0.65em; height: 0.65em; transform: scale(0); transition: 120ms transform ease-in-out; box-shadow: inset 1em 1em white; background-color: white; transform-origin: center; clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
         .tiptap input[type="checkbox"]:checked { background-color: #f472b6; border-color: #f472b6; }
         .tiptap input[type="checkbox"]:checked::before { transform: scale(1); }
         @media (prefers-color-scheme: dark) { .tiptap input[type="checkbox"] { border-color: #52525b; } }
         @media (max-height: 500px) { .floating-action-pills { display: none !important; } }
-        
+
         .sort-checklists .tiptap ul { display: flex !important; flex-direction: column !important; }
         .sort-checklists .tiptap ul > li { order: 1 !important; transition: opacity 0.2s ease; }
         .sort-checklists .tiptap ul > li[data-checked="true"],

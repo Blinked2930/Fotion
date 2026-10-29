@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 export function CustomDatePicker({
   value,
   onChange,
   placeholder = "Empty",
-  alignPopover = "right", // kept in the signature for API compatibility, no longer used
+  alignPopover = "right",
 }: {
   value?: number | null;
   onChange: (val: number | null) => void;
@@ -51,20 +51,26 @@ export function CustomDatePicker({
     setIsOpen(false);
   };
 
+  const handleClear = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange(null);
+  };
+
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
 
   return (
-    <div className="relative flex items-center gap-2 group/date" ref={ref}>
+    <div className="relative flex items-center gap-1.5" ref={ref}>
       <button
         type="button"
         onClick={(e) => {
           e.preventDefault();
           setIsOpen(!isOpen);
         }}
-        className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${
+        className={`min-h-11 min-w-0 touch-manipulation px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${
           value
-            ? "bg-white dark:bg-[#252525] border-[var(--border)] text-[var(--foreground)] shadow-sm"
+            ? "bg-white dark:bg-[#252525] border-[var(--border)] text-[var(--foreground)] shadow-sm hover:border-zinc-400"
             : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
         }`}
       >
@@ -74,19 +80,17 @@ export function CustomDatePicker({
       {value && (
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            onChange(null);
-          }}
-          className="opacity-0 group-hover/date:opacity-100 p-1 text-zinc-400 hover:text-red-500 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+          onClick={handleClear}
+          aria-label="Clear date"
+          title="Clear date"
+          className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-red-500/10 hover:text-red-500 active:bg-red-500/10 active:scale-95 dark:hover:bg-red-500/10 dark:active:bg-red-500/10"
         >
-          <XCircle className="w-3.5 h-3.5" />
+          <X className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
       )}
 
       {isOpen && (
         <>
-          {/* Backdrop: click-outside to close, always present */}
           <div
             className="fixed inset-0 z-[90] bg-black/5 dark:bg-black/40 backdrop-blur-[2px]"
             onPointerDown={(e) => {
@@ -96,7 +100,6 @@ export function CustomDatePicker({
             }}
           />
 
-          {/* Popover: always centered, never clipped by parent overflow */}
           <div
             className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] max-w-[calc(100vw-2rem)] bg-white dark:bg-[#252525] border border-[var(--border)] shadow-2xl rounded-2xl p-4 z-[100] animate-in fade-in zoom-in-95 duration-200"
           >

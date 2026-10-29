@@ -225,7 +225,7 @@ function CustomUserMenu({ sessionType }: { sessionType: "none" | "demo" | "vip" 
                 </button>
               )}
               <div className="w-full h-px bg-[var(--border)] my-1"></div>
-              <SignInButton mode="modal">
+              <SignInButton mode="redirect">
                 <button className="w-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors">
                   <LogOut className="w-4 h-4 rotate-180" /> Owner Sign In
                 </button>
@@ -261,6 +261,62 @@ function HomeContent() {
 
   const [showInstallScreen, setShowInstallScreen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"demo" | null>(null);
+
+  // -------------------------------------------------------------------------
+  // LOGIN HARD-RELOAD FIX
+  //
+  // On mobile PWAs (and occasionally on some mobile browsers), Clerk
+  // completes the sign-in but the client-side session store doesn't
+  // propagate before the landing page re-renders — so isSignedIn reads as
+  // false, the app sends you back to the sign-in page, and only a full app
+  // restart (which forces a fresh Clerk init) picks up the session.
+  //
+  // Fix: watch for the false -> true transition. When it fires, force ONE
+  // hard reload. That reload re-initializes Clerk from its persisted
+  // session cookie/token, which is exactly what closing and reopening the
+  // app does — except automatically, without a user-visible restart.
+  //
+  // The localStorage flag prevents a reload loop in the unlikely case the
+  // session still doesn't propagate (e.g. a genuine auth failure would then
+  // surface as "still on login page" rather than an infinite spinner).
+  // -------------------------------------------------------------------------
+  const wasSignedInRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    // First load: record the initial state, don't reload.
+    if (wasSignedInRef.current === null) {
+      wasSignedInRef.current = isSignedIn === true;
+      return;
+    }
+
+    // Detect false -> true transition.
+    if (!wasSignedInRef.current && isSignedIn) {
+      wasSignedInRef.current = true;
+
+      // Guard against a reload loop: if we already reloaded once in this
+      // session (flag set), don't reload again — the previous reload was
+      // supposed to fix it, so if it didn't, the auth is genuinely broken
+      // and reloading in a loop would be worse than staying on the page.
+      const reloadFlag = "fotion-post-signin-reloaded";
+      if (!sessionStorage.getItem(reloadFlag)) {
+        sessionStorage.setItem(reloadFlag, "1");
+        window.location.reload();
+        return;
+      }
+
+      // Flag was already set — clear it so the next successful sign-in
+      // (after a sign-out) can trigger its own reload.
+      sessionStorage.removeItem(reloadFlag);
+    }
+
+    // true -> false (sign out): reset the flag so the next sign-in reloads.
+    if (wasSignedInRef.current && !isSignedIn) {
+      wasSignedInRef.current = false;
+      sessionStorage.removeItem("fotion-post-signin-reloaded");
+    }
+  }, [isLoaded, isSignedIn]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -517,7 +573,7 @@ function HomeContent() {
 
             <div className="flex items-center justify-center gap-2 text-sm text-zinc-500">
               <span>Are you the owner?</span>
-              <SignInButton mode="modal">
+              <SignInButton mode="redirect">
                 <button className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline outline-none">
                   Sign In
                 </button>
@@ -564,20 +620,25 @@ function HomeContent() {
 
             <ExportButton />
 
+            {/*
+              Touch Base: numeric badge replaced with a small yellow dot to
+              match the Goals button's unread indicator. The count is still
+              available inside the modal; the header just shows "there's
+              something to do" via the dot.
+            */}
             <button
               onClick={() => setIsTouchBaseOpen(true)}
-              className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium transition-colors px-2 py-1 rounded-md border ${totalTouchBaseCount > 0
-                ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800 font-bold'
-                : 'text-zinc-500 hover:text-[var(--foreground)] border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                }`}
+              className={`relative flex items-center gap-1.5 text-xs sm:text-sm font-medium transition-colors px-2 py-1 rounded-md ${
+                totalTouchBaseCount > 0
+                  ? 'text-zinc-600 dark:text-zinc-300'
+                  : 'text-zinc-500 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              }`}
               title="Touch base with Waiting For & Someday tasks"
             >
-              <Clock className="w-4 h-4 text-amber-500" />
+              <Clock className={`w-4 h-4 ${totalTouchBaseCount > 0 ? 'text-amber-500' : ''}`} />
               <span className="hidden sm:inline">Touch Base</span>
               {totalTouchBaseCount > 0 && (
-                <span className="bg-amber-500 text-amber-950 font-extrabold text-[10px] px-1.5 py-0.5 rounded-full">
-                  {totalTouchBaseCount}
-                </span>
+                <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-amber-500 border border-white dark:border-[#121212] -translate-y-1/2 translate-x-1/2" />
               )}
             </button>
 
@@ -585,15 +646,15 @@ function HomeContent() {
               <Folder className="w-4 h-4" /> Projects
             </button>
 
-            <button 
-              onClick={() => setIsGoalSanctuaryOpen(true)} 
+            <button
+              onClick={() => setIsGoalSanctuaryOpen(true)}
               className={`flex items-center gap-1.5 text-sm font-medium transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 relative ${
                 goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due || solsticeStatus?.due ? 'text-[var(--foreground)]' : 'text-zinc-500 hover:text-[var(--foreground)]'
               }`}
             >
-              <Target className={`w-4 h-4 ${goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due || solsticeStatus?.due ? 'text-amber-500' : ''}`} /> 
+              <Target className={`w-4 h-4 ${goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due || solsticeStatus?.due ? 'text-amber-500' : ''}`} />
               <span className="hidden sm:inline">Goals <span className="text-[10px] text-zinc-400 font-normal ml-0.5 border border-[var(--border)] rounded px-1 py-0.5">G</span></span>
-              
+
               {(goalsNeedingReviewCount > 0 || (checkInStatus?.dueCount ?? 0) > 0 || quarterlyStatus?.due || solsticeStatus?.due) && (
                   <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-amber-500 border border-white dark:border-[#121212] -translate-y-1/2 translate-x-1/2" />
               )}

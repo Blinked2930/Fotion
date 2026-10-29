@@ -9,16 +9,16 @@ import { getListColor, getProjectColor } from "../views/NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { openTaskDetails } from "./TaskDetailsPane";
 
-function PillDropdown({ 
-  currentValue, 
-  options, 
-  onSelect, 
-  renderPill 
-}: { 
-  currentValue: any, 
-  options: { label: string, value: any }[], 
-  onSelect: (val: any) => void, 
-  renderPill: (val: any) => React.ReactNode 
+function PillDropdown({
+  currentValue,
+  options,
+  onSelect,
+  renderPill
+}: {
+  currentValue: any,
+  options: { label: string, value: any }[],
+  onSelect: (val: any) => void,
+  renderPill: (val: any) => React.ReactNode
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -33,7 +33,7 @@ function PillDropdown({
 
   return (
     <div className="relative" ref={ref}>
-      <div 
+      <div
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -44,21 +44,21 @@ function PillDropdown({
       >
         {renderPill(currentValue)}
       </div>
-      
+
       {isOpen && (
-        <div 
+        <div
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
           className="absolute top-full left-0 z-[100] mt-1 min-w-[160px] bg-white dark:bg-[#252525] border border-[var(--border)] rounded-lg shadow-xl py-1.5 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5"
         >
           {options.map((opt) => (
-            <button 
-              key={opt.value || 'null'} 
+            <button
+              key={opt.value || 'null'}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onSelect(opt.value);
                 setIsOpen(false);
-              }} 
+              }}
               className="w-full text-left px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center text-[var(--foreground)]"
             >
               {renderPill(opt.value)}
@@ -75,27 +75,27 @@ function HighlightText({ text, query }: { text: string, query?: string }) {
   const parts = text.split(new RegExp(`(${query})`, 'gi'));
   return (
     <>
-      {parts.map((part, i) => 
-        part.toLowerCase() === query.toLowerCase() ? 
-          <mark key={i} className="bg-yellow-200 text-yellow-900 dark:bg-yellow-900/50 dark:text-yellow-200 px-0.5 rounded-[2px]">{part}</mark> : 
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ?
+          <mark key={i} className="bg-yellow-200 text-yellow-900 dark:bg-yellow-900/50 dark:text-yellow-200 px-0.5 rounded-[2px]">{part}</mark> :
           <span key={i}>{part}</span>
       )}
     </>
   );
 }
 
-export function TaskCard({ 
-  task, 
-  compact = false, 
+export function TaskCard({
+  task,
+  compact = false,
   hideMatrixTags = false,
   hidePipelineTag = false,
   hideProjectTag = false,
-  hideTodayTag = false, 
+  hideTodayTag = false,
   hideDoOnDate = false,
   hideDoByDate = false,
-  searchQuery = "" 
-}: { 
-  task: any, 
+  searchQuery = ""
+}: {
+  task: any,
   compact?: boolean,
   hideMatrixTags?: boolean,
   hidePipelineTag?: boolean,
@@ -107,15 +107,16 @@ export function TaskCard({
 }) {
   const router = useRouter();
   const updateTask = useMutation(api.tasks.updateTask);
-  
+
   const sessionId = useGuestSession();
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
 
   const toggleTaskCompletion = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     const isMarkingDone = task.status !== "done";
-    updateTask({ 
-      id: task._id, 
+    updateTask({
+      id: task._id,
       status: isMarkingDone ? "done" : "todo",
       completedAt: isMarkingDone ? Date.now() : null
     });
@@ -132,9 +133,8 @@ export function TaskCard({
   const startOfToday = new Date(todayStr).getTime();
 
   let isOverdue = false;
-  let demandsAttentionToday = false; 
+  let demandsAttentionToday = false;
 
-  // Check both dates for overdue status!
   if ((task.doByDate && task.doByDate < startOfToday) || (task.doOnDate && task.doOnDate < startOfToday)) {
     isOverdue = true;
   }
@@ -144,18 +144,18 @@ export function TaskCard({
   }
 
   const isScheduledForToday = task.doOnDate && new Date(task.doOnDate).toDateString() === todayStr;
-  
+
   if ((task.isToday || isScheduledForToday) && !isOverdue) {
     demandsAttentionToday = true;
   }
 
   let cardWrapperClass = "bg-white dark:bg-[#1c1c1c] border-[var(--border)] hover:border-blue-200 dark:hover:border-blue-900/50";
   let borderLineClass = "border-[var(--border)]";
-  
+
   if (isOverdue) {
     cardWrapperClass = "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 hover:border-red-300 dark:hover:border-red-800/80";
     borderLineClass = "border-red-200/50 dark:border-red-800/30";
-  } else if (demandsAttentionToday) { 
+  } else if (demandsAttentionToday) {
     cardWrapperClass = "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800/80";
     borderLineClass = "border-amber-200/50 dark:border-amber-800/30";
   }
@@ -173,13 +173,14 @@ export function TaskCard({
 
   if (isDone) {
     return (
-      <div 
+      <div
         onClick={() => openTaskDetails(task._id)}
         className="flex items-start gap-3 p-3 sm:p-4 bg-zinc-50 dark:bg-[#151515] border border-[var(--border)] rounded-xl cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors w-full"
       >
-        <button 
+        <button
           onClick={toggleTaskCompletion}
-          className="mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border-pink-400 bg-pink-400"
+          onMouseDown={(e) => e.preventDefault()}
+          className="mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-transform duration-100 active:scale-95 border-pink-400 bg-pink-400"
         >
           <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
         </button>
@@ -191,14 +192,15 @@ export function TaskCard({
   }
 
   return (
-    <div 
+    <div
       onClick={() => openTaskDetails(task._id)}
-      className={`group flex flex-col p-3 sm:p-4 rounded-xl shadow-sm transition-all cursor-pointer active:scale-[0.98] border ${cardWrapperClass} w-full`}
+      className={`group flex flex-col p-3 sm:p-4 rounded-xl shadow-sm transition-colors cursor-pointer border ${cardWrapperClass} w-full`}
     >
       <div className="flex items-start gap-3 w-full">
-        <button 
+        <button
           onClick={toggleTaskCompletion}
-          className={`mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-colors border bg-transparent ${isOverdue ? 'border-red-300 dark:border-red-700 hover:border-red-500' : demandsAttentionToday ? 'border-amber-300 dark:border-amber-700 hover:border-amber-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'}`}
+          onMouseDown={(e) => e.preventDefault()}
+          className={`mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center transition-transform duration-100 active:scale-95 border bg-transparent ${isOverdue ? 'border-red-300 dark:border-red-700 hover:border-red-500' : demandsAttentionToday ? 'border-amber-300 dark:border-amber-700 hover:border-amber-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'}`}
         />
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -213,10 +215,10 @@ export function TaskCard({
           </div>
         </div>
       </div>
-      
+
       <div className={`flex flex-wrap items-center gap-2 w-full pt-3 mt-3 border-t ${borderLineClass}`}>
         {!hideProjectTag && (
-          <PillDropdown 
+          <PillDropdown
             currentValue={task.projectId || null}
             options={projectOptions}
             onSelect={(val) => handleInlineUpdate("projectId", val)}
@@ -228,7 +230,7 @@ export function TaskCard({
           />
         )}
         {!hidePipelineTag && (
-          <PillDropdown 
+          <PillDropdown
             currentValue={task.listCategory || "Current"}
             options={pipelineOptions}
             onSelect={(val) => handleInlineUpdate("listCategory", val)}
@@ -280,8 +282,8 @@ export function TaskCard({
         )}
         {!hideDoByDate && task.doByDate && (
           <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
-            isOverdue ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-900/50' : 
-            demandsAttentionToday ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-400 border-amber-300 dark:border-amber-900/50' : 
+            isOverdue ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-900/50' :
+            demandsAttentionToday ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-400 border-amber-300 dark:border-amber-900/50' :
             'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'
           }`}>
             <Calendar className="w-3 h-3 shrink-0" />
