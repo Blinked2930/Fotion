@@ -5,6 +5,28 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ==========================================
+   SAFE AREA CUSTOM PROPERTIES
+   ==========================================
+   On iOS PWA standalone mode, `env(safe-area-inset-top)` frequently
+   resolves to 0px when read inline on an element — a documented WebKit
+   bug. Reading it through a CSS custom property declared on :root
+   resolves correctly in the same PWA context.
+
+   --sat = safe-area-inset-top (notch / dynamic island height)
+   --sab = safe-area-inset-bottom (home indicator height)
+
+   These are used by the <header> in app/page.tsx via
+   `paddingTop: "var(--sat)"` so the header clears the notch in the
+   installed PWA, not just in Safari tabs.
+   ========================================== */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* ==========================================
    LIGHT MODE (Default)
    ========================================== */
 :root, html, html.light {
@@ -51,27 +73,19 @@ html, body {
    ==========================================
    A fixed strip at the very top of the viewport painting:
 
-     1. A solid base color (cream in light / near-black in dark). This is
-        what iOS Safari samples for the status bar tint. Solid, not a
-        gradient, because Safari's sampler bails out on gradients and
-        falls back to white — the original cause of the "permanently light
-        top bar" bug.
+     1. A solid base color (cream light / near-black dark). This is what
+        iOS samples for the browser chrome tint. Solid, not a gradient,
+        because iOS bails out of gradient sampling.
 
-     2. A soft radial glow overlaid on top of that solid base. This is
-        the visual the user sees: a warm bloom bleeding down from the top
+     2. A soft radial glow overlaid on top of the solid base. This is
+        what the user sees: a warm bloom bleeding down from the top
         edge, fading into the page background by ~220px.
 
-   z-index: -1 places this strip BEHIND all content. This is the fix for
-   the invisible-header bug: previously the strip was at z-index: 0, so a
-   sticky header with backdrop-blur-sm (which creates a compositing layer
-   in Safari 26 per WebKit Bug 319479) would lose the stacking race and
-   paint BEHIND the strip, making it invisible and unclickable.
-
-   With the strip at z-index: -1 and the header no longer using
-   backdrop-filter, the header paints on top of the strip, is fully
-   clickable, and Safari still samples the strip's solid base color for
-   the browser chrome tint because the sampler reads the topmost painted
-   pixel at the strip's y-coordinate regardless of z-order.
+   z-index: -1 places this strip BEHIND all content, so the sticky
+   header (which no longer has backdrop-filter) paints on top and is
+   clickable. Safari still samples the strip's solid base color for the
+   top-of-screen tint because it reads the topmost painted pixel at
+   that y-coordinate regardless of z-order.
 */
 html body::before {
   content: "";
@@ -129,8 +143,7 @@ html.dark body::before {
 }
 
 /* Sanctuary variant: the solid base and fade target switch to the
-   Sanctuary's cream/near-black so the glow blends into the overlay
-   palette instead of the task UI's white/near-black. */
+   Sanctuary palette so the glow blends into the overlay background. */
 html[data-sanctuary="open"] body::before {
   background-color: var(--sanctuary-bg-light);
   background-image:

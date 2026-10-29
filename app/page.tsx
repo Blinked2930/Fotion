@@ -32,6 +32,82 @@ import { useGuestSession } from "@/hooks/useGuestSession";
 import { useOfflineQuery } from "@/hooks/useOfflineMutation";
 import { useFocusSession } from "@/hooks/useFocusSession";
 
+// -----------------------------------------------------------------------------
+// BUILD ID — auto-derived from Vercel's git commit SHA
+// -----------------------------------------------------------------------------
+// On every deploy, Vercel injects NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA with the
+// current commit hash. That string is inlined into the client bundle at build
+// time, so every deploy ships a different BUILD_ID automatically.
+//
+// When the installed PWA loads and sees a BUILD_ID that doesn't match what's
+// stored in localStorage, it unregisters all service workers, clears all
+// caches, and reloads once. This is the iOS PWA cache-bust that finally makes
+// new deploys reach the phone without the user deleting and reinstalling.
+//
+// The fallback ("local-dev") is used when the env var is empty (e.g.
+// `vercel dev` or a non-git local build). It only matches itself, so it never
+// triggers spurious reloads on localhost.
+const BUILD_ID =
+  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || "local-dev";
+const BUILD_ID_KEY = "fotion-build-id";
+
+// -----------------------------------------------------------------------------
+// FORCE UPDATE ON BUILD CHANGE
+// -----------------------------------------------------------------------------
+// Runs once on mount. If the stored build ID doesn't match the current one,
+// unregisters all service workers, clears all caches, and reloads. The reload
+// is guarded by a session flag so a broken service worker can never cause a
+// reload loop.
+function useForceUpdateOnBuildChange() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const stored = localStorage.getItem(BUILD_ID_KEY);
+
+    // First ever load after this change: just record the ID, don't reload.
+    if (!stored) {
+      localStorage.setItem(BUILD_ID_KEY, BUILD_ID);
+      return;
+    }
+
+    if (stored === BUILD_ID) return;
+
+    // Build changed. Guard against reload loops.
+    const reloadFlag = "fotion-build-change-reloaded";
+    if (sessionStorage.getItem(reloadFlag)) {
+      // Already tried to reload once this session and we still ended up
+      // here. Record the new ID and stop — better to run a stale build than
+      // to loop.
+      localStorage.setItem(BUILD_ID_KEY, BUILD_ID);
+      sessionStorage.removeItem(reloadFlag);
+      return;
+    }
+
+    sessionStorage.setItem(reloadFlag, "1");
+
+    (async () => {
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((r) => r.unregister()));
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+      } catch (err) {
+        console.error("[build-bust] cache clear failed:", err);
+      } finally {
+        // iOS needs a small delay for unregister to settle before reload.
+        localStorage.setItem(BUILD_ID_KEY, BUILD_ID);
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      }
+    })();
+  }, []);
+}
+
 function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -262,6 +338,13 @@ function HomeContent() {
   const [showInstallScreen, setShowInstallScreen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"demo" | null>(null);
 
+  // Bust the service worker cache if a new build has shipped. This is the
+  // only way to guarantee the installed PWA on the phone sees a new deploy.
+  useForceUpdateOnBuildChange();
+
+  // -------------------------------------------------------------------------
+  // LOGIN HARD-RELOAD FIX
+  // -------------------------------------------------------------------------
   const wasSignedInRef = useRef<boolean | null>(null);
 
   useEffect(() => {
@@ -571,30 +654,23 @@ function HomeContent() {
       )}
 
       {/*
-        HEADER
-        ======
-        Two things are important here for Safari 26 on mobile:
+        HEADER — safe-area aware in Safari and in iOS PWA standalone.
 
-        1. NO `backdrop-blur-sm` (or any backdrop-filter). WebKit Bug
-           319479 documents that a sticky element at the top viewport edge
-           with backdrop-filter loses its stacking context to sibling fixed
-           elements and can paint BEHIND them — which is exactly why the
-           header was invisible before. We now use a near-solid background
-           color instead of a blur.
+        1. `paddingTop: "var(--sat)"` reads the safe-area-inset-top via a
+           CSS custom property declared on :root in globals.css. On iOS
+           installed PWAs, `env(safe-area-inset-top)` resolves to 0px when
+           read inline, but resolves correctly through a custom property.
 
-        2. `bg-[var(--background)]/95` gives a subtle translucency at 95%
-           opacity so the gradient behind is faintly visible at the edges
-           of the header, without needing blur. The gradient strip sits at
-           z-index: -1 (behind this header), so the header paints on top
-           and is fully clickable.
+        2. `min-h-12` instead of `h-12` — the header grows to accommodate
+           the safe-area padding instead of clipping its content.
 
-        3. `isolation: isolate` ensures the header establishes its own
-           stacking context, so its z-10 is compared against siblings
-           (main, modals, focus widgets) rather than leaking into the
-           body::before strip's context.
+        No `backdrop-blur` (WebKit Bug 319479), `isolate` for an explicit
+        stacking context, and `bg-[var(--background)]/95` for a subtle
+        translucency without blur.
       */}
       <header
-        className="sticky top-0 z-10 isolate bg-[var(--background)]/95 border-b border-[var(--border)]/50 pt-2"
+        className="sticky top-0 z-10 isolate bg-[var(--background)]/95 border-b border-[var(--border)]/50 min-h-12"
+        style={{ paddingTop: "var(--sat, 0.5rem)" }}
       >
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3 text-[15px]">
