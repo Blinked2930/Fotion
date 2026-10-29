@@ -1,23 +1,10 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* Tell Tailwind v4 to trigger 'dark:' classes when .dark is present */
 @custom-variant dark (&:is(.dark *));
 
 /* ==========================================
    SAFE AREA CUSTOM PROPERTIES
-   ==========================================
-   On iOS PWA standalone mode, `env(safe-area-inset-top)` frequently
-   resolves to 0px when read inline on an element — a documented WebKit
-   bug. Reading it through a CSS custom property declared on :root
-   resolves correctly in the same PWA context.
-
-   --sat = safe-area-inset-top (notch / dynamic island height)
-   --sab = safe-area-inset-bottom (home indicator height)
-
-   These are used by the <header> in app/page.tsx via
-   `paddingTop: "var(--sat)"` so the header clears the notch in the
-   installed PWA, not just in Safari tabs.
    ========================================== */
 :root {
   --sat: env(safe-area-inset-top, 0px);
@@ -71,21 +58,26 @@ html, body {
 /* ==========================================
    TOP GRADIENT PAINT LAYER
    ==========================================
-   A fixed strip at the very top of the viewport painting:
+   The gradient strip is now sized to cover ONLY the safe-area / status
+   bar region plus a small fade buffer. It used to be 220px tall, which
+   meant it bled into the header and the first ~130px of content below
+   the header — producing the "blurred/washed-out top section" effect
+   the user reported.
 
-     1. A solid base color (cream light / near-black dark). This is what
-        iOS samples for the browser chrome tint. Solid, not a gradient,
-        because iOS bails out of gradient sampling.
+   New height: calc(var(--sat) + 48px). That's:
+     - the notch / dynamic island height (var(--sat), typically 44-59px)
+     - plus 48px of fade buffer so the glow has room to breathe out
+       before hitting the header's top edge
 
-     2. A soft radial glow overlaid on top of the solid base. This is
-        what the user sees: a warm bloom bleeding down from the top
-        edge, fading into the page background by ~220px.
+   With this size the gradient:
+     1. Fills the status bar / notch region — so iOS samples it correctly
+        for the browser chrome tint.
+     2. Fades completely to the page background by the time it reaches
+        the header.
+     3. Never bleeds into the header or any content below it.
 
-   z-index: -1 places this strip BEHIND all content, so the sticky
-   header (which no longer has backdrop-filter) paints on top and is
-   clickable. Safari still samples the strip's solid base color for the
-   top-of-screen tint because it reads the topmost painted pixel at
-   that y-coordinate regardless of z-order.
+   z-index: -1 places it behind all content. The header (opaque) sits
+   on top with no gradient visible through it.
 */
 html body::before {
   content: "";
@@ -93,7 +85,7 @@ html body::before {
   top: 0;
   left: 0;
   right: 0;
-  height: 220px;
+  height: calc(var(--sat) + 48px);
   z-index: -1;
   pointer-events: none;
 
@@ -101,19 +93,19 @@ html body::before {
 
   background-image:
     radial-gradient(
-      120% 60% at 20% 0%,
+      120% 100% at 20% 0%,
       rgba(99, 102, 241, 0.14),
-      transparent 60%
+      transparent 70%
     ),
     radial-gradient(
-      90% 50% at 90% 0%,
+      90% 90% at 90% 0%,
       rgba(236, 72, 153, 0.10),
-      transparent 55%
+      transparent 65%
     ),
     linear-gradient(
       to bottom,
       transparent 0%,
-      transparent 60%,
+      transparent 40%,
       var(--background) 100%
     );
 
@@ -125,42 +117,40 @@ html.dark body::before {
   background-color: var(--top-paint-dark);
   background-image:
     radial-gradient(
-      120% 60% at 20% 0%,
+      120% 100% at 20% 0%,
       rgba(99, 102, 241, 0.18),
-      transparent 60%
+      transparent 70%
     ),
     radial-gradient(
-      90% 50% at 90% 0%,
+      90% 90% at 90% 0%,
       rgba(236, 72, 153, 0.12),
-      transparent 55%
+      transparent 65%
     ),
     linear-gradient(
       to bottom,
       transparent 0%,
-      transparent 60%,
+      transparent 40%,
       var(--background) 100%
     );
 }
 
-/* Sanctuary variant: the solid base and fade target switch to the
-   Sanctuary palette so the glow blends into the overlay background. */
 html[data-sanctuary="open"] body::before {
   background-color: var(--sanctuary-bg-light);
   background-image:
     radial-gradient(
-      120% 60% at 20% 0%,
-      rgba(99, 102, 241, 0.18),
-      transparent 60%
+      120% 100% at 20% 0%,
+      rgba(99, 102, 241, 0.16),
+      transparent 70%
     ),
     radial-gradient(
-      90% 50% at 90% 0%,
-      rgba(236, 72, 153, 0.13),
-      transparent 55%
+      90% 90% at 90% 0%,
+      rgba(236, 72, 153, 0.11),
+      transparent 65%
     ),
     linear-gradient(
       to bottom,
       transparent 0%,
-      transparent 60%,
+      transparent 40%,
       var(--sanctuary-bg-light) 100%
     );
 }
@@ -168,26 +158,22 @@ html.dark[data-sanctuary="open"] body::before {
   background-color: var(--sanctuary-bg-dark);
   background-image:
     radial-gradient(
-      120% 60% at 20% 0%,
-      rgba(99, 102, 241, 0.20),
-      transparent 60%
+      120% 100% at 20% 0%,
+      rgba(99, 102, 241, 0.18),
+      transparent 70%
     ),
     radial-gradient(
-      90% 50% at 90% 0%,
-      rgba(236, 72, 153, 0.14),
-      transparent 55%
+      90% 90% at 90% 0%,
+      rgba(236, 72, 153, 0.13),
+      transparent 65%
     ),
     linear-gradient(
       to bottom,
       transparent 0%,
-      transparent 60%,
+      transparent 40%,
       var(--sanctuary-bg-dark) 100%
     );
 }
-
-/* ==========================================
-   GLOBAL SCROLLBAR ERADICATION
-   ========================================== */
 
 * {
   -ms-overflow-style: none;

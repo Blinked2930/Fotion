@@ -35,36 +35,16 @@ import { useFocusSession } from "@/hooks/useFocusSession";
 // -----------------------------------------------------------------------------
 // BUILD ID — auto-derived from Vercel's git commit SHA
 // -----------------------------------------------------------------------------
-// On every deploy, Vercel injects NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA with the
-// current commit hash. That string is inlined into the client bundle at build
-// time, so every deploy ships a different BUILD_ID automatically.
-//
-// When the installed PWA loads and sees a BUILD_ID that doesn't match what's
-// stored in localStorage, it unregisters all service workers, clears all
-// caches, and reloads once. This is the iOS PWA cache-bust that finally makes
-// new deploys reach the phone without the user deleting and reinstalling.
-//
-// The fallback ("local-dev") is used when the env var is empty (e.g.
-// `vercel dev` or a non-git local build). It only matches itself, so it never
-// triggers spurious reloads on localhost.
 const BUILD_ID =
   process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || "local-dev";
 const BUILD_ID_KEY = "fotion-build-id";
 
-// -----------------------------------------------------------------------------
-// FORCE UPDATE ON BUILD CHANGE
-// -----------------------------------------------------------------------------
-// Runs once on mount. If the stored build ID doesn't match the current one,
-// unregisters all service workers, clears all caches, and reloads. The reload
-// is guarded by a session flag so a broken service worker can never cause a
-// reload loop.
 function useForceUpdateOnBuildChange() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const stored = localStorage.getItem(BUILD_ID_KEY);
 
-    // First ever load after this change: just record the ID, don't reload.
     if (!stored) {
       localStorage.setItem(BUILD_ID_KEY, BUILD_ID);
       return;
@@ -72,12 +52,8 @@ function useForceUpdateOnBuildChange() {
 
     if (stored === BUILD_ID) return;
 
-    // Build changed. Guard against reload loops.
     const reloadFlag = "fotion-build-change-reloaded";
     if (sessionStorage.getItem(reloadFlag)) {
-      // Already tried to reload once this session and we still ended up
-      // here. Record the new ID and stop — better to run a stale build than
-      // to loop.
       localStorage.setItem(BUILD_ID_KEY, BUILD_ID);
       sessionStorage.removeItem(reloadFlag);
       return;
@@ -98,7 +74,6 @@ function useForceUpdateOnBuildChange() {
       } catch (err) {
         console.error("[build-bust] cache clear failed:", err);
       } finally {
-        // iOS needs a small delay for unregister to settle before reload.
         localStorage.setItem(BUILD_ID_KEY, BUILD_ID);
         setTimeout(() => {
           window.location.reload();
@@ -338,13 +313,8 @@ function HomeContent() {
   const [showInstallScreen, setShowInstallScreen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"demo" | null>(null);
 
-  // Bust the service worker cache if a new build has shipped. This is the
-  // only way to guarantee the installed PWA on the phone sees a new deploy.
   useForceUpdateOnBuildChange();
 
-  // -------------------------------------------------------------------------
-  // LOGIN HARD-RELOAD FIX
-  // -------------------------------------------------------------------------
   const wasSignedInRef = useRef<boolean | null>(null);
 
   useEffect(() => {
@@ -656,20 +626,20 @@ function HomeContent() {
       {/*
         HEADER — safe-area aware in Safari and in iOS PWA standalone.
 
-        1. `paddingTop: "var(--sat)"` reads the safe-area-inset-top via a
-           CSS custom property declared on :root in globals.css. On iOS
-           installed PWAs, `env(safe-area-inset-top)` resolves to 0px when
-           read inline, but resolves correctly through a custom property.
+        Background is FULLY OPAQUE (`bg-[var(--background)]`, no `/95`).
+        The previous 5% transparency was letting the gradient strip
+        underneath show through the header, producing the "slightly
+        blurred header" effect the user reported. Now the header is a
+        solid surface, and the gradient is confined to the safe-area
+        strip above it (see globals.css `html body::before` height:
+        calc(var(--sat) + 48px)).
 
-        2. `min-h-12` instead of `h-12` — the header grows to accommodate
-           the safe-area padding instead of clipping its content.
-
-        No `backdrop-blur` (WebKit Bug 319479), `isolate` for an explicit
-        stacking context, and `bg-[var(--background)]/95` for a subtle
-        translucency without blur.
+        No backdrop-blur (WebKit Bug 319479), `isolate` for an explicit
+        stacking context, `min-h-12` so the header grows to accommodate
+        safe-area padding.
       */}
       <header
-        className="sticky top-0 z-10 isolate bg-[var(--background)]/95 border-b border-[var(--border)]/50 min-h-12"
+        className="sticky top-0 z-10 isolate bg-[var(--background)] border-b border-[var(--border)]/50 min-h-12"
         style={{ paddingTop: "var(--sat, 0.5rem)" }}
       >
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
