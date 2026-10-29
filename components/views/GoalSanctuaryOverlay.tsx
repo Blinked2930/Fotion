@@ -274,31 +274,40 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   return createPortal(
     <div className="fixed inset-0 z-[240] animate-in fade-in duration-500 motion-reduce:animate-none">
       {/*
-        BACKGROUND LAYER — architecture explained.
+        BACKGROUND LAYER — now layered in three stacked pieces so the glow
+        bleeds into the notch but fades to flat background by the time it
+        reaches the header row (so header buttons and the tab row stay
+        crisp).
 
-        Previously there were two stacked full-cover divs:
-          1. `bg-[#f6f2ea]` (solid)
-          2. `bg-[radial-gradient(...)]` (glow)
-        with the radial anchored at `at 15% 0%` / `at 95% 8%` — i.e. at
-        the top edge of the viewport. The result was a flat solid band at
-        the top (in the notch / status-bar region) followed by an abrupt
-        start of the glow, which read as a "hard line" between the two.
+        Layer 1: SOLID
+          Extends upward into the notch (top: -safe-area-top) so it paints
+          through the physical top edge of the screen. Its color matches
+          the body::before strip in globals.css, so no visible seam in the
+          notch region.
 
-        Now:
-          - The solid background is on the overlay ROOT itself, extended
-            upward by env(safe-area-inset-top) so it paints through the
-            notch cleanly, matching the body::before strip that also
-            paints through the notch (see globals.css).
-          - The radial glow div is anchored ABOVE the top edge (at 15% -40%
-            and 95% -30%) so what the user sees at the top of the screen is
-            the fade tail of the glow, not its peak. No more flat band,
-            no more hard transition.
+        Layer 2: TOP GLOW (confined to the notch + a small buffer)
+          Radial centers pulled FAR above the viewport (-80% / -60%) and
+          given a compact vertical extent (50% tall) so the glow's peak
+          lives above the visible screen. What the user sees at the top is
+          the soft tail of the glow, not its hottest part. This gives the
+          notch-to-content transition a warm bleed without smearing text.
+
+        Layer 3: VERTICAL FADE MASK
+          A linear gradient overlay that goes from transparent at the top
+          (letting the glow through) to solid background color by ~120px.
+          By the time the glow would reach the header row, it's fully
+          masked to flat background — header content sits on a solid,
+          crisp surface.
+
+        Net result: warm glow in the notch / safe-area, crisp header row,
+        smooth Sanctuary content below.
       */}
       <div
-        className="pointer-events-none absolute inset-x-0 -top-[env(safe-area-inset-top,0px)] bottom-0 bg-[#f6f2ea] dark:bg-[#0c0c12]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 bg-[#f6f2ea] dark:bg-[#0c0c12]"
         style={{ top: "calc(-1 * var(--sat, 0px))" }}
       />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_-40%,rgba(99,102,241,0.16),transparent),radial-gradient(45%_40%_at_95%_-30%,rgba(236,72,153,0.11),transparent)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[140px] bg-[radial-gradient(75%_50%_at_15%_-80%,rgba(99,102,241,0.16),transparent),radial-gradient(60%_45%_at_95%_-60%,rgba(236,72,153,0.11),transparent)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[140px] bg-[linear-gradient(to_bottom,transparent_0%,transparent_35%,#f6f2ea_100%)] dark:bg-[linear-gradient(to_bottom,transparent_0%,transparent_35%,#0c0c12_100%)]" />
 
       <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
         <div className="flex flex-wrap items-center justify-between gap-y-3 px-[max(1.5rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-10 sm:pt-9">
