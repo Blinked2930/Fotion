@@ -61,14 +61,20 @@ export function CustomDatePicker({
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
 
   return (
-    <div className="relative flex items-center gap-1.5" ref={ref}>
+    <div className="relative flex items-center gap-1" ref={ref}>
+      {/*
+        Trigger pill: matches the size/spacing of the Project pill in
+        TaskDetailsPane (px-3 py-1 text-[12px] rounded-full). The previous
+        min-h-11 made it visually dominate the property row alongside the
+        other pills, which are all ~24px tall.
+      */}
       <button
         type="button"
         onClick={(e) => {
           e.preventDefault();
           setIsOpen(!isOpen);
         }}
-        className={`min-h-11 min-w-0 touch-manipulation px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${
+        className={`touch-manipulation rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
           value
             ? "bg-white dark:bg-[#252525] border-[var(--border)] text-[var(--foreground)] shadow-sm hover:border-zinc-400"
             : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -77,13 +83,21 @@ export function CustomDatePicker({
         {displayString}
       </button>
 
+      {/*
+        Clear button: shrunk to a 24px hit area that reads as an inline
+        X next to the pill. The visual target is a 14px glyph inside a
+        24px circle (via p-1 padding), which matches the visual weight
+        of the pill without dominating it. On touch devices the visual
+        is small but the tappable area is the full button (24px), which
+        is still comfortable to hit without a stray tap.
+      */}
       {value && (
         <button
           type="button"
           onClick={handleClear}
           aria-label="Clear date"
           title="Clear date"
-          className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-red-500/10 hover:text-red-500 active:bg-red-500/10 active:scale-95 dark:hover:bg-red-500/10 dark:active:bg-red-500/10"
+          className="flex h-6 w-6 shrink-0 touch-manipulation items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500 active:bg-red-500/10 dark:hover:bg-red-500/10 dark:active:bg-red-500/10"
         >
           <X className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
