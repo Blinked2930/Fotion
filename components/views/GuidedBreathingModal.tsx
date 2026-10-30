@@ -10,6 +10,7 @@ import { FocusSettings } from "@/lib/focusSettings";
 type BreathingPhase = "idle" | "inhale" | "exhale" | "retention" | "recovery" | "complete";
 
 const HAPTICS_KEY = "fotion-breathing-haptics";
+const TONES_KEY = "fotion-breathing-tones";
 
 const CUE_COLORS = [
   { name: "Cyan", value: "#06b6d4" },
@@ -38,6 +39,8 @@ export function GuidedBreathingModal({
   const [roundsCompleted, setRoundsCompleted] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(settings.breathingAudioEnabled ?? true);
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
+  const [tonesEnabled, setTonesEnabled] = useState(false);
+  const [canVibrate, setCanVibrate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   // Local settings editable in settings pane
@@ -51,8 +54,9 @@ export function GuidedBreathingModal({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const animationTimerRef = useRef<any>(null);
   const hapticsOnRef = useRef(true);
-  const iosSwitchLabelRef = useRef<HTMLLabelElement>(null);
-  const iosSwitchInputRef = useRef<HTMLInputElement>(null);
+  const tonesOnRef = useRef(false);
+  const canVibrateRef = useRef(false);
+  const iosSwitchLabelRef = useRef<HTMLLabelElement | null>(null);
 
   useEffect(() => {
     setCueColor(settings.breathingColor || "#06b6d4");
@@ -62,24 +66,62 @@ export function GuidedBreathingModal({
     setSoundEnabled(settings.breathingAudioEnabled ?? true);
   }, [settings]);
 
-  // Haptics preference lives in localStorage so it needs no settings-schema change.
+  // Load saved preferences + detect what this device can actually do.
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(HAPTICS_KEY);
-      const on = stored !== "off";
-      setHapticsEnabled(on);
-      hapticsOnRef.current = on;
+      const h = localStorage.getItem(HAPTICS_KEY) !== "off";
+      const t = localStorage.getItem(TONES_KEY) === "on";
+      setHapticsEnabled(h);
+      hapticsOnRef.current = h;
+      setTonesEnabled(t);
+      tonesOnRef.current = t;
     } catch {
       /* ignore */
     }
+    const vib = typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+    setCanVibrate(vib);
+    canVibrateRef.current = vib;
   }, []);
 
-  // Safari on iOS has no navigator.vibrate, but toggling a native
-  // <input type="checkbox" switch> gives a light tap. Mark it as a switch here
-  // because React doesn't forward the non-standard attribute reliably.
+  // iOS Safari has no navigator.vibrate. The only known workaround is to toggle a
+  // native <input type="checkbox" switch>, which makes the system play a light
+  // tap. It is created in the DOM (not React) the way the common "ios-haptics"
+  // helpers do it.
   useEffect(() => {
-    iosSwitchInputRef.current?.setAttribute("switch", "");
-  }, [isOpen]);
+    if (typeof document === "undefined") return;
+    const label = document.createElement("label");
+    label.setAttribute("aria-hidden", "true");
+    label.style.display = "none";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.setAttribute("switch", "");
+    label.appendChild(input);
+    document.head.appendChild(label);
+    iosSwitchLabelRef.current = label;
+    return () => {
+      label.remove();
+      iosSwitchLabelRef.current = null;
+    };
+  }, []);
+
+  // pattern: [vibrate, pause, vibrate, pause, ...] in ms (same as navigator.vibrate).
+  // NOTE: this is deliberately NOT gated on prefers-reduced-motion. Haptics are
+  // not visual motion, and gating on it silently disabled them for anyone with
+  // Reduce Motion turned on.
+  const haptic = useCallback((pattern: number[]) => {
+    if (!hapticsOnRef.current || typeof window === "undefined") return;
+
+    if (canVibrateRef.current) {
+      navigator.vibrate(pattern);
+      return;
+    }
+
+    let t = 0;
+    pattern.forEach((ms, i) => {
+      if (i % 2 === 0) setTimeout(() => iosSwitchLabelRef.current?.click(), t);
+      t += ms;
+    });
+  }, []);
 
   const toggleHaptics = () => {
     const next = !hapticsEnabled;
@@ -90,26 +132,23 @@ export function GuidedBreathingModal({
     } catch {
       /* ignore */
     }
-    if (next) haptic([30]); // confirm with a tap
+    if (next) haptic([40]);
   };
 
-  // pattern: [vibrate, pause, vibrate, pause, ...] in ms (same as navigator.vibrate).
-  const haptic = useCallback((pattern: number[]) => {
-    if (!hapticsOnRef.current || typeof window === "undefined") return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-
-    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-      navigator.vibrate(pattern);
-      return;
+  const toggleTones = () => {
+    const next = !tonesEnabled;
+    setTonesEnabled(next);
+    tonesOnRef.current = next;
+    try {
+      localStorage.setItem(TONES_KEY, next ? "on" : "off");
+    } catch {
+      /* ignore */
     }
-
-    // iOS best-effort: one switch toggle per "vibrate" slot in the pattern.
-    let t = 0;
-    pattern.forEach((ms, i) => {
-      if (i % 2 === 0) setTimeout(() => iosSwitchLabelRef.current?.click(), t);
-      t += ms;
-    });
-  }, []);
+    if (next) {
+      initAudio();
+      playBreathTone("inhale");
+    }
+  };
 
   const initAudio = () => {
     if (!audioCtxRef.current) {
@@ -118,6 +157,32 @@ export function GuidedBreathingModal({
     }
     if (audioCtxRef.current.state === "suspended") {
       audioCtxRef.current.resume();
+    }
+  };
+
+  // A soft cue that works on every phone, including iPhone: a gentle rising
+  // note on inhale, a lower falling one on exhale.
+  const playBreathTone = (kind: "inhale" | "exhale") => {
+    try {
+      initAudio();
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      const from = kind === "inhale" ? 330 : 262;
+      const to = kind === "inhale" ? 392 : 220;
+      osc.frequency.setValueAtTime(from, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(to, ctx.currentTime + 0.35);
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {
+      /* ignore */
     }
   };
 
@@ -203,16 +268,17 @@ export function GuidedBreathingModal({
     };
   }, [phase, currentBreath, breathCount, inhaleMs, exhaleMs, isOpen]);
 
-  // Haptic cue on every phase change: soft tap on inhale, lighter on exhale,
-  // longer buzz when the hold begins, a double pulse for recovery.
+  // Cue on every phase change (haptic + optional soft tone).
   useEffect(() => {
     if (!isOpen) return;
     switch (phase) {
       case "inhale":
         haptic([40]);
+        if (tonesOnRef.current) playBreathTone("inhale");
         break;
       case "exhale":
         haptic([18]);
+        if (tonesOnRef.current) playBreathTone("exhale");
         break;
       case "retention":
         haptic([160]);
@@ -226,6 +292,7 @@ export function GuidedBreathingModal({
       default:
         break;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, isOpen, haptic]);
 
   // Retention timer (just counts seconds)
@@ -240,7 +307,6 @@ export function GuidedBreathingModal({
   }, [phase]);
 
   // Calm chime + haptic on each full minute of retention (60s, 120s, 180s...).
-  // Kept out of the state updater so it can't fire twice in React Strict Mode.
   useEffect(() => {
     if (phase === "retention" && retentionSeconds > 0 && retentionSeconds % 60 === 0) {
       playRetentionMinuteChime();
@@ -249,7 +315,7 @@ export function GuidedBreathingModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retentionSeconds]);
 
-  // Clean Recovery hold timer (Decoupled from phase-switching side effects)
+  // Clean Recovery hold timer
   useEffect(() => {
     let interval: any;
     if (phase === "recovery") {
@@ -389,26 +455,37 @@ export function GuidedBreathingModal({
   const headerBtn =
     "p-3 sm:p-2.5 rounded-full bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors";
 
+  // Plain render function (not a component) so it isn't remounted on every render.
+  const renderToggle = (on: boolean, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      role="switch"
+      aria-checked={on}
+      className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 shrink-0 ${on ? "bg-cyan-500" : "bg-zinc-700"}`}
+    >
+      <div
+        className={`w-5 h-5 rounded-full bg-white transition-transform ${on ? "translate-x-5" : "translate-x-0"}`}
+      />
+    </button>
+  );
+
   return (
+    // Fully opaque: nothing behind this screen (the focus session, the page)
+    // can show through. The only colour besides near-black is a soft glow of
+    // the chosen cue colour behind the circle.
     <div
-      className="fixed inset-0 z-[250] bg-black/95 animate-in fade-in duration-300 motion-reduce:animate-none flex flex-col justify-between px-6 overflow-hidden select-none"
+      className="fixed inset-0 z-[250] animate-in fade-in duration-300 motion-reduce:animate-none flex flex-col justify-between px-6 overflow-hidden select-none"
       style={{
+        backgroundColor: "#05070b",
+        backgroundImage: `radial-gradient(70% 45% at 50% 42%, ${cueColor}2e, transparent 70%)`,
         paddingTop: "calc(var(--sat, 0px) + 1rem)",
         paddingBottom: "calc(var(--sab, 0px) + 1rem)",
       }}
     >
-      {/* Hidden native switch used for the iOS Safari haptic fallback. */}
-      <label
-        ref={iosSwitchLabelRef}
-        aria-hidden
-        className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0"
-      >
-        <input ref={iosSwitchInputRef} type="checkbox" tabIndex={-1} />
-      </label>
-
       {/* Top Header */}
       <div className="relative z-10 flex items-center justify-between max-w-4xl w-full mx-auto">
-        <div className="flex items-center gap-2 text-white font-bold tracking-wider uppercase text-xs sm:text-sm">
+        <div className="flex items-center gap-2 whitespace-nowrap text-white font-bold tracking-wider uppercase text-xs sm:text-sm">
           <Wind className="w-5 h-5 text-cyan-400" /> Guided Breathing
         </div>
         <div className="flex items-center gap-2">
@@ -451,7 +528,7 @@ export function GuidedBreathingModal({
       </div>
 
       {/* Main Breathing Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center relative my-4 max-w-xl w-full mx-auto text-center">
+      <div className="relative z-10 flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center my-4 max-w-xl w-full mx-auto text-center">
         {showSettings ? (
           /* Inline Settings Screen */
           <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 text-left space-y-5 animate-in zoom-in-95 duration-200 motion-reduce:animate-none">
@@ -480,39 +557,46 @@ export function GuidedBreathingModal({
               </div>
             </div>
 
-            {/* Audio Cues Toggle */}
+            {/* Audio minute chime */}
             <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-2xl border border-zinc-700">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">
                 Audio Minute Chime
               </span>
-              <button
-                type="button"
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${soundEnabled ? "bg-cyan-500" : "bg-zinc-700"
-                  }`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white transition-transform ${soundEnabled ? "translate-x-5" : "translate-x-0"
-                    }`}
-                />
-              </button>
+              {renderToggle(soundEnabled, () => setSoundEnabled(!soundEnabled))}
             </div>
 
-            {/* Haptics Toggle */}
-            <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-2xl border border-zinc-700">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">
-                Haptic Cues
-              </span>
+            {/* Breath tones (works on iPhone) */}
+            <div className="flex items-center justify-between gap-4 p-3 bg-zinc-800/50 rounded-2xl border border-zinc-700">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                  Breath Tones
+                </span>
+                <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+                  A soft rising note on inhale and falling note on exhale. Works on every phone.
+                </p>
+              </div>
+              {renderToggle(tonesEnabled, toggleTones)}
+            </div>
+
+            {/* Haptics + honest diagnostics */}
+            <div className="p-3 bg-zinc-800/50 rounded-2xl border border-zinc-700 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                  Haptic Cues
+                </span>
+                {renderToggle(hapticsEnabled, toggleHaptics)}
+              </div>
+              <p className="text-[11px] leading-snug text-zinc-500">
+                {canVibrate
+                  ? "This device supports vibration, so haptics should work."
+                  : "iPhone and iPad don’t let web apps vibrate. Fotion tries an unofficial Safari workaround that works on some versions and not others. Tap Test: if you feel nothing, haptics aren’t available here, so use Breath Tones instead."}
+              </p>
               <button
                 type="button"
-                onClick={toggleHaptics}
-                className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${hapticsEnabled ? "bg-cyan-500" : "bg-zinc-700"
-                  }`}
+                onClick={() => haptic([60, 70, 60, 70, 120])}
+                className="rounded-full border border-zinc-600 px-4 py-2 text-xs font-bold text-zinc-200 hover:bg-zinc-700 active:scale-95 transition-all"
               >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white transition-transform ${hapticsEnabled ? "translate-x-5" : "translate-x-0"
-                    }`}
-                />
+                Test haptics
               </button>
             </div>
 
