@@ -624,22 +624,18 @@ function HomeContent() {
       )}
 
       {/*
-        HEADER — safe-area aware in Safari and in iOS PWA standalone.
+        HEADER
 
-        The soft "blurred" look is a pure GRADIENT (`.top-wash`, see
-        globals.css), NOT a backdrop blur. That means:
-          - the colour wash extends up under the notch / status bar
-            (paddingTop: var(--sat)) and fades into the page background,
-            so there is no visible line between the status bar and the header;
-          - the icons and buttons sit on top of it and are never blurred;
-          - it follows light / dark mode through CSS variables.
-
-        No backdrop-blur (WebKit Bug 319479). `isolate` gives an explicit
-        stacking context, `min-h-12` lets the header grow with the safe area.
+        Deliberately NOT sticky/fixed and NOT touching the very top edge:
+        on recent iOS the system blurs content pinned to the top of the screen
+        (the status-bar "scroll edge effect"), which blurred these icons.
+        The header is a normal, flat, solid block that starts below that zone,
+        the same way the Sanctuary header does (safe area + 1.5rem).
+        No gradients, no backdrop-filter, nothing painted over the icons.
       */}
       <header
-        className="sticky top-0 z-10 isolate top-wash min-h-12"
-        style={{ paddingTop: "var(--sat, 0.5rem)" }}
+        className="relative z-10 top-wash min-h-12"
+        style={{ paddingTop: "calc(var(--sat, 0px) + 1.5rem)" }}
       >
         <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3 text-[15px]">
