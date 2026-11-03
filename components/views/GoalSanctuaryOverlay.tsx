@@ -20,6 +20,7 @@ import { CheckInWizard } from "@/components/views/sanctuary/CheckInWizard";
 import { QuarterlyReviewWizard } from "@/components/views/sanctuary/QuarterlyReviewWizard";
 import { AnnualReviewWizard } from "@/components/views/sanctuary/AnnualReviewWizard";
 import { AnnualReviewExport } from "@/components/views/sanctuary/AnnualReviewExport";
+import { SanctuaryExport } from "@/components/views/sanctuary/SanctuaryExport";
 
 type SanctuaryTab = "goals" | "align" | "checkin" | "review" | "year";
 
@@ -53,13 +54,9 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     goal: null,
   });
   const [pendingDelete, setPendingDelete] = useState<any | null>(null);
-  // The annual review the person chose to open from the Year screen (any year,
-  // due or not). null = show the Year screen (or the due review automatically).
   const [annualOpenKey, setAnnualOpenKey] = useState<string | null>(null);
   const [pendingReset, setPendingReset] = useState<string | null>(null);
 
-  // Lets the quarterly review genuinely wait for the goal editor: the promise
-  // returned from onAdjustGoal resolves when the editor is saved or closed.
   const adjustResolver = useRef<(() => void) | null>(null);
 
   const closeEditor = () => {
@@ -89,12 +86,10 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   }, [isOpen]);
 
-  // Leaving the Year tab always drops the opened review.
   useEffect(() => {
     if (activeTab !== "year") setAnnualOpenKey(null);
   }, [activeTab]);
 
-  // One-step-back navigation, shared by the Back button and Escape.
   const goBackOneLevel = () => {
     if (openGoalId) setOpenGoalId(null);
     else if (activeTab === "year" && annualOpenKey) setAnnualOpenKey(null);
@@ -115,7 +110,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editor.open, openGoalId, pendingDelete, pendingReset, activeTab, annualOpenKey, onClose]);
 
   if (!isOpen || !mounted) return null;
@@ -129,19 +123,11 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
   const openGoal = openGoalId ? goals.find((g) => g._id === openGoalId) : null;
   const reviewDue = quarterlyStatus?.due;
 
-  // At the top level the button closes the Sanctuary. Anywhere deeper (an open
-  // goal, or any tab other than Goals) it steps back instead, so a stray click
-  // while in the middle of a review never throws you out of the Sanctuary.
   const atHome = !openGoal && activeTab === "goals";
 
-  // ---- Annual review ("Year" tab) -----------------------------------------
-  // The server's periodKey is the most recent solstice (before Dec 21 that is
-  // LAST year's). The review for the year you're living in right now is
-  // therefore keyed to the current calendar year.
   const upcomingKey = `${new Date().getFullYear()}-solstice`;
   const completedKeys = new Set((completedAnnualReviews ?? []).map((r) => r.periodKey));
   const pastReviews = (completedAnnualReviews ?? []).filter((r) => r.periodKey !== upcomingKey);
-  // When it's actually time, go straight into the review.
   const dueKey =
     solsticeStatus?.due && !solsticeStatus.completed ? solsticeStatus.periodKey : null;
   const activeAnnualKey = annualOpenKey ?? dueKey;
@@ -205,7 +191,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     if (!pendingReset) return;
     try {
       await resetAnnualReview({ periodKey: pendingReset, sessionId: sessionId ?? undefined });
-      // Forget which answer lines already became tasks for this review.
       try {
         const prefix = `fotion-annual-created:${pendingReset}:`;
         Object.keys(localStorage)
@@ -221,9 +206,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
     }
   };
 
-  // IMPORTANT: this is a plain render function, NOT a component.
-  // Declaring it as a component inside the overlay made React remount every
-  // row on each re-render, which swallowed clicks.
   const renderInactiveGoalRow = (goal: any) => (
     <button
       key={goal._id}
@@ -269,7 +251,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       );
     }
 
-    // A review is open: the due one, or one chosen from the Year screen.
     if (activeAnnualKey) {
       const isCompleted = completedKeys.has(activeAnnualKey);
       const isDueReview = activeAnnualKey === dueKey;
@@ -294,7 +275,6 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
       );
     }
 
-    // Year screen: start this year's review, or revisit past ones.
     const upcomingDone = completedKeys.has(upcomingKey);
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col animate-in fade-in duration-500 motion-reduce:animate-none">
@@ -364,9 +344,12 @@ export function GoalSanctuaryOverlay({ isOpen, onClose }: { isOpen: boolean; onC
           className="flex flex-wrap items-center justify-between gap-y-3 px-6 sm:px-10"
           style={{ paddingTop: "calc(var(--sat, 0px) + 1.5rem)" }}
         >
-          <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
-            The Sanctuary
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500 dark:text-zinc-400">
+              The Sanctuary
+            </span>
+            <SanctuaryExport sessionId={sessionId ?? undefined} />
+          </div>
 
           {atHome ? (
             <button

@@ -167,6 +167,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
     <>
       <div className="relative w-fit max-w-full" ref={ref}>
         <button
+          type="button"
           onClick={() => setIsOpen(!isOpen)}
           className={`outline-none px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border max-w-full truncate ${getProjectColor(value)}`}
         >
@@ -176,16 +177,16 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
 
         {isOpen && (
           <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[250px] overflow-y-auto">
-            <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+            <button type="button" onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">None</span>
             </button>
             {projects?.map((p) => (
-              <button key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+              <button type="button" key={p._id} onClick={() => { onChange(p._id); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
                 <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border truncate max-w-full ${getProjectColor(p._id)}`}>{p.name}</span>
               </button>
             ))}
             <div className="border-t border-[var(--border)] my-1"></div>
-            <button onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-2 text-[13px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
+            <button type="button" onClick={() => { setIsOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-2 text-[13px] text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium">
               + Create New Project
             </button>
           </div>
@@ -206,8 +207,8 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
               className="w-full bg-transparent border border-[var(--border)] rounded-lg p-2 text-[var(--foreground)] mb-6 outline-none focus:border-blue-500"
             />
             <div className="flex justify-end gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">Cancel</button>
-              <button onClick={handleCreate} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg">Create</button>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">Cancel</button>
+              <button type="button" onClick={handleCreate} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg">Create</button>
             </div>
           </div>
         </div>
@@ -247,6 +248,7 @@ function GoalSelect({ value, onChange }: { value?: string | null, onChange: (val
   return (
     <div className="relative w-fit max-w-full" ref={ref}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`outline-none px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium text-[12px] border max-w-full truncate ${selectedGoal ? getGoalColor(selectedGoal.color) : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]'}`}
       >
@@ -256,11 +258,11 @@ function GoalSelect({ value, onChange }: { value?: string | null, onChange: (val
 
       {isOpen && (
         <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#252525] border border-[var(--border)] shadow-xl rounded-lg py-1 z-50 max-h-[250px] overflow-y-auto">
-          <button onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+          <button type="button" onClick={() => { onChange(null); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-[var(--border)]">None</span>
           </button>
           {goals?.map((g: any) => (
-            <button key={g._id} onClick={() => { onChange(g._id); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
+            <button type="button" key={g._id} onClick={() => { onChange(g._id); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center">
               <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border truncate max-w-full ${getGoalColor(g.color)}`}>{g.title}</span>
             </button>
           ))}
@@ -357,12 +359,6 @@ function PaneContent() {
   const paneRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
-  // Prevent the browser from scrolling to a focused checkbox inside the
-  // editor. This is what caused the pane to "jump down then back up" when
-  // toggling a task-list checkbox: the browser scrolled to the newly focused
-  // input, then the re-render pushed the layout back, then the scroll anchor
-  // was released. Both mousedown (desktop) and touchstart (mobile) are
-  // intercepted for every checkbox inside the pane.
   useEffect(() => {
     const preventFocusScroll = (e: Event) => {
       const target = e.target as HTMLElement;
@@ -653,7 +649,7 @@ function PaneContent() {
           setIsNearBottom(paneRef.current.getBoundingClientRect().bottom - e.clientY < 180);
         }}
         onMouseLeave={() => setIsNearBottom(false)}
-        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-white dark:bg-[#121212] sm:border-l border-[var(--border)] z-[250] flex flex-col transition-transform duration-[350ms] ease-out transform-gpu will-change-transform max-w-full overflow-x-hidden ${isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"}`}
+        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-white dark:bg-[#121212] sm:border-l border-[var(--border)] z-[250] flex flex-col transition-transform duration-[350ms] ease-out max-w-full overflow-x-hidden antialiased ${isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"}`}
       >
         {(!displayTaskId || task === undefined) ? (
           <div className="flex-1 flex items-center justify-center">{displayTaskId && <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />}</div>
@@ -662,36 +658,39 @@ function PaneContent() {
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-24 max-w-full">
 
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {task.isPublic && (
-                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-200 dark:border-blue-900/50">
-                    <Globe className="w-3 h-3" /> {isSignedIn ? "Public Link Active" : "Shared By Owner"}
-                  </span>
-                )}
-                {hasAccepted && (
-                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded border border-purple-200 dark:border-purple-900/50">
-                    <CheckSquare className="w-3 h-3" /> Saved to My Fotion
-                  </span>
-                )}
-              </div>
-
-              {isSignedIn && (
+            <div className="sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-white dark:bg-[#121212] transition-colors">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   {task.isPublic && (
-                    <button
-                      onClick={() => updateTask({ id: displayTaskId, isPublic: false, shareToken: "", sharedWithSessions: [] })}
-                      className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
-                    >
-                      Revoke Access
-                    </button>
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-200 dark:border-blue-900/50">
+                      <Globe className="w-3 h-3" /> {isSignedIn ? "Public Link Active" : "Shared By Owner"}
+                    </span>
                   )}
-                  <button onClick={handleShare} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${isCopied ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'}`}>
-                    {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
-                    {isCopied ? "Link Copied!" : (task.isPublic ? "Copy Link" : "Share Task")}
-                  </button>
+                  {hasAccepted && (
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded border border-purple-200 dark:border-purple-900/50">
+                      <CheckSquare className="w-3 h-3" /> Saved to My Fotion
+                    </span>
+                  )}
                 </div>
-              )}
+
+                {isSignedIn && (
+                  <div className="flex items-center gap-2">
+                    {task.isPublic && (
+                      <button
+                        type="button"
+                        onClick={() => updateTask({ id: displayTaskId, isPublic: false, shareToken: "", sharedWithSessions: [] })}
+                        className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
+                      >
+                        Revoke Access
+                      </button>
+                    )}
+                    <button type="button" onClick={handleShare} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${isCopied ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'}`}>
+                      {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
+                      {isCopied ? "Link Copied!" : (task.isPublic ? "Copy Link" : "Share Task")}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {needsToAccept && (
@@ -701,6 +700,7 @@ function PaneContent() {
                   <p className="text-blue-600/80 dark:text-blue-400/80 text-xs">You are viewing a VIP task. Save it to your Fotion to track its progress and edit details.</p>
                 </div>
                 <button
+                  type="button"
                   onClick={handleAcceptTask}
                   className="shrink-0 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm"
                 >
@@ -724,7 +724,7 @@ function PaneContent() {
               </PropertyRow>
 
               <PropertyRow icon={CheckSquare} label="Today" disabled={needsToAccept}><button type="button" onClick={() => handleUpdate("isToday", !task.isToday)} className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${task.isToday ? 'bg-pink-400 border-pink-400' : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}`}>{task.isToday && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</button></PropertyRow>
-              <PropertyRow icon={PlayCircle} label="Status" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{[{ id: 'todo', label: 'To Do', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' }, { id: 'in-progress', label: 'In Progress', activeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50' }, { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50' }].map((s) => (<button key={s.id} onClick={() => handleStatusUpdate(s.id as any)} className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${task.status === s.id ? s.activeClass : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>{s.label}</button>))}</div></PropertyRow>
+              <PropertyRow icon={PlayCircle} label="Status" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{[{ id: 'todo', label: 'To Do', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' }, { id: 'in-progress', label: 'In Progress', activeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-900/50' }, { id: 'done', label: 'Done', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50' }].map((s) => (<button type="button" key={s.id} onClick={() => handleStatusUpdate(s.id as any)} className={`px-3 py-1 text-[12px] font-medium rounded-full transition-all border ${task.status === s.id ? s.activeClass : "bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>{s.label}</button>))}</div></PropertyRow>
               <PropertyRow icon={Calendar} label="Due By Date" disabled={needsToAccept}><CustomDatePicker value={task.doByDate ?? null} onChange={(val) => handleUpdate("doByDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Calendar} label="Do On Date" disabled={needsToAccept}><CustomDatePicker value={task.doOnDate ?? null} onChange={(val) => handleUpdate("doOnDate", val)} alignPopover="left" /></PropertyRow>
               <PropertyRow icon={Repeat} label="Repeat" disabled={needsToAccept}>
@@ -758,8 +758,8 @@ function PaneContent() {
                   disabled={needsToAccept}
                 />
               </PropertyRow>
-              <PropertyRow icon={Sigma} label="Matrix Tags" disabled={needsToAccept}><div className="flex flex-wrap gap-2"><button onClick={() => handleUpdate("isUrgent", !task.isUrgent)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Urgent</button><button onClick={() => handleUpdate("isImportant", !task.isImportant)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Important</button><button onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>For Funsies</button></div></PropertyRow>
-              <PropertyRow icon={List} label="Pipelines" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{['Current', 'Waiting For', 'Someday Maybe'].map(listName => (<button key={listName} onClick={() => handleUpdate("listCategory", listName)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>{listName}</button>))}</div></PropertyRow>
+              <PropertyRow icon={Sigma} label="Matrix Tags" disabled={needsToAccept}><div className="flex flex-wrap gap-2"><button type="button" onClick={() => handleUpdate("isUrgent", !task.isUrgent)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Urgent</button><button type="button" onClick={() => handleUpdate("isImportant", !task.isImportant)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isImportant ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>Important</button><button type="button" onClick={() => handleUpdate("isForFunsies", !task.isForFunsies)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors border ${task.isForFunsies ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-900/50' : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>For Funsies</button></div></PropertyRow>
+              <PropertyRow icon={List} label="Pipelines" disabled={needsToAccept}><div className="flex flex-wrap gap-2">{['Current', 'Waiting For', 'Someday Maybe'].map(listName => (<button type="button" key={listName} onClick={() => handleUpdate("listCategory", listName)} className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all border ${task.listCategory === listName ? getListColor(listName) : 'bg-transparent border-[var(--border)] text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}>{listName}</button>))}</div></PropertyRow>
               {task.listCategory && task.listCategory !== "Current" && (
                 <PropertyRow icon={Clock} label="Touch Base" disabled={needsToAccept}>
                   <div className="flex items-center gap-2 flex-wrap">
