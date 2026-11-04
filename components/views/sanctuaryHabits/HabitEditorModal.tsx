@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Sparkles, AlertCircle, ChevronDown, Check } from "lucide-react";
+import { X, Sparkles, AlertCircle, ChevronDown, Check, Trash2 } from "lucide-react";
 import { SERIF } from "@/components/views/sanctuary/theme";
 
 export interface HabitFormValues {
@@ -22,6 +22,7 @@ interface HabitEditorModalProps {
   activeRampUpCount: number;
   onClose: () => void;
   onSave: (values: HabitFormValues) => Promise<void>;
+  onDelete?: () => void;
 }
 
 const CATEGORIES = [
@@ -116,6 +117,7 @@ export function HabitEditorModal({
   activeRampUpCount,
   onClose,
   onSave,
+  onDelete,
 }: HabitEditorModalProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [category, setCategory] = useState(initial?.category ?? "Physical");
@@ -320,7 +322,7 @@ export function HabitEditorModal({
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-300">Target Metric (Full Ideal Goal)</span>
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Target Metric (Full Ideal Goal)</span>
               <input
                 type="text"
                 value={targetDesc}
@@ -362,21 +364,37 @@ export function HabitEditorModal({
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={handleModalClose}
-              className="rounded-full px-5 py-2.5 text-xs font-semibold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-full bg-emerald-500 px-6 py-2.5 text-xs font-semibold text-white dark:text-black hover:bg-emerald-400 disabled:opacity-50"
-            >
-              {saving ? "Saving..." : initial ? "Update System" : "Create Habit"}
-            </button>
+          <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
+            {initial && onDelete ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-500/20 transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Delete Habit</span>
+              </button>
+            ) : <div />}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleModalClose}
+                className="rounded-full px-5 py-2 text-xs font-semibold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-full bg-emerald-500 px-6 py-2 text-xs font-semibold text-white dark:text-black hover:bg-emerald-400 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : initial ? "Update System" : "Create Habit"}
+              </button>
+            </div>
           </div>
         </form>
       </div>

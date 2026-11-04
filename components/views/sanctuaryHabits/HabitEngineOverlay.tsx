@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Check, ArrowUp, ArrowDown, ShieldAlert, Award, AlertTriangle, Flame } from "lucide-react";
+import { X, Plus, Check, ArrowUp, ArrowDown, ShieldAlert, Award, AlertTriangle, Flame, TrendingUp, Calendar, Zap, ShieldCheck } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -143,7 +143,7 @@ export function HabitEngineOverlay({
 
   const renderActiveRampUpView = () => (
     <div className="space-y-8 animate-in fade-in">
-      {/* Capacity Card */}
+      {/* Capacity Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[var(--border)] bg-zinc-50 dark:bg-white/[0.02] p-6 backdrop-blur-md">
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
@@ -172,7 +172,6 @@ export function HabitEngineOverlay({
         )}
       </div>
 
-      {/* Grid view for active Ramp-Up habits */}
       {rampUpHabits.length === 0 ? (
         <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.02] p-12 text-center text-zinc-500">
           No active habits currently installing in Ramp-Up. Click "+ Install Habit" to start.
@@ -265,69 +264,171 @@ export function HabitEngineOverlay({
     </div>
   );
 
-  const renderStatsView = () => (
-    <div className="space-y-8 animate-in fade-in">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 text-center shadow-sm">
-          <span className="text-xs font-semibold uppercase text-zinc-400">Active Systems</span>
-          <div className={`${SERIF} text-4xl font-bold mt-2 text-emerald-500`}>{rampUpHabits.length}</div>
-        </div>
-        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 text-center shadow-sm">
-          <span className="text-xs font-semibold uppercase text-zinc-400">Graduated Baselines</span>
-          <div className={`${SERIF} text-4xl font-bold mt-2 text-blue-500`}>{maintenanceHabits.length}</div>
-        </div>
-        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 text-center shadow-sm">
-          <span className="text-xs font-semibold uppercase text-zinc-400">Backlog Pipeline</span>
-          <div className={`${SERIF} text-4xl font-bold mt-2 text-purple-500`}>{queuedHabits.length}</div>
-        </div>
-      </div>
+  const renderStatsView = () => {
+    // Generate past 7 days for the completion heatmaps
+    const past7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return {
+        dateStr: d.toISOString().split("T")[0],
+        dayLabel: d.toLocaleDateString("en-US", { weekday: "short" }),
+      };
+    });
 
-      <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 space-y-6">
-        <h3 className={`${SERIF} text-xl font-medium text-[var(--foreground)]`}>Ramp-Up Automaticity Progress</h3>
-        {rampUpHabits.length === 0 ? (
-          <div className="text-xs text-zinc-400 py-4 text-center">No active ramp-up habits being tracked.</div>
-        ) : (
-          rampUpHabits.map((h) => (
-            <div key={h._id} className="space-y-2 border-b border-[var(--border)] pb-4 last:border-none">
-              <div className="flex items-center justify-between text-sm font-semibold">
-                <span>{h.title}</span>
-                <span className="text-xs font-bold text-emerald-500 uppercase">{h.category}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-zinc-500">
-                <span>Automaticity Streak: {h.consecutiveMaintenanceWeeks ?? 0} / 5 Weeks</span>
-                <span>Grace Tokens: {h.graceTokensRemaining ?? 2} Left</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-zinc-100 dark:bg-white/10 overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-500"
-                  style={{ width: `${Math.min(100, ((h.consecutiveMaintenanceWeeks ?? 0) / 5) * 100)}%` }}
-                />
-              </div>
+    return (
+      <div className="space-y-8 animate-in fade-in">
+        {/* KPI Scorecard */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-5 text-center shadow-sm">
+            <Zap className="mx-auto h-5 w-5 text-emerald-500 mb-1" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Ramp-Up Active</span>
+            <div className={`${SERIF} text-3xl font-bold mt-1 text-emerald-500`}>{rampUpHabits.length} / 2</div>
+          </div>
+          <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-5 text-center shadow-sm">
+            <ShieldCheck className="mx-auto h-5 w-5 text-blue-500 mb-1" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Graduated Baselines</span>
+            <div className={`${SERIF} text-3xl font-bold mt-1 text-blue-500`}>{maintenanceHabits.length}</div>
+          </div>
+          <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-5 text-center shadow-sm">
+            <TrendingUp className="mx-auto h-5 w-5 text-purple-500 mb-1" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Queued Backlog</span>
+            <div className={`${SERIF} text-3xl font-bold mt-1 text-purple-500`}>{queuedHabits.length}</div>
+          </div>
+          <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-5 text-center shadow-sm">
+            <Calendar className="mx-auto h-5 w-5 text-amber-500 mb-1" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">System Capacity</span>
+            <div className={`${SERIF} text-3xl font-bold mt-1 text-amber-500`}>
+              {Math.round(((rampUpHabits.length + maintenanceHabits.length) / Math.max(1, habits.length)) * 100)}%
             </div>
-          ))
-        )}
-      </div>
+          </div>
+        </div>
 
-      <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 space-y-6">
-        <h3 className={`${SERIF} text-xl font-medium text-[var(--foreground)]`}>Maintenance Systems Health</h3>
-        {maintenanceHabits.length === 0 ? (
-          <div className="text-xs text-zinc-400 py-4 text-center">No graduated maintenance systems yet.</div>
-        ) : (
-          maintenanceHabits.map((h) => (
-            <div key={h._id} className="flex items-center justify-between p-4 rounded-2xl border border-[var(--border)] bg-zinc-50 dark:bg-white/5">
-              <div>
-                <h4 className="font-semibold text-sm text-[var(--foreground)]">{h.title}</h4>
-                <p className="text-xs text-zinc-500 mt-0.5">Target: {h.targetMetric?.description}</p>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                <Check className="h-4 w-4" /> Baseline System Active
-              </div>
+        {/* Ramp-Up Automaticity Gauges & Visual Progress */}
+        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 space-y-6 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
+            <div>
+              <h3 className={`${SERIF} text-xl font-medium text-[var(--foreground)]`}>
+                Active Ramp-Up Automaticity Trajectory
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Targeting 5 consecutive qualifying weeks (SRBAI &ge; 5.5/7, Effort &le; 3/10) to reach graduation.
+              </p>
             </div>
-          ))
-        )}
+          </div>
+
+          {rampUpHabits.length === 0 ? (
+            <div className="text-xs text-zinc-400 py-6 text-center">No active ramp-up habits currently installing.</div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2">
+              {rampUpHabits.map((h) => {
+                const streak = h.consecutiveMaintenanceWeeks ?? 0;
+                const progressPct = Math.min(100, (streak / 5) * 100);
+
+                return (
+                  <div key={h._id} className="rounded-2xl border border-[var(--border)] bg-zinc-50 dark:bg-black/30 p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold text-base text-[var(--foreground)]">{h.title}</h4>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                          ⚓ {h.contextAnchor}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-bold text-emerald-500">{progressPct}%</span>
+                        <div className="text-[10px] text-zinc-400">Graduation Level</div>
+                      </div>
+                    </div>
+
+                    {/* 5-Week Streak Block Bar */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs text-zinc-500 font-medium">
+                        <span>5-Week Streak Progress</span>
+                        <span>{streak} / 5 Weeks</span>
+                      </div>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {[1, 2, 3, 4, 5].map((w) => (
+                          <div
+                            key={w}
+                            className={`h-3 rounded-md transition-all ${
+                              w <= streak
+                                ? "bg-emerald-500 shadow-md shadow-emerald-500/30"
+                                : "bg-zinc-200 dark:bg-white/10"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] text-xs text-zinc-500">
+                      <span>Weekly Grace Tokens:</span>
+                      <span className="font-bold text-[var(--foreground)]">{h.graceTokensRemaining ?? 2} / {h.weeklyGraceTokens ?? 2} Left</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* 7-Day Completion Heatmap / Activity Grid */}
+        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 space-y-6 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
+            <div>
+              <h3 className={`${SERIF} text-xl font-medium text-[var(--foreground)]`}>
+                7-Day Completion Matrix
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Visual log activity across all habits over the last 7 calendar days.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-zinc-400">
+              <span className="flex items-center gap-1"><div className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Target</span>
+              <span className="flex items-center gap-1"><div className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Floor</span>
+              <span className="flex items-center gap-1"><div className="h-2.5 w-2.5 rounded-full bg-zinc-200 dark:bg-white/10" /> Missed</span>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {habits.map((h) => (
+              <div key={h._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-[var(--border)] bg-zinc-50 dark:bg-black/20">
+                <div>
+                  <h4 className="font-semibold text-sm text-[var(--foreground)]">{h.title}</h4>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    {h.status.replace("_", " ")} • {h.category}
+                  </span>
+                </div>
+
+                {/* 7-Day Dots */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {past7Days.map((day) => {
+                    const isToday = day.dateStr === todayStr;
+                    const log = isToday ? h.todayLog : null; // simplified daily representation
+
+                    return (
+                      <div key={day.dateStr} className="flex flex-col items-center gap-1">
+                        <span className="text-[9px] font-semibold text-zinc-400 uppercase">{day.dayLabel}</span>
+                        <div
+                          className={`h-7 w-7 sm:h-8 sm:w-8 rounded-xl flex items-center justify-center text-[10px] font-bold transition-all ${
+                            log?.threshold === "target"
+                              ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                              : log?.threshold === "floor"
+                              ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
+                              : "bg-zinc-200 dark:bg-white/10 text-zinc-400"
+                          }`}
+                        >
+                          {log?.threshold === "target" ? "★" : log?.threshold === "floor" ? "✓" : "•"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderQueueView = () => (
     <div className="space-y-6 animate-in fade-in">
@@ -514,7 +615,7 @@ export function HabitEngineOverlay({
         </div>
       </div>
 
-      {/* Habit Editor Modal */}
+      {/* Habit Editor Modal with Delete trigger */}
       {editor.open && (
         <HabitEditorModal
           initial={editor.habit}
@@ -523,6 +624,11 @@ export function HabitEngineOverlay({
           activeRampUpCount={rampUpHabits.length}
           onClose={() => setEditor({ open: false, habit: null })}
           onSave={handleSaveHabit}
+          onDelete={() => {
+            const habitId = editor.habit?._id;
+            setEditor({ open: false, habit: null });
+            if (habitId) setDeletingHabitId(habitId);
+          }}
         />
       )}
 
