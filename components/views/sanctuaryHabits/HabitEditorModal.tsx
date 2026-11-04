@@ -8,7 +8,7 @@ export interface HabitFormValues {
   title: string;
   category: string;
   status: "queued" | "ramp_up" | "maintenance" | "paused";
-  contextAnchor: "morning_grounding" | "afternoon_focus" | "night_wind_down" | "standalone";
+  contextAnchor: string;
   customAnchorDetail?: string;
   floorMetric: { description: string; value: number; unit: string };
   targetMetric: { description: string; value: number; unit: string };
@@ -17,7 +17,7 @@ export interface HabitFormValues {
 
 interface HabitEditorModalProps {
   initial?: any | null;
-  defaultAnchor?: "morning_grounding" | "afternoon_focus" | "night_wind_down" | "standalone";
+  defaultAnchor?: string;
   defaultStatus?: "queued" | "ramp_up" | "maintenance" | "paused";
   activeRampUpCount: number;
   onClose: () => void;
@@ -35,11 +35,14 @@ const CATEGORIES = [
   { id: "Health & Nutrition", label: "Health & Nutrition" },
 ];
 
-const ANCHORS = [
-  { id: "morning_grounding", label: "Morning Grounding" },
-  { id: "afternoon_focus", label: "Afternoon Focus" },
-  { id: "night_wind_down", label: "Night Wind Down" },
-  { id: "standalone", label: "Standalone Trigger" },
+const PRESET_ANCHORS = [
+  "After Waking",
+  "After Breakfast",
+  "After Lunch",
+  "After Dinner",
+  "Hour Before Bed",
+  "Workday Start",
+  "Post-Workout",
 ];
 
 function CustomSelect({
@@ -119,10 +122,9 @@ export function HabitEditorModal({
   const [status, setStatus] = useState<"queued" | "ramp_up" | "maintenance" | "paused">(
     initial?.status ?? defaultStatus ?? (activeRampUpCount < 2 ? "ramp_up" : "queued")
   );
-  const [contextAnchor, setContextAnchor] = useState<
-    "morning_grounding" | "afternoon_focus" | "night_wind_down" | "standalone"
-  >(initial?.contextAnchor ?? defaultAnchor ?? "morning_grounding");
-  const [customAnchorDetail, setCustomAnchorDetail] = useState(initial?.customAnchorDetail ?? "");
+  const [contextAnchor, setContextAnchor] = useState<string>(
+    initial?.contextAnchor ?? defaultAnchor ?? "After Waking"
+  );
 
   const [floorDesc, setFloorDesc] = useState(initial?.floorMetric?.description ?? "");
   const [floorVal, setFloorVal] = useState<number | "">(initial?.floorMetric?.value ?? "");
@@ -138,8 +140,15 @@ export function HabitEditorModal({
 
   const isRampUpBlocked = status === "ramp_up" && activeRampUpCount >= 2 && initial?.status !== "ramp_up";
 
+  const handleModalClose = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+
     if (!title.trim()) {
       setError("Please enter a habit title.");
       return;
@@ -160,8 +169,7 @@ export function HabitEditorModal({
         title: title.trim(),
         category,
         status,
-        contextAnchor,
-        customAnchorDetail: customAnchorDetail.trim() || undefined,
+        contextAnchor: contextAnchor.trim() || "After Waking",
         floorMetric: { description: floorDesc.trim(), value: Number(floorVal) || 1, unit: floorUnit.trim() },
         targetMetric: { description: targetDesc.trim(), value: Number(targetVal) || 1, unit: targetUnit.trim() },
         weeklyGraceTokens: Number(graceTokens),
@@ -175,7 +183,7 @@ export function HabitEditorModal({
   return (
     <div
       className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
+      onClick={handleModalClose}
     >
       <div
         className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--border)] bg-white dark:bg-[#12131a] p-6 text-[var(--foreground)] shadow-2xl"
@@ -189,7 +197,8 @@ export function HabitEditorModal({
             </h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleModalClose}
+            type="button"
             className="rounded-full p-2 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-[var(--foreground)]"
           >
             <X className="h-5 w-5" />
@@ -217,32 +226,40 @@ export function HabitEditorModal({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <CustomSelect
-              label="Category"
-              value={category}
-              onChange={setCategory}
-              options={CATEGORIES}
-            />
-            <CustomSelect
-              label="Context Anchor"
-              value={contextAnchor}
-              onChange={(val) => setContextAnchor(val as any)}
-              options={ANCHORS}
-            />
-          </div>
+          <CustomSelect
+            label="Category"
+            value={category}
+            onChange={setCategory}
+            options={CATEGORIES}
+          />
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
-              Custom Trigger Detail (Optional)
+              Action Trigger / Context Anchor
             </label>
             <input
               type="text"
-              value={customAnchorDetail}
-              onChange={(e) => setCustomAnchorDetail(e.target.value)}
-              placeholder="e.g. Immediately after morning espresso"
-              className="w-full rounded-2xl border border-[var(--border)] bg-zinc-50 dark:bg-white/5 px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+              value={contextAnchor}
+              onChange={(e) => setContextAnchor(e.target.value)}
+              placeholder="e.g. After morning coffee, After lunch..."
+              className="w-full rounded-2xl border border-[var(--border)] bg-zinc-50 dark:bg-white/5 px-4 py-3 text-sm outline-none focus:border-emerald-500"
             />
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {PRESET_ANCHORS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setContextAnchor(preset)}
+                  className={`rounded-full px-3 py-1 text-[11px] font-medium border transition-colors ${
+                    contextAnchor === preset
+                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : "border-[var(--border)] bg-zinc-100 dark:bg-white/5 text-zinc-500 hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>
@@ -348,7 +365,7 @@ export function HabitEditorModal({
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleModalClose}
               className="rounded-full px-5 py-2.5 text-xs font-semibold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
             >
               Cancel

@@ -176,7 +176,7 @@ export default defineSchema({
   // --- Habit Engine Tables ---
   habits: defineTable({
     title: v.string(),
-    category: v.union(v.literal("Mental"), v.literal("Physical"), v.literal("Social"), v.literal("Creative")),
+    category: v.string(),
     status: v.union(v.literal("queued"), v.literal("ramp_up"), v.literal("maintenance"), v.literal("paused")),
     queueRank: v.optional(v.number()),
     floorMetric: v.object({
@@ -189,15 +189,11 @@ export default defineSchema({
       value: v.number(),
       unit: v.string(),
     }),
-    contextAnchor: v.union(
-      v.literal("morning_grounding"),
-      v.literal("afternoon_focus"),
-      v.literal("night_wind_down"),
-      v.literal("standalone")
-    ),
-    consecutiveMaintenanceWeeks: v.number(),
+    contextAnchor: v.string(),
+    customAnchorDetail: v.optional(v.string()),
+    consecutiveMaintenanceWeeks: v.optional(v.number()),
     graduatedAt: v.optional(v.union(v.number(), v.null())),
-    weeklyGraceTokens: v.number(), // Default limit per week (usually 2)
+    weeklyGraceTokens: v.optional(v.number()),
     sessionId: v.optional(v.string()),
   })
     .index("by_sessionId", ["sessionId"])

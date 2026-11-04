@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Check, ArrowUp, ArrowDown, ShieldAlert, Award, BarChart3, RotateCcw, AlertTriangle, Calendar, Flame } from "lucide-react";
+import { X, Plus, Check, ArrowUp, ArrowDown, ShieldAlert, Award, AlertTriangle, Flame } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -38,7 +38,7 @@ export function HabitEngineOverlay({
   const [editor, setEditor] = useState<{
     open: boolean;
     habit: any | null;
-    defaultAnchor?: "morning_grounding" | "afternoon_focus" | "night_wind_down" | "standalone";
+    defaultAnchor?: string;
     defaultStatus?: "queued" | "ramp_up" | "maintenance" | "paused";
   }>({
     open: false,
@@ -87,7 +87,14 @@ export function HabitEngineOverlay({
     if (editor.habit) {
       await updateHabitStatus({
         id: editor.habit._id as Id<"habits">,
+        title: values.title,
+        category: values.category,
         status: values.status,
+        contextAnchor: values.contextAnchor,
+        customAnchorDetail: values.customAnchorDetail,
+        floorMetric: values.floorMetric,
+        targetMetric: values.targetMetric,
+        weeklyGraceTokens: values.weeklyGraceTokens,
         sessionId: sessionId ?? undefined,
       });
     } else {
@@ -100,7 +107,7 @@ export function HabitEngineOverlay({
   };
 
   const handleLogToggle = async (habit: any, threshold: "floor" | "target", e: React.MouseEvent) => {
-    e.stopPropagation(); // prevent card click
+    e.stopPropagation();
     const isAlreadyLogged = habit.todayLog?.threshold === threshold;
     const metricVal = threshold === "floor" ? habit.floorMetric?.value : habit.targetMetric?.value;
 
@@ -136,6 +143,7 @@ export function HabitEngineOverlay({
 
   const renderActiveRampUpView = () => (
     <div className="space-y-8 animate-in fade-in">
+      {/* Capacity Card */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[var(--border)] bg-zinc-50 dark:bg-white/[0.02] p-6 backdrop-blur-md">
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
@@ -164,125 +172,96 @@ export function HabitEngineOverlay({
         )}
       </div>
 
-      {(["morning_grounding", "afternoon_focus", "night_wind_down", "standalone"] as const).map((anchor) => {
-        const anchorHabits = rampUpHabits.filter((h) => h.contextAnchor === anchor);
+      {/* Grid view for active Ramp-Up habits */}
+      {rampUpHabits.length === 0 ? (
+        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.02] p-12 text-center text-zinc-500">
+          No active habits currently installing in Ramp-Up. Click "+ Install Habit" to start.
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2">
+          {rampUpHabits.map((habit) => {
+            const todayLog = habit.todayLog;
 
-        const anchorLabels = {
-          morning_grounding: "🌅 Morning Grounding",
-          afternoon_focus: "⚡ Afternoon Focus",
-          night_wind_down: "🌙 Night Wind Down",
-          standalone: "⚓ Standalone Anchors",
-        };
-
-        return (
-          <section key={anchor} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                {anchorLabels[anchor]}
-              </h3>
-              {rampUpHabits.length < 2 && (
-                <button
-                  onClick={() => setEditor({ open: true, habit: null, defaultAnchor: anchor })}
-                  className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add to {anchorLabels[anchor].split(" ")[1]}
-                </button>
-              )}
-            </div>
-
-            {anchorHabits.length === 0 ? (
+            return (
               <div
-                onClick={() => setEditor({ open: true, habit: null, defaultAnchor: anchor })}
-                className="rounded-2xl border border-dashed border-[var(--border)] p-4 text-center text-xs text-zinc-400 hover:border-emerald-500/50 cursor-pointer transition-colors"
+                key={habit._id}
+                onClick={() => setEditor({ open: true, habit })}
+                className="relative flex flex-col justify-between rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 transition-all hover:border-emerald-500/50 shadow-sm cursor-pointer group"
               >
-                No habits installed for this anchor. Click to assign one.
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2">
-                {anchorHabits.map((habit) => {
-                  const todayLog = habit.todayLog;
-
-                  return (
-                    <div
-                      key={habit._id}
-                      onClick={() => setEditor({ open: true, habit })}
-                      className="relative flex flex-col justify-between rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 transition-all hover:border-emerald-500/50 shadow-sm cursor-pointer group"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="rounded-full bg-zinc-100 dark:bg-white/10 px-3 py-1 text-[10px] font-semibold text-zinc-600 dark:text-zinc-300 border border-[var(--border)]">
-                            {habit.category}
-                          </span>
-                          <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                            <Award className="h-4 w-4" />
-                            <span>{habit.consecutiveMaintenanceWeeks ?? 0}/5 Weeks</span>
-                          </div>
-                        </div>
-
-                        <h4 className={`${SERIF} mt-4 text-2xl font-medium text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors`}>
-                          {habit.title}
-                        </h4>
-                        {habit.customAnchorDetail && (
-                          <p className="text-xs text-zinc-400 mt-1 italic">{habit.customAnchorDetail}</p>
-                        )}
-
-                        <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-zinc-50 dark:bg-black/40 p-3 text-xs border border-[var(--border)]">
-                          <div className="border-r border-[var(--border)] pr-2">
-                            <span className="text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400">Floor Tier</span>
-                            <p className="font-semibold text-zinc-800 dark:text-zinc-200 mt-0.5">{habit.floorMetric?.description}</p>
-                          </div>
-                          <div className="pl-2">
-                            <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Target Tier</span>
-                            <p className="font-semibold text-zinc-800 dark:text-zinc-200 mt-0.5">{habit.targetMetric?.description}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 space-y-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={(e) => handleLogToggle(habit, "floor", e)}
-                            className={`rounded-2xl border py-2.5 text-xs font-semibold transition-all ${
-                              todayLog?.threshold === "floor"
-                                ? "border-amber-500 bg-amber-500/20 text-amber-600 dark:text-amber-300"
-                                : "border-[var(--border)] bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10"
-                            }`}
-                          >
-                            {todayLog?.threshold === "floor" ? "✓ Floor Logged" : "Log Floor"}
-                          </button>
-                          <button
-                            onClick={(e) => handleLogToggle(habit, "target", e)}
-                            className={`rounded-2xl border py-2.5 text-xs font-semibold transition-all ${
-                              todayLog?.threshold === "target"
-                                ? "border-emerald-500 bg-emerald-500/20 text-emerald-600 dark:text-emerald-300"
-                                : "border-[var(--border)] bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10"
-                            }`}
-                          >
-                            {todayLog?.threshold === "target" ? "★ Target Logged" : "Log Target"}
-                          </button>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-1 text-[11px] text-zinc-400">
-                          <span className="text-zinc-400">Click card to edit</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeletingHabitId(habit._id);
-                            }}
-                            className="hover:text-rose-500 transition-colors"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-zinc-100 dark:bg-white/10 px-3 py-1 text-[10px] font-semibold text-zinc-600 dark:text-zinc-300 border border-[var(--border)]">
+                        {habit.category}
+                      </span>
+                      <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 text-[10px] font-bold border border-emerald-500/20">
+                        ⚓ {habit.contextAnchor}
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                      <Award className="h-4 w-4" />
+                      <span>{habit.consecutiveMaintenanceWeeks ?? 0}/5 Weeks</span>
+                    </div>
+                  </div>
+
+                  <h4 className={`${SERIF} mt-4 text-2xl font-medium text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors`}>
+                    {habit.title}
+                  </h4>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-zinc-50 dark:bg-black/40 p-3 text-xs border border-[var(--border)]">
+                    <div className="border-r border-[var(--border)] pr-2">
+                      <span className="text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400">Floor Tier</span>
+                      <p className="font-semibold text-zinc-800 dark:text-zinc-200 mt-0.5">{habit.floorMetric?.description}</p>
+                    </div>
+                    <div className="pl-2">
+                      <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Target Tier</span>
+                      <p className="font-semibold text-zinc-800 dark:text-zinc-200 mt-0.5">{habit.targetMetric?.description}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={(e) => handleLogToggle(habit, "floor", e)}
+                      className={`rounded-2xl border py-2.5 text-xs font-semibold transition-all ${
+                        todayLog?.threshold === "floor"
+                          ? "border-amber-500 bg-amber-500/20 text-amber-600 dark:text-amber-300"
+                          : "border-[var(--border)] bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10"
+                      }`}
+                    >
+                      {todayLog?.threshold === "floor" ? "✓ Floor Logged" : "Log Floor"}
+                    </button>
+                    <button
+                      onClick={(e) => handleLogToggle(habit, "target", e)}
+                      className={`rounded-2xl border py-2.5 text-xs font-semibold transition-all ${
+                        todayLog?.threshold === "target"
+                          ? "border-emerald-500 bg-emerald-500/20 text-emerald-600 dark:text-emerald-300"
+                          : "border-[var(--border)] bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10"
+                      }`}
+                    >
+                      {todayLog?.threshold === "target" ? "★ Target Logged" : "Log Target"}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-[11px] text-zinc-400">
+                    <span className="text-zinc-400">Click card to edit</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingHabitId(habit._id);
+                      }}
+                      className="hover:text-rose-500 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
-          </section>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 
@@ -387,7 +366,7 @@ export function HabitEngineOverlay({
                   <h4 className="text-base font-semibold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                     {habit.title}
                   </h4>
-                  <p className="text-xs text-zinc-500">{habit.category} • {habit.contextAnchor.replace("_", " ")}</p>
+                  <p className="text-xs text-zinc-500">{habit.category} • {habit.contextAnchor}</p>
                 </div>
               </div>
 
@@ -473,9 +452,7 @@ export function HabitEngineOverlay({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Banner Header with right-aligned Close X */}
-        <div
-          className="flex items-center justify-between px-6 sm:px-10 border-b border-[var(--border)] pb-4 pt-6"
-        >
+        <div className="flex items-center justify-between px-6 sm:px-10 border-b border-[var(--border)] pb-4 pt-6">
           <div className="flex items-center gap-3">
             <Flame className="h-5 w-5 text-emerald-500" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-600 dark:text-emerald-400">
@@ -503,6 +480,7 @@ export function HabitEngineOverlay({
 
           <button
             onClick={onClose}
+            type="button"
             className="rounded-full p-2 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-[var(--foreground)]"
           >
             <X className="h-5 w-5" />
@@ -552,7 +530,10 @@ export function HabitEngineOverlay({
       {deletingHabitId && (
         <div
           className="fixed inset-0 z-[260] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setDeletingHabitId(null)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeletingHabitId(null);
+          }}
         >
           <div
             className="w-full max-w-sm rounded-3xl border border-[var(--border)] bg-white dark:bg-[#181922] p-6 shadow-2xl text-[var(--foreground)]"
@@ -567,13 +548,17 @@ export function HabitEngineOverlay({
             </p>
             <div className="mt-6 flex justify-end gap-3">
               <button
-                onClick={() => setDeletingHabitId(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeletingHabitId(null);
+                }}
                 className="rounded-full px-4 py-2 text-xs font-semibold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
               >
                 Cancel
               </button>
               <button
-                onClick={async () => {
+                onClick={async (e) => {
+                  e.stopPropagation();
                   await deleteHabit({ id: deletingHabitId });
                   setDeletingHabitId(null);
                 }}

@@ -12,25 +12,11 @@ function parseSessionId(raw?: string) {
   return { actualSessionId: raw, vipToken: undefined };
 }
 
-const habitCategoryValidator = v.union(
-  v.literal("Mental"),
-  v.literal("Physical"),
-  v.literal("Social"),
-  v.literal("Creative")
-);
-
 const habitStatusValidator = v.union(
   v.literal("queued"),
   v.literal("ramp_up"),
   v.literal("maintenance"),
   v.literal("paused")
-);
-
-const contextAnchorValidator = v.union(
-  v.literal("morning_grounding"),
-  v.literal("afternoon_focus"),
-  v.literal("night_wind_down"),
-  v.literal("standalone")
 );
 
 const metricValidator = v.object({
@@ -102,11 +88,12 @@ export const getHabits = query({
 export const createHabit = mutation({
   args: {
     title: v.string(),
-    category: habitCategoryValidator,
+    category: v.string(),
     status: habitStatusValidator,
     floorMetric: metricValidator,
     targetMetric: metricValidator,
-    contextAnchor: contextAnchorValidator,
+    contextAnchor: v.string(),
+    customAnchorDetail: v.optional(v.string()),
     weeklyGraceTokens: v.optional(v.number()),
     sessionId: v.optional(v.string()),
   },
@@ -131,7 +118,7 @@ export const createHabit = mutation({
 
       if (activeCount >= 2) {
         throw new Error(
-          "Ego Depletion Protection: Capacity reached. You can only maintain 2 habits in active Ramp-Up simultaneously. Graduate or pause an active habit first."
+          "Ego Depletion Protection: Capacity reached. Maximum of 2 active Ramp-Up habits allowed. Graduate or pause an active habit first."
         );
       }
     }
@@ -159,6 +146,7 @@ export const createHabit = mutation({
       floorMetric: args.floorMetric,
       targetMetric: args.targetMetric,
       contextAnchor: args.contextAnchor,
+      customAnchorDetail: args.customAnchorDetail,
       consecutiveMaintenanceWeeks: 0,
       graduatedAt: null,
       weeklyGraceTokens: args.weeklyGraceTokens ?? 2,
@@ -171,6 +159,13 @@ export const updateHabitStatus = mutation({
   args: {
     id: v.id("habits"),
     status: habitStatusValidator,
+    title: v.optional(v.string()),
+    category: v.optional(v.string()),
+    contextAnchor: v.optional(v.string()),
+    customAnchorDetail: v.optional(v.string()),
+    floorMetric: v.optional(metricValidator),
+    targetMetric: v.optional(metricValidator),
+    weeklyGraceTokens: v.optional(v.number()),
     sessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -202,6 +197,14 @@ export const updateHabitStatus = mutation({
     }
 
     const updates: Partial<typeof habit> = { status: args.status };
+    if (args.title) updates.title = args.title;
+    if (args.category) updates.category = args.category;
+    if (args.contextAnchor) updates.contextAnchor = args.contextAnchor;
+    if (args.customAnchorDetail !== undefined) updates.customAnchorDetail = args.customAnchorDetail;
+    if (args.floorMetric) updates.floorMetric = args.floorMetric;
+    if (args.targetMetric) updates.targetMetric = args.targetMetric;
+    if (args.weeklyGraceTokens !== undefined) updates.weeklyGraceTokens = args.weeklyGraceTokens;
+
     if (args.status === "maintenance" && habit.status !== "maintenance") {
       updates.graduatedAt = Date.now();
     }
@@ -216,7 +219,7 @@ export const updateHabitStatus = mutation({
 export const logDailyHabit = mutation({
   args: {
     habitId: v.id("habits"),
-    dateStr: v.string(), // YYYY-MM-DD
+    dateStr: v.string(),
     value: v.number(),
     threshold: v.union(
       v.literal("floor"),
@@ -299,7 +302,6 @@ export const submitWeeklyCheckIn = mutation({
     const srbaiAvg = (args.srbaiQ1 + args.srbaiQ2 + args.srbaiQ3 + args.srbaiQ4) / 4;
     const calculatedAutomaticityScore = Math.round((srbaiAvg / 7) * 100);
 
-    // Qualification standard: SRBAI >= 5.5/7 AND Effort <= 3/10 AND Resilience >= 4/5
     const passed = srbaiAvg >= 5.5 && args.perceivedEffort <= 3 && args.stressResilience >= 4;
 
     let newStreak = habit.consecutiveMaintenanceWeeks ?? 0;
@@ -336,7 +338,6 @@ export const submitWeeklyCheckIn = mutation({
       sessionId: identity ? undefined : actualSessionId,
     });
 
-    // Check if there is a top queued habit eligible for promotion
     let topQueuedHabit: Doc<"habits"> | null = null;
     if (didGraduate) {
       let allHabits: Doc<"habits">[] = [];
