@@ -1,4 +1,3 @@
-// page.tsx
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
@@ -20,9 +19,10 @@ import { FocusSettingsModal } from "@/components/views/FocusSettingsModal";
 import { TouchBaseModal } from "@/components/views/TouchBaseModal";
 import { InstallScreen } from "@/components/views/InstallScreen";
 import { GoalSanctuaryOverlay } from "@/components/views/GoalSanctuaryOverlay";
+import { HabitEngineOverlay } from "@/components/views/sanctuaryHabits/HabitEngineOverlay";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff, Clock, Command } from "lucide-react";
+import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff, Clock, Command, Flame } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
@@ -102,7 +102,7 @@ function ThemeToggle() {
   );
 }
 
-function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [query, setQuery] = useState("");
   const sessionId = useGuestSession();
   const tasks = useOfflineQuery(api.tasks.getTasks, { sessionId: sessionId ?? undefined }, "getTasks");
@@ -303,6 +303,7 @@ function HomeContent() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isTouchBaseOpen, setIsTouchBaseOpen] = useState(false);
   const [isGoalSanctuaryOpen, setIsGoalSanctuaryOpen] = useState(false);
+  const [isHabitsOpen, setIsHabitsOpen] = useState(false);
   const [isNearFocusButton, setIsNearFocusButton] = useState(false);
 
   const [sessionType, setSessionType] = useState<"none" | "demo" | "vip">("none");
@@ -362,7 +363,6 @@ function HomeContent() {
     }
   }, []);
 
-  // Global mouse proximity detector for focus button smooth animation
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       const dist = Math.hypot(
@@ -375,7 +375,6 @@ function HomeContent() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
-  // Keyboard shortcut listeners (Cmd+K / Ctrl+K for search, G for Goals, Esc to close)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -385,9 +384,14 @@ function HomeContent() {
         const target = e.target as HTMLElement;
         if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
         setIsGoalSanctuaryOpen((prev) => !prev);
+      } else if (e.key.toLowerCase() === "h") {
+        const target = e.target as HTMLElement;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+        setIsHabitsOpen((prev) => !prev);
       } else if (e.key === "Escape") {
         setIsSearchOpen(false);
         setIsGoalSanctuaryOpen(false);
+        setIsHabitsOpen(false);
         setIsImportModalOpen(false);
         setIsProjectModalOpen(false);
         setIsTouchBaseOpen(false);
@@ -718,6 +722,15 @@ function HomeContent() {
               )}
             </button>
 
+            <button
+              onClick={() => setIsHabitsOpen(true)}
+              className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors px-2 py-1 rounded-md relative"
+              title="Habit Engine (Press H)"
+            >
+              <Flame className="w-4 h-4 text-emerald-500" />
+              <span className="hidden sm:inline">Habits <span className="text-[10px] font-normal text-zinc-400 border border-[var(--border)] rounded px-1 py-0.5 ml-0.5">H</span></span>
+            </button>
+
             {isSignedIn && (
               <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors px-2 py-1 rounded-md">
                 <Zap className="w-4 h-4" /> Import
@@ -758,6 +771,7 @@ function HomeContent() {
 
         <TaskDetailsPane />
         <GoalSanctuaryOverlay isOpen={isGoalSanctuaryOpen} onClose={() => setIsGoalSanctuaryOpen(false)} />
+        <HabitEngineOverlay isOpen={isHabitsOpen} onClose={() => setIsHabitsOpen(false)} />
         <GlobalSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
         <ImportProjectModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
         <ProjectManagerModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} />
