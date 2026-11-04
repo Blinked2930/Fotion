@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Sparkles, AlertCircle, ChevronDown, Check, Anchor } from "lucide-react";
+import { X, Sparkles, AlertCircle, ChevronDown, Check } from "lucide-react";
 import { SERIF } from "@/components/views/sanctuary/theme";
 
 export interface HabitFormValues {
@@ -9,6 +9,7 @@ export interface HabitFormValues {
   category: string;
   status: "queued" | "ramp_up" | "maintenance" | "paused";
   contextAnchor: "morning_grounding" | "afternoon_focus" | "night_wind_down" | "standalone";
+  customAnchorDetail?: string;
   floorMetric: { description: string; value: number; unit: string };
   targetMetric: { description: string; value: number; unit: string };
   weeklyGraceTokens: number;
@@ -16,43 +17,29 @@ export interface HabitFormValues {
 
 interface HabitEditorModalProps {
   initial?: any | null;
+  defaultAnchor?: "morning_grounding" | "afternoon_focus" | "night_wind_down" | "standalone";
+  defaultStatus?: "queued" | "ramp_up" | "maintenance" | "paused";
   activeRampUpCount: number;
   onClose: () => void;
   onSave: (values: HabitFormValues) => Promise<void>;
 }
 
 const CATEGORIES = [
-  { id: "Physical", label: "Physical", color: "text-amber-400 bg-amber-400/10 border-amber-400/20" },
-  { id: "Mental", label: "Mental", color: "text-blue-400 bg-blue-400/10 border-blue-400/20" },
-  { id: "Creative", label: "Creative", color: "text-purple-400 bg-purple-400/10 border-purple-400/20" },
-  { id: "Social", label: "Social", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
-  { id: "Financial", label: "Financial", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
-  { id: "Productivity", label: "Productivity", color: "text-indigo-400 bg-indigo-400/10 border-indigo-400/20" },
-  { id: "Mindfulness", label: "Mindfulness", color: "text-rose-400 bg-rose-400/10 border-rose-400/20" },
-  { id: "Health & Nutrition", label: "Health & Nutrition", color: "text-teal-400 bg-teal-400/10 border-teal-400/20" },
+  { id: "Physical", label: "Physical" },
+  { id: "Mental", label: "Mental" },
+  { id: "Creative", label: "Creative" },
+  { id: "Social", label: "Social" },
+  { id: "Financial", label: "Financial" },
+  { id: "Productivity", label: "Productivity" },
+  { id: "Mindfulness", label: "Mindfulness" },
+  { id: "Health & Nutrition", label: "Health & Nutrition" },
 ];
 
 const ANCHORS = [
-  {
-    id: "morning_grounding",
-    title: "🌅 Morning Grounding",
-    desc: "Executes right after waking, morning coffee, or sunrise routine.",
-  },
-  {
-    id: "afternoon_focus",
-    title: "⚡ Afternoon Focus",
-    desc: "Executes mid-day before or after primary deep work blocks.",
-  },
-  {
-    id: "night_wind_down",
-    title: "🌙 Night Wind Down",
-    desc: "Executes post-dinner, evening closure, or pre-bedtime prep.",
-  },
-  {
-    id: "standalone",
-    title: "⚓ Standalone Anchor",
-    desc: "Trigger-based habit tied to a specific daily event or location.",
-  },
+  { id: "morning_grounding", label: "Morning Grounding" },
+  { id: "afternoon_focus", label: "Afternoon Focus" },
+  { id: "night_wind_down", label: "Night Wind Down" },
+  { id: "standalone", label: "Standalone Trigger" },
 ];
 
 function CustomSelect({
@@ -63,7 +50,7 @@ function CustomSelect({
 }: {
   value: string;
   onChange: (val: string) => void;
-  options: { id: string; title?: string; label?: string; desc?: string }[];
+  options: { id: string; label: string }[];
   label: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -89,9 +76,7 @@ function CustomSelect({
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between rounded-2xl border border-[var(--border)] bg-zinc-100 dark:bg-[#1a1b26] px-4 py-3 text-sm text-[var(--foreground)] transition-all hover:border-emerald-500/50"
       >
-        <span className="truncate font-medium">
-          {selectedOption?.title || selectedOption?.label || value}
-        </span>
+        <span className="truncate font-medium">{selectedOption?.label || value}</span>
         <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -105,17 +90,14 @@ function CustomSelect({
                 onChange(opt.id);
                 setOpen(false);
               }}
-              className={`flex w-full items-start justify-between rounded-xl p-2.5 text-left text-xs transition-colors ${
+              className={`flex w-full items-center justify-between rounded-xl p-2.5 text-left text-xs transition-colors ${
                 value === opt.id
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold"
                   : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5"
               }`}
             >
-              <div>
-                <div className="font-medium text-sm">{opt.title || opt.label}</div>
-                {opt.desc && <div className="mt-0.5 text-[11px] text-zinc-500 leading-tight">{opt.desc}</div>}
-              </div>
-              {value === opt.id && <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />}
+              <span>{opt.label}</span>
+              {value === opt.id && <Check className="h-4 w-4 text-emerald-500 shrink-0" />}
             </button>
           ))}
         </div>
@@ -126,6 +108,8 @@ function CustomSelect({
 
 export function HabitEditorModal({
   initial,
+  defaultAnchor,
+  defaultStatus,
   activeRampUpCount,
   onClose,
   onSave,
@@ -133,11 +117,12 @@ export function HabitEditorModal({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [category, setCategory] = useState(initial?.category ?? "Physical");
   const [status, setStatus] = useState<"queued" | "ramp_up" | "maintenance" | "paused">(
-    initial?.status ?? (activeRampUpCount < 2 ? "ramp_up" : "queued")
+    initial?.status ?? defaultStatus ?? (activeRampUpCount < 2 ? "ramp_up" : "queued")
   );
   const [contextAnchor, setContextAnchor] = useState<
     "morning_grounding" | "afternoon_focus" | "night_wind_down" | "standalone"
-  >(initial?.contextAnchor ?? "morning_grounding");
+  >(initial?.contextAnchor ?? defaultAnchor ?? "morning_grounding");
+  const [customAnchorDetail, setCustomAnchorDetail] = useState(initial?.customAnchorDetail ?? "");
 
   const [floorDesc, setFloorDesc] = useState(initial?.floorMetric?.description ?? "");
   const [floorVal, setFloorVal] = useState<number | "">(initial?.floorMetric?.value ?? "");
@@ -176,6 +161,7 @@ export function HabitEditorModal({
         category,
         status,
         contextAnchor,
+        customAnchorDetail: customAnchorDetail.trim() || undefined,
         floorMetric: { description: floorDesc.trim(), value: Number(floorVal) || 1, unit: floorUnit.trim() },
         targetMetric: { description: targetDesc.trim(), value: Number(targetVal) || 1, unit: targetUnit.trim() },
         weeklyGraceTokens: Number(graceTokens),
@@ -248,6 +234,19 @@ export function HabitEditorModal({
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+              Custom Trigger Detail (Optional)
+            </label>
+            <input
+              type="text"
+              value={customAnchorDetail}
+              onChange={(e) => setCustomAnchorDetail(e.target.value)}
+              placeholder="e.g. Immediately after morning espresso"
+              className="w-full rounded-2xl border border-[var(--border)] bg-zinc-50 dark:bg-white/5 px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
               Lifecycle Status
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -268,7 +267,7 @@ export function HabitEditorModal({
             </div>
             {isRampUpBlocked && (
               <p className="mt-2 text-xs text-amber-500">
-                ⚠️ Ramp-up capacity full (2/2). Select queued or pause existing to open space.
+                ⚠️ Ramp-up capacity full (2/2). Select queued or maintenance to open space.
               </p>
             )}
           </div>
@@ -290,7 +289,7 @@ export function HabitEditorModal({
                   type="number"
                   value={floorVal}
                   onChange={(e) => setFloorVal(e.target.value === "" ? "" : Number(e.target.value))}
-                  placeholder="Target qty (e.g. 1)"
+                  placeholder="Quantity (e.g. 1)"
                   className="rounded-xl border border-[var(--border)] bg-white dark:bg-white/5 px-3 py-2 text-xs outline-none focus:border-emerald-500"
                 />
                 <input
@@ -317,7 +316,7 @@ export function HabitEditorModal({
                   type="number"
                   value={targetVal}
                   onChange={(e) => setTargetVal(e.target.value === "" ? "" : Number(e.target.value))}
-                  placeholder="Target qty (e.g. 15)"
+                  placeholder="Quantity (e.g. 15)"
                   className="rounded-xl border border-[var(--border)] bg-white dark:bg-white/5 px-3 py-2 text-xs outline-none focus:border-emerald-500"
                 />
                 <input
