@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Check, ArrowUp, ArrowDown, ShieldAlert, Award } from "lucide-react";
+import { X, Plus, Check, ArrowUp, ArrowDown, ShieldAlert, Award, BarChart3, RotateCcw } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useGuestSession } from "@/hooks/useGuestSession";
@@ -12,7 +12,7 @@ import { SERIF } from "@/components/views/sanctuary/theme";
 import { HabitEditorModal } from "@/components/views/sanctuaryHabits/HabitEditorModal";
 import { WeeklySRBAIWizard } from "@/components/views/sanctuaryHabits/WeeklySRBAIWizard";
 
-type HabitTab = "active" | "maintenance" | "queue" | "checkin";
+type HabitTab = "active" | "maintenance" | "queue" | "stats" | "checkin";
 
 export function HabitEngineOverlay({
   isOpen,
@@ -90,12 +90,15 @@ export function HabitEngineOverlay({
     setEditor({ open: false, habit: null });
   };
 
-  const handleLog = async (habitId: Id<"habits">, threshold: "floor" | "target" | "grace_token_used", value: number) => {
+  const handleLogToggle = async (habit: any, threshold: "floor" | "target") => {
+    const isAlreadyLogged = habit.todayLog?.threshold === threshold;
+    const metricVal = threshold === "floor" ? habit.floorMetric?.value : habit.targetMetric?.value;
+
     await logDailyHabit({
-      habitId,
+      habitId: habit._id,
       dateStr: todayStr,
-      value,
-      threshold,
+      value: isAlreadyLogged ? 0 : metricVal ?? 1,
+      threshold: isAlreadyLogged ? "missed" : threshold,
       sessionId: sessionId ?? undefined,
     });
   };
@@ -114,34 +117,36 @@ export function HabitEngineOverlay({
   };
 
   const tabClass = (t: HabitTab) =>
-    `rounded-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-zinc-400 ${
-      activeTab === t ? "text-emerald-400 font-semibold" : "text-zinc-400 hover:text-zinc-200"
+    `rounded-lg px-3 py-1.5 text-xs font-semibold outline-none transition-colors ${
+      activeTab === t
+        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+        : "text-zinc-500 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-white/5"
     }`;
 
   const renderActiveRampUpView = () => (
     <div className="space-y-8 animate-in fade-in">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[var(--border)] bg-zinc-50 dark:bg-white/[0.02] p-6 backdrop-blur-md">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
             System Ramp-Up Capacity
           </span>
-          <h2 className={`${SERIF} text-2xl font-medium text-white`}>
+          <h2 className={`${SERIF} text-2xl font-medium text-[var(--foreground)]`}>
             {rampUpHabits.length} / 2 Active Slot Limit
           </h2>
-          <p className="mt-1 text-xs text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Ego depletion protection limits concurrent habit installation to guarantee focus.
           </p>
         </div>
 
         {rampUpHabits.length >= 2 ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-300">
+          <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-600 dark:text-amber-300">
             <ShieldAlert className="h-4 w-4 shrink-0" />
             <span>Capacity Reached. Graduate or Pause to add more.</span>
           </div>
         ) : (
           <button
             onClick={() => setEditor({ open: true, habit: null })}
-            className="flex items-center gap-2 rounded-full bg-emerald-400 px-5 py-2.5 text-xs font-bold text-black shadow-lg hover:bg-emerald-300"
+            className="flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-xs font-bold text-white dark:text-black shadow-lg hover:bg-emerald-400"
           >
             <Plus className="h-4 w-4" /> Install Habit
           </button>
@@ -161,7 +166,7 @@ export function HabitEngineOverlay({
 
         return (
           <section key={anchor} className="space-y-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
               {anchorLabels[anchor]}
             </h3>
 
@@ -172,29 +177,29 @@ export function HabitEngineOverlay({
                 return (
                   <div
                     key={habit._id}
-                    className="relative flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:border-white/20"
+                    className="relative flex flex-col justify-between rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 transition-all hover:border-emerald-500/40 shadow-sm"
                   >
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-semibold text-zinc-300">
+                        <span className="rounded-full bg-zinc-100 dark:bg-white/10 px-3 py-1 text-[10px] font-semibold text-zinc-600 dark:text-zinc-300 border border-[var(--border)]">
                           {habit.category}
                         </span>
-                        <div className="flex items-center gap-1 text-xs text-emerald-400">
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                           <Award className="h-4 w-4" />
-                          <span>{habit.consecutiveMaintenanceWeeks ?? 0}/5 Wks</span>
+                          <span>{habit.consecutiveMaintenanceWeeks ?? 0}/5 Weeks</span>
                         </div>
                       </div>
 
-                      <h4 className={`${SERIF} mt-4 text-2xl font-medium text-white`}>{habit.title}</h4>
+                      <h4 className={`${SERIF} mt-4 text-2xl font-medium text-[var(--foreground)]`}>{habit.title}</h4>
 
-                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-black/40 p-3 text-xs">
-                        <div className="border-r border-white/10 pr-2">
-                          <span className="text-[10px] uppercase text-amber-400">Floor Tier</span>
-                          <p className="font-semibold text-zinc-200">{habit.floorMetric?.description}</p>
+                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-zinc-50 dark:bg-black/40 p-3 text-xs border border-[var(--border)]">
+                        <div className="border-r border-[var(--border)] pr-2">
+                          <span className="text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400">Floor Tier</span>
+                          <p className="font-semibold text-zinc-800 dark:text-zinc-200 mt-0.5">{habit.floorMetric?.description}</p>
                         </div>
                         <div className="pl-2">
-                          <span className="text-[10px] uppercase text-emerald-400">Target Tier</span>
-                          <p className="font-semibold text-zinc-200">{habit.targetMetric?.description}</p>
+                          <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Target Tier</span>
+                          <p className="font-semibold text-zinc-800 dark:text-zinc-200 mt-0.5">{habit.targetMetric?.description}</p>
                         </div>
                       </div>
                     </div>
@@ -202,42 +207,37 @@ export function HabitEngineOverlay({
                     <div className="mt-6 space-y-3">
                       <div className="grid grid-cols-2 gap-2">
                         <button
-                          onClick={() =>
-                            handleLog(habit._id, "floor", habit.floorMetric?.value ?? 1)
-                          }
+                          onClick={() => handleLogToggle(habit, "floor")}
                           className={`rounded-2xl border py-2.5 text-xs font-semibold transition-all ${
                             todayLog?.threshold === "floor"
-                              ? "border-amber-400 bg-amber-400/20 text-amber-300"
-                              : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
+                              ? "border-amber-500 bg-amber-500/20 text-amber-600 dark:text-amber-300"
+                              : "border-[var(--border)] bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10"
                           }`}
                         >
-                          ✓ Log Floor
+                          {todayLog?.threshold === "floor" ? "✓ Floor Logged" : "Log Floor"}
                         </button>
                         <button
-                          onClick={() =>
-                            handleLog(habit._id, "target", habit.targetMetric?.value ?? 1)
-                          }
+                          onClick={() => handleLogToggle(habit, "target")}
                           className={`rounded-2xl border py-2.5 text-xs font-semibold transition-all ${
                             todayLog?.threshold === "target"
-                              ? "border-emerald-400 bg-emerald-400/20 text-emerald-300"
-                              : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
+                              ? "border-emerald-500 bg-emerald-500/20 text-emerald-600 dark:text-emerald-300"
+                              : "border-[var(--border)] bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10"
                           }`}
                         >
-                          ★ Log Target
+                          {todayLog?.threshold === "target" ? "★ Target Logged" : "Log Target"}
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between pt-1 text-[11px] text-zinc-400">
+                      <div className="flex items-center justify-between pt-1 text-[11px] text-zinc-500">
                         <button
-                          onClick={() => handleLog(habit._id, "grace_token_used", 0)}
-                          disabled={habit.graceTokensRemaining <= 0}
-                          className="hover:text-amber-400 disabled:opacity-30"
+                          onClick={() => setEditor({ open: true, habit })}
+                          className="hover:text-emerald-500"
                         >
-                          Use Grace Token ({habit.graceTokensRemaining} left)
+                          Edit Habit
                         </button>
                         <button
                           onClick={() => deleteHabit({ id: habit._id })}
-                          className="hover:text-rose-400"
+                          className="hover:text-rose-500"
                         >
                           Delete
                         </button>
@@ -253,25 +253,66 @@ export function HabitEngineOverlay({
     </div>
   );
 
+  const renderStatsView = () => (
+    <div className="space-y-8 animate-in fade-in">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 text-center">
+          <span className="text-xs font-semibold uppercase text-zinc-400">Total Active Systems</span>
+          <div className={`${SERIF} text-4xl font-bold mt-2 text-emerald-500`}>{rampUpHabits.length + maintenanceHabits.length}</div>
+        </div>
+        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 text-center">
+          <span className="text-xs font-semibold uppercase text-zinc-400">Graduated Baselines</span>
+          <div className={`${SERIF} text-4xl font-bold mt-2 text-blue-500`}>{maintenanceHabits.length}</div>
+        </div>
+        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 text-center">
+          <span className="text-xs font-semibold uppercase text-zinc-400">Backlog Queued</span>
+          <div className={`${SERIF} text-4xl font-bold mt-2 text-purple-500`}>{queuedHabits.length}</div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-6 space-y-6">
+        <h3 className={`${SERIF} text-xl font-medium text-[var(--foreground)]`}>Habit Performance & Automaticity</h3>
+        {habits.map((h) => (
+          <div key={h._id} className="space-y-2 border-b border-[var(--border)] pb-4 last:border-none">
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span>{h.title}</span>
+              <span className="text-xs font-bold text-emerald-500 uppercase">{h.status.replace("_", " ")}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-zinc-500">
+              <span>Automaticity Streak: {h.consecutiveMaintenanceWeeks ?? 0} / 5 Weeks</span>
+              <span>Grace Tokens: {h.graceTokensRemaining ?? 2} Remaining</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-zinc-100 dark:bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-500"
+                style={{ width: `${Math.min(100, ((h.consecutiveMaintenanceWeeks ?? 0) / 5) * 100)}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   const renderQueueView = () => (
     <div className="space-y-6 animate-in fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className={`${SERIF} text-3xl font-medium text-white`}>Ranked Backlog Queue</h2>
-          <p className="text-xs text-zinc-400">
+          <h2 className={`${SERIF} text-3xl font-medium text-[var(--foreground)]`}>Ranked Backlog Queue</h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Prioritized pipeline waiting for open Ramp-Up capacity.
           </p>
         </div>
         <button
           onClick={() => setEditor({ open: true, habit: null })}
-          className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-bold text-black hover:bg-zinc-200"
+          className="flex items-center gap-2 rounded-full bg-emerald-500 text-white dark:bg-white dark:text-black px-5 py-2.5 text-xs font-bold hover:bg-emerald-400 dark:hover:bg-zinc-200"
         >
           <Plus className="h-4 w-4" /> Queue Habit
         </button>
       </div>
 
       {queuedHabits.length === 0 ? (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-12 text-center text-zinc-500">
+        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.02] p-12 text-center text-zinc-500">
           No habits currently in queue backlog.
         </div>
       ) : (
@@ -279,15 +320,15 @@ export function HabitEngineOverlay({
           {queuedHabits.map((habit, idx) => (
             <div
               key={habit._id}
-              className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+              className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-white dark:bg-white/[0.03] p-4 shadow-sm"
             >
               <div className="flex items-center gap-4">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-xs font-bold text-emerald-400">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                   #{idx + 1}
                 </span>
                 <div>
-                  <h4 className="text-base font-semibold text-white">{habit.title}</h4>
-                  <p className="text-xs text-zinc-400">{habit.category} • {habit.contextAnchor.replace("_", " ")}</p>
+                  <h4 className="text-base font-semibold text-[var(--foreground)]">{habit.title}</h4>
+                  <p className="text-xs text-zinc-500">{habit.category} • {habit.contextAnchor.replace("_", " ")}</p>
                 </div>
               </div>
 
@@ -295,21 +336,21 @@ export function HabitEngineOverlay({
                 <button
                   onClick={() => handleMoveQueue(idx, "up")}
                   disabled={idx === 0}
-                  className="rounded-lg border border-white/10 p-2 text-zinc-400 hover:bg-white/10 disabled:opacity-20"
+                  className="rounded-lg border border-[var(--border)] p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-20"
                 >
                   <ArrowUp className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => handleMoveQueue(idx, "down")}
                   disabled={idx === queuedHabits.length - 1}
-                  className="rounded-lg border border-white/10 p-2 text-zinc-400 hover:bg-white/10 disabled:opacity-20"
+                  className="rounded-lg border border-[var(--border)] p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-20"
                 >
                   <ArrowDown className="h-4 w-4" />
                 </button>
                 {rampUpHabits.length < 2 && (
                   <button
                     onClick={() => promoteQueuedHabit({ habitId: habit._id, sessionId: sessionId ?? undefined })}
-                    className="ml-2 rounded-xl bg-emerald-400 px-4 py-2 text-xs font-bold text-black hover:bg-emerald-300"
+                    className="ml-2 rounded-xl bg-emerald-500 text-white dark:bg-emerald-400 dark:text-black px-4 py-2 text-xs font-bold hover:bg-emerald-400"
                   >
                     Promote Now
                   </button>
@@ -324,13 +365,13 @@ export function HabitEngineOverlay({
 
   const renderMaintenanceView = () => (
     <div className="space-y-6 animate-in fade-in">
-      <h2 className={`${SERIF} text-3xl font-medium text-white`}>Graduated Baseline Systems</h2>
-      <p className="text-xs text-zinc-400">
+      <h2 className={`${SERIF} text-3xl font-medium text-[var(--foreground)]`}>Graduated Baseline Systems</h2>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         Habits that have reached full automaticity (5+ consecutive qualifying weeks).
       </p>
 
       {maintenanceHabits.length === 0 ? (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-12 text-center text-zinc-500">
+        <div className="rounded-3xl border border-[var(--border)] bg-white dark:bg-white/[0.02] p-12 text-center text-zinc-500">
           No graduated maintenance habits yet. Complete 5 consecutive weekly check-in evaluations to graduate.
         </div>
       ) : (
@@ -338,16 +379,16 @@ export function HabitEngineOverlay({
           {maintenanceHabits.map((habit) => (
             <div
               key={habit._id}
-              className="rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-zinc-100"
+              className="rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-[var(--foreground)]"
             >
               <div className="flex items-center justify-between">
-                <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-[10px] font-bold text-emerald-300">
+                <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
                   Graduated Baseline
                 </span>
-                <Check className="h-5 w-5 text-emerald-400" />
+                <Check className="h-5 w-5 text-emerald-500" />
               </div>
-              <h4 className={`${SERIF} mt-3 text-2xl font-medium text-white`}>{habit.title}</h4>
-              <p className="mt-2 text-xs text-zinc-400">
+              <h4 className={`${SERIF} mt-3 text-2xl font-medium text-[var(--foreground)]`}>{habit.title}</h4>
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                 Target Maintenance: {habit.targetMetric?.description}
               </p>
             </div>
@@ -358,37 +399,43 @@ export function HabitEngineOverlay({
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-[240] animate-in fade-in duration-300">
-      <div className="pointer-events-none absolute inset-0 bg-[#0a0b10]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgba(16,185,129,0.15),transparent),radial-gradient(45%_40%_at_95%_8%,rgba(99,102,241,0.1),transparent)]" />
-
-      <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl flex-col">
+    <div
+      className="fixed inset-0 z-[240] animate-in fade-in duration-300 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="relative z-10 w-full max-w-6xl h-[90vh] flex flex-col rounded-3xl border border-[var(--border)] bg-white dark:bg-[#0a0b10] text-[var(--foreground)] shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div
-          className="flex flex-wrap items-center justify-between gap-y-3 px-6 sm:px-10"
-          style={{ paddingTop: "calc(var(--sat, 0px) + 1.5rem)" }}
+          className="flex flex-wrap items-center justify-between gap-y-3 px-6 sm:px-10 border-b border-[var(--border)] pb-4"
+          style={{ paddingTop: "calc(var(--sat, 0px) + 1.25rem)" }}
         >
           <div className="flex items-center gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-400">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-600 dark:text-emerald-400">
               Habit Engine
             </span>
           </div>
 
           <button
             onClick={onClose}
-            className="rounded-full p-2.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+            className="rounded-full p-2.5 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-[var(--foreground)]"
           >
             <X className="h-5 w-5" />
           </button>
 
-          <nav className="order-3 flex w-full items-center gap-6 text-xs font-medium sm:order-2 sm:w-auto">
+          <nav className="order-3 flex w-full items-center gap-2 sm:gap-4 text-xs font-medium sm:order-2 sm:w-auto">
             <button onClick={() => setActiveTab("active")} className={tabClass("active")}>
               Ramp-Up ({rampUpHabits.length}/2)
             </button>
             <button onClick={() => setActiveTab("queue")} className={tabClass("queue")}>
-              Backlog Queue ({queuedHabits.length})
+              Queue ({queuedHabits.length})
             </button>
             <button onClick={() => setActiveTab("maintenance")} className={tabClass("maintenance")}>
               Maintenance ({maintenanceHabits.length})
+            </button>
+            <button onClick={() => setActiveTab("stats")} className={tabClass("stats")}>
+              Statistics
             </button>
             <button onClick={() => setActiveTab("checkin")} className={tabClass("checkin")}>
               Weekly Check-In
@@ -396,10 +443,11 @@ export function HabitEngineOverlay({
           </nav>
         </div>
 
-        <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-28 pt-8 sm:px-10">
+        <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-20 pt-6 sm:px-10">
           {activeTab === "active" && renderActiveRampUpView()}
           {activeTab === "queue" && renderQueueView()}
           {activeTab === "maintenance" && renderMaintenanceView()}
+          {activeTab === "stats" && renderStatsView()}
           {activeTab === "checkin" && (
             <WeeklySRBAIWizard
               habits={habits}
