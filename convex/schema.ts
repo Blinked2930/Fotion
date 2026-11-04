@@ -172,4 +172,70 @@ export default defineSchema({
   })
     .index("by_sessionId", ["sessionId"])
     .index("by_dateStr", ["dateStr"]),
+
+  // --- Habit Engine Tables ---
+  habits: defineTable({
+    title: v.string(),
+    category: v.union(v.literal("Mental"), v.literal("Physical"), v.literal("Social"), v.literal("Creative")),
+    status: v.union(v.literal("queued"), v.literal("ramp_up"), v.literal("maintenance"), v.literal("paused")),
+    queueRank: v.optional(v.number()),
+    floorMetric: v.object({
+      description: v.string(),
+      value: v.number(),
+      unit: v.string(),
+    }),
+    targetMetric: v.object({
+      description: v.string(),
+      value: v.number(),
+      unit: v.string(),
+    }),
+    contextAnchor: v.union(
+      v.literal("morning_grounding"),
+      v.literal("afternoon_focus"),
+      v.literal("night_wind_down"),
+      v.literal("standalone")
+    ),
+    consecutiveMaintenanceWeeks: v.number(),
+    graduatedAt: v.optional(v.union(v.number(), v.null())),
+    weeklyGraceTokens: v.number(), // Default limit per week (usually 2)
+    sessionId: v.optional(v.string()),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_status", ["status"])
+    .index("by_queueRank", ["queueRank"]),
+
+  habitLogs: defineTable({
+    habitId: v.id("habits"),
+    dateStr: v.string(), // YYYY-MM-DD
+    value: v.number(),
+    threshold: v.union(
+      v.literal("floor"),
+      v.literal("target"),
+      v.literal("missed"),
+      v.literal("grace_token_used")
+    ),
+    notes: v.optional(v.string()),
+    sessionId: v.optional(v.string()),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_habit", ["habitId"])
+    .index("by_habit_date", ["habitId", "dateStr"]),
+
+  habitCheckIns: defineTable({
+    habitId: v.id("habits"),
+    weekStartDate: v.string(), // YYYY-MM-DD (Monday of target week)
+    srbaiQ1: v.number(), // 1-7 scale: Lack of thinking
+    srbaiQ2: v.number(), // 1-7 scale: Automaticity
+    srbaiQ3: v.number(), // 1-7 scale: Difficulty NOT doing it
+    srbaiQ4: v.number(), // 1-7 scale: Lack of conscious remembering
+    perceivedEffort: v.number(), // 1-10 scale (lower is better)
+    stressResilience: v.number(), // 1-5 scale (higher is better)
+    calculatedAutomaticityScore: v.number(), // Percentage representation
+    passed: v.boolean(),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    sessionId: v.optional(v.string()),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_habit", ["habitId"]),
 });

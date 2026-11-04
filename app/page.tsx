@@ -1,3 +1,4 @@
+// page.tsx
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
@@ -21,7 +22,7 @@ import { InstallScreen } from "@/components/views/InstallScreen";
 import { GoalSanctuaryOverlay } from "@/components/views/GoalSanctuaryOverlay";
 import { useAuth, useClerk, SignInButton } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff, Clock } from "lucide-react";
+import { Folder, Zap, Settings, LogOut, Download, Search, X, Loader2, Moon, Sun, ArrowRight, CheckCircle2, Target, WifiOff, Clock, Command } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PushToggle } from "@/components/ui/PushToggle";
@@ -138,11 +139,14 @@ function GlobalSearchModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search all tasks and notes..."
+            placeholder="Search all tasks and notes... (Press Esc to exit)"
             className="flex-1 bg-transparent text-lg text-[var(--foreground)] outline-none placeholder:text-zinc-500"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <span className="hidden sm:inline-flex items-center gap-1 text-xs text-zinc-400 border border-[var(--border)] px-1.5 py-0.5 rounded font-mono">
+            Esc
+          </span>
           <button onClick={onClose} className="p-1 text-zinc-400 hover:text-[var(--foreground)] bg-zinc-100 dark:bg-zinc-800 rounded-md">
             <X className="w-5 h-5" />
           </button>
@@ -358,16 +362,39 @@ function HomeContent() {
     }
   }, []);
 
+  // Global mouse proximity detector for focus button smooth animation
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const dist = Math.hypot(
+        window.innerWidth - e.clientX,
+        window.innerHeight - e.clientY
+      );
+      setIsNearFocusButton(dist < 220);
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
+  // Keyboard shortcut listeners (Cmd+K / Ctrl+K for search, G for Goals, Esc to close)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key.toLowerCase() === 'g') {
-            const target = e.target as HTMLElement;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-            setIsGoalSanctuaryOpen(prev => !prev);
-        }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      } else if (e.key.toLowerCase() === "g") {
+        const target = e.target as HTMLElement;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+        setIsGoalSanctuaryOpen((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setIsSearchOpen(false);
+        setIsGoalSanctuaryOpen(false);
+        setIsImportModalOpen(false);
+        setIsProjectModalOpen(false);
+        setIsTouchBaseOpen(false);
+      }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const activeVipToken = guestSessionId?.match(/\|\|vip_(.+)$/)?.[1];
@@ -623,16 +650,7 @@ function HomeContent() {
         </div>
       )}
 
-      {/*
-        HEADER
-
-        Deliberately NOT sticky/fixed and NOT touching the very top edge:
-        on recent iOS the system blurs content pinned to the top of the screen
-        (the status-bar "scroll edge effect"), which blurred these icons.
-        The header is a normal, flat, solid block that starts below that zone,
-        the same way the Sanctuary header does (safe area + 1.5rem).
-        No gradients, no backdrop-filter, nothing painted over the icons.
-      */}
+      {/* Header */}
       <header
         className="relative z-10 top-wash min-h-12"
         style={{ paddingTop: "calc(var(--sat, 0px) + 1.5rem)" }}
@@ -653,8 +671,15 @@ function HomeContent() {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <button onClick={() => setIsSearchOpen(true)} className="flex items-center justify-center p-1.5 text-zinc-500 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors mr-1">
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="flex items-center justify-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1 text-zinc-500 hover:text-[var(--foreground)] hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors mr-1"
+              title="Search tasks (Cmd + K)"
+            >
               <Search className="w-4 h-4" />
+              <span className="hidden md:inline-flex items-center text-[10px] text-zinc-400 border border-[var(--border)] rounded px-1 font-mono">
+                <Command className="w-2.5 h-2.5 mr-0.5" />K
+              </span>
             </button>
 
             <ExportButton />
@@ -744,7 +769,7 @@ function HomeContent() {
         <button
           onClick={focusSession.expand}
           style={{ marginBottom: "var(--sab, 0px)" }}
-          className={`fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-[50] flex items-center gap-2 bg-white dark:bg-[#252525] border border-[var(--border)] text-[var(--foreground)] font-bold px-6 py-3.5 rounded-full shadow-2xl shadow-black/5 transition-all duration-300 active:scale-95 ${isNearFocusButton ? 'sm:opacity-100 sm:translate-y-0' : 'sm:opacity-20 sm:translate-y-2'}`}
+          className={`fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-[50] flex items-center gap-2 bg-white dark:bg-[#252525] border border-[var(--border)] text-[var(--foreground)] font-bold px-6 py-3.5 rounded-full shadow-2xl shadow-black/5 transition-all duration-300 active:scale-95 ${isNearFocusButton ? 'sm:opacity-100 sm:translate-y-0' : 'sm:opacity-40 sm:translate-y-1'}`}
         >
           <Target className="w-5 h-5 text-zinc-500" /> Start Focus {focusedTasks.length > 0 ? `(${focusedTasks.length})` : ""}
         </button>

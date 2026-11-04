@@ -1,3 +1,4 @@
+// layout.tsx
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
@@ -23,17 +24,30 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Fotion",
-  description: "A lightning-fast, local-first PWA for task management",
+  title: {
+    default: "Fotion",
+    template: "%s | Fotion",
+  },
+  description: "A lightning-fast, local-first PWA for task management and deep focus.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Fotion",
   },
+  openGraph: {
+    title: "Fotion",
+    description: "A lightning-fast, local-first PWA for task management and deep focus.",
+    siteName: "Fotion",
+    type: "website",
+  },
 };
 
-// No static themeColor here — ThemeColorSync owns the meta tag at runtime.
+// ThemeColorSync handles runtime dynamic theme-color meta tag updates.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -53,7 +67,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="relative min-h-full flex flex-col bg-[var(--background)]">
+      <body className="relative min-h-full flex flex-col bg-[var(--background)] text-[var(--foreground)] selection:bg-emerald-500/20 selection:text-emerald-600 dark:selection:text-emerald-400">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ThemeColorSync />
           <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
