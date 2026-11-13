@@ -194,7 +194,7 @@ function ProjectSelect({ value, onChange }: { value?: string | null, onChange: (
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[300] flex items-center justify-center animate-in fade-in duration-200 p-4">
+        <div className="fixed inset-0 bg-black/50 z-[300] flex items-center justify-center animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-[var(--border)]">
             <h3 className="font-bold text-lg text-[var(--foreground)] mb-4">New Project</h3>
             <input
@@ -360,7 +360,7 @@ function PaneContent() {
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    const preventFocusScroll = (e: Event) => {
+    const preventDesktopFocusScroll = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (
         target?.matches('input[type="checkbox"]') &&
@@ -370,11 +370,21 @@ function PaneContent() {
         e.preventDefault();
       }
     };
-    document.addEventListener('mousedown', preventFocusScroll, true);
-    document.addEventListener('touchstart', preventFocusScroll, { passive: false, capture: true });
+    const blurCheckboxAfterChange = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (
+        target?.matches('input[type="checkbox"]') &&
+        paneRef.current &&
+        paneRef.current.contains(target)
+      ) {
+        target.blur();
+      }
+    };
+    document.addEventListener('mousedown', preventDesktopFocusScroll, true);
+    document.addEventListener('change', blurCheckboxAfterChange, true);
     return () => {
-      document.removeEventListener('mousedown', preventFocusScroll, true);
-      document.removeEventListener('touchstart', preventFocusScroll, true);
+      document.removeEventListener('mousedown', preventDesktopFocusScroll, true);
+      document.removeEventListener('change', blurCheckboxAfterChange, true);
     };
   }, []);
 
@@ -451,6 +461,28 @@ function PaneContent() {
   const dirtyRef = useRef(false);
   const lastSavedHtmlRef = useRef("");
   const pendingSavesRef = useRef(0);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushEditorDescription = (currentEditor: any) => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const { taskId: activeId, needsToAccept: isViewOnly } = editorStateRef.current;
+    if (!activeId || isViewOnly || !currentEditor) return;
+
+    const html = currentEditor.getHTML();
+    dirtyRef.current = false;
+    if (html === lastSavedHtmlRef.current) return;
+
+    lastSavedHtmlRef.current = html;
+    pendingSavesRef.current += 1;
+    Promise.resolve(updateTaskRef.current({ id: activeId, description: html }))
+      .catch(() => { })
+      .finally(() => {
+        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+      });
+  };
 
   const editor = useEditor({
     extensions: [
@@ -459,26 +491,23 @@ function PaneContent() {
     ],
     content: "",
     immediatelyRender: false,
-    onUpdate: () => {
+    onUpdate: ({ editor }) => {
       dirtyRef.current = true;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        flushEditorDescription(editor);
+      }, 400);
     },
     onBlur: ({ editor }) => {
-      const { taskId, needsToAccept: isViewOnly } = editorStateRef.current;
-      if (!taskId || isViewOnly) return;
-
-      const html = editor.getHTML();
-      dirtyRef.current = false;
-      if (html === lastSavedHtmlRef.current) return;
-
-      lastSavedHtmlRef.current = html;
-      pendingSavesRef.current += 1;
-      Promise.resolve(updateTaskRef.current({ id: taskId, description: html }))
-        .catch(() => { })
-        .finally(() => {
-          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-        });
+      flushEditorDescription(editor);
     },
   });
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => { if (task) setTitle(task.title); }, [task]);
 
@@ -526,6 +555,7 @@ function PaneContent() {
   }, [editor, needsToAccept]);
 
   const closePane = () => {
+    if (editor) flushEditorDescription(editor);
     closeTaskDetails();
   };
 
@@ -538,9 +568,16 @@ function PaneContent() {
     };
     document.addEventListener("pointerdown", handleClickOutside, true);
     return () => document.removeEventListener("pointerdown", handleClickOutside, true);
-  }, [showDeleteModal, router, isPaneOpen]);
+  }, [showDeleteModal, router, isPaneOpen, editor]);
 
-  const onTouchStart = (e: React.TouchEvent) => { setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }); };
+  const onTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('ul[data-type="taskList"] li > label')) {
+      setTouchStart(null);
+      return;
+    }
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
   const onTouchEnd = (e: React.TouchEvent) => {
     if (!touchStart) return;
     const dy = Math.abs(touchStart.y - e.changedTouches[0].clientY);
@@ -624,9 +661,9 @@ function PaneContent() {
         .tiptap p { margin-bottom: 0.5rem; }
         .tiptap ul[data-type="taskList"] { list-style: none; padding: 0; margin: 0; }
         .tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; margin-bottom: 0.25rem; }
-        .tiptap ul[data-type="taskList"] li > label { margin-right: 0.5rem; user-select: none; }
+        .tiptap ul[data-type="taskList"] li > label { margin-right: 0.35rem; margin-top: -0.15rem; min-width: 28px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; user-select: none; touch-action: manipulation; cursor: pointer; }
         .tiptap p.is-editor-empty:first-child::before { color: #a1a1aa; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
-        .tiptap input[type="checkbox"] { appearance: none; background-color: transparent; margin: 0; font: inherit; color: currentColor; width: 1.15em; height: 1.15em; border: 1px solid #d4d4d8; border-radius: 0.25em; display: grid; place-content: center; cursor: pointer; scroll-margin-top: 24px; }
+        .tiptap input[type="checkbox"] { appearance: none; -webkit-appearance: none; background-color: transparent; margin: 0; font: inherit; color: currentColor; width: 1.2em; height: 1.2em; border: 1px solid #d4d4d8; border-radius: 0.25em; display: grid; place-content: center; cursor: pointer; touch-action: manipulation; scroll-margin-top: 24px; }
         .tiptap input[type="checkbox"]::before { content: ""; width: 0.65em; height: 0.65em; transform: scale(0); transition: 120ms transform ease-in-out; box-shadow: inset 1em 1em white; background-color: white; transform-origin: center; clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
         .tiptap input[type="checkbox"]:checked { background-color: #f472b6; border-color: #f472b6; }
         .tiptap input[type="checkbox"]:checked::before { transform: scale(1); }
@@ -800,7 +837,7 @@ function PaneContent() {
       </div>
 
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[300] flex items-center justify-center animate-in fade-in duration-200 p-4">
+        <div className="fixed inset-0 bg-black/50 z-[300] flex items-center justify-center animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-[#1c1c1c] p-6 rounded-2xl shadow-2xl w-full max-w-sm animate-in zoom-in-95 duration-200 border border-[var(--border)]">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
