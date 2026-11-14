@@ -41,6 +41,108 @@ const DoubleSpaceFix = Extension.create({
 });
 
 const CustomTaskItem = TaskItem.extend({
+  addNodeView() {
+    return ({ node, HTMLAttributes, getPos, editor }) => {
+      const listItem = document.createElement('li');
+      const checkboxWrapper = document.createElement('label');
+      const checkboxStyler = document.createElement('span');
+      const checkbox = document.createElement('input');
+      const content = document.createElement('div');
+
+      checkboxWrapper.contentEditable = 'false';
+      checkbox.type = 'checkbox';
+      checkbox.tabIndex = -1;
+
+      Object.entries(HTMLAttributes).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          listItem.setAttribute(key, String(value));
+        }
+      });
+
+      listItem.dataset.checked = String(Boolean(node.attrs.checked));
+      checkbox.checked = Boolean(node.attrs.checked);
+
+      let wasEditorFocused = false;
+
+      const toggleCheckedState = (nextChecked: boolean) => {
+        if (!editor.isEditable) {
+          checkbox.checked = !nextChecked;
+          return;
+        }
+
+        if (typeof getPos === 'function') {
+          const position = getPos();
+          if (typeof position === 'number') {
+            const currentNode = editor.state.doc.nodeAt(position);
+            const tr = editor.state.tr.setNodeMarkup(position, undefined, {
+              ...currentNode?.attrs,
+              checked: nextChecked,
+            });
+            editor.view.dispatch(tr);
+          }
+        }
+
+        checkbox.blur();
+        if (!wasEditorFocused && document.activeElement === editor.view.dom) {
+          (editor.view.dom as HTMLElement).blur();
+        }
+      };
+
+      checkboxWrapper.addEventListener(
+        'touchstart',
+        () => {
+          wasEditorFocused = editor.isFocused;
+        },
+        { passive: true }
+      );
+
+      checkboxWrapper.addEventListener('mousedown', (event) => {
+        wasEditorFocused = editor.isFocused;
+        event.preventDefault();
+      });
+
+      checkboxWrapper.addEventListener('click', (event) => {
+        if (event.target === checkbox) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const nextChecked = !checkbox.checked;
+        checkbox.checked = nextChecked;
+        toggleCheckedState(nextChecked);
+      });
+
+      checkbox.addEventListener('change', (event) => {
+        const nextChecked = (event.target as HTMLInputElement).checked;
+        toggleCheckedState(nextChecked);
+      });
+
+      checkboxWrapper.append(checkbox, checkboxStyler);
+      listItem.append(checkboxWrapper, content);
+
+      return {
+        dom: listItem,
+        contentDOM: content,
+        update: (updatedNode) => {
+          if (updatedNode.type !== this.type) {
+            return false;
+          }
+          listItem.dataset.checked = String(Boolean(updatedNode.attrs.checked));
+          checkbox.checked = Boolean(updatedNode.attrs.checked);
+          return true;
+        },
+        stopEvent: (event) => {
+          const target = event.target as Node | null;
+          return !!(target && checkboxWrapper.contains(target));
+        },
+        ignoreMutation: (mutation) => {
+          if (mutation.type === 'selection') {
+            return false;
+          }
+          return !content.contains(mutation.target) || content === mutation.target;
+        },
+      };
+    };
+  },
+
   addKeyboardShortcuts() {
     const parentShortcuts = this.parent?.() || {};
     const typeName = this.name;
