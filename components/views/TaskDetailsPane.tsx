@@ -886,39 +886,37 @@ function PaneContent() {
         ) : (
           <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-6 sm:px-10 py-10 space-y-6 sm:space-y-8 pb-24 max-w-full">
 
-            <div className="sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-white dark:bg-[#121212] transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  {task.isPublic && (
-                    <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-200 dark:border-blue-900/50">
-                      <Globe className="w-3 h-3" /> {isSignedIn ? "Public Link Active" : "Shared By Owner"}
-                    </span>
-                  )}
-                  {hasAccepted && (
-                    <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded border border-purple-200 dark:border-purple-900/50">
-                      <CheckSquare className="w-3 h-3" /> Saved to My Fotion
-                    </span>
-                  )}
-                </div>
-
-                {isSignedIn && (
-                  <div className="flex items-center gap-2">
-                    {task.isPublic && (
-                      <button
-                        type="button"
-                        onClick={() => updateTask({ id: displayTaskId, isPublic: false, shareToken: "", sharedWithSessions: [] })}
-                        className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
-                      >
-                        Revoke Access
-                      </button>
-                    )}
-                    <button type="button" onClick={handleShare} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${isCopied ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'}`}>
-                      {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
-                      {isCopied ? "Link Copied!" : (task.isPublic ? "Copy Link" : "Share Task")}
-                    </button>
-                  </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {task.isPublic && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-200 dark:border-blue-900/50">
+                    <Globe className="w-3 h-3" /> {isSignedIn ? "Public Link Active" : "Shared By Owner"}
+                  </span>
+                )}
+                {hasAccepted && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded border border-purple-200 dark:border-purple-900/50">
+                    <CheckSquare className="w-3 h-3" /> Saved to My Fotion
+                  </span>
                 )}
               </div>
+
+              {isSignedIn && (
+                <div className="flex items-center gap-2">
+                  {task.isPublic && (
+                    <button
+                      type="button"
+                      onClick={() => updateTask({ id: displayTaskId, isPublic: false, shareToken: "", sharedWithSessions: [] })}
+                      className="text-[11px] font-medium text-zinc-400 hover:text-red-500 transition-colors px-2 outline-none"
+                    >
+                      Revoke Access
+                    </button>
+                  )}
+                  <button type="button" onClick={handleShare} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shadow-sm border ${isCopied ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' : 'bg-white hover:bg-zinc-50 text-[var(--foreground)] border-[var(--border)] dark:bg-[#252525] dark:hover:bg-zinc-800'}`}>
+                    {isCopied ? <Check className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
+                    {isCopied ? "Link Copied!" : (task.isPublic ? "Copy Link" : "Share Task")}
+                  </button>
+                </div>
+              )}
             </div>
 
             {needsToAccept && (
