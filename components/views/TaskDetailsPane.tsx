@@ -533,7 +533,20 @@ function PaneContent() {
     }
   }, [taskId]);
 
-  const task = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId, sessionId: guestSessionId ?? undefined } : "skip");
+  const rawTask = useQuery(api.tasks.getTask, displayTaskId ? { id: displayTaskId, sessionId: guestSessionId ?? undefined } : "skip");
+
+  const lastValidTaskRef = useRef<any>(null);
+  if (lastValidTaskRef.current && lastValidTaskRef.current._id !== displayTaskId) {
+    lastValidTaskRef.current = null;
+  }
+  if (rawTask && rawTask._id === displayTaskId) {
+    lastValidTaskRef.current = rawTask;
+  } else if (rawTask === null) {
+    lastValidTaskRef.current = null;
+  }
+  const task = (rawTask && rawTask._id === displayTaskId)
+    ? rawTask
+    : (rawTask === null ? null : lastValidTaskRef.current);
 
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
   const deleteTask = useOfflineSyncMutation(api.tasks.deleteTask, "deleteTask");
@@ -572,14 +585,31 @@ function PaneContent() {
     }
     const { taskId: activeId, needsToAccept: isViewOnly } = editorStateRef.current;
     if (!activeId || isViewOnly || !currentEditor) return;
+    if (loadedTaskIdRef.current !== activeId) return;
 
     const html = currentEditor.getHTML();
+    const wasDirty = dirtyRef.current;
     dirtyRef.current = false;
-    if (html === lastSavedHtmlRef.current) return;
+
+    if (html === lastSavedHtmlRef.current) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`fotion-note-draft-${activeId}`);
+      }
+      return;
+    }
+
+    const isHtmlEmpty = !html || html === "<p></p>";
+    const hadContent = !!lastSavedHtmlRef.current && lastSavedHtmlRef.current !== "<p></p>";
+    if (isHtmlEmpty && hadContent && !wasDirty) return;
 
     lastSavedHtmlRef.current = html;
     pendingSavesRef.current += 1;
     Promise.resolve(updateTaskRef.current({ id: activeId, description: html }))
+      .then(() => {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(`fotion-note-draft-${activeId}`);
+        }
+      })
       .catch(() => { })
       .finally(() => {
         pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
@@ -594,7 +624,15 @@ function PaneContent() {
     content: "",
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
+      const { taskId: activeId, needsToAccept: isViewOnly } = editorStateRef.current;
+      if (!activeId || isViewOnly || loadedTaskIdRef.current !== activeId) return;
+
       dirtyRef.current = true;
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`fotion-note-draft-${activeId}`, editor.getHTML());
+        } catch { }
+      }
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         flushEditorDescription(editor);
@@ -604,6 +642,25 @@ function PaneContent() {
       flushEditorDescription(editor);
     },
   });
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && editor && dirtyRef.current) {
+        flushEditorDescription(editor);
+      }
+    };
+    const handlePageHide = () => {
+      if (editor && dirtyRef.current) {
+        flushEditorDescription(editor);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [editor]);
 
   useEffect(() => {
     return () => {
@@ -623,7 +680,7 @@ function PaneContent() {
   useEffect(() => {
     if (!editor) return;
 
-    if (!task || task._id !== displayTaskId) {
+    if (!displayTaskId || task === null) {
       loadedTaskIdRef.current = null;
       dirtyRef.current = false;
       lastSavedHtmlRef.current = "";
@@ -631,9 +688,41 @@ function PaneContent() {
       return;
     }
 
+    if (!task || task._id !== displayTaskId) {
+      if (loadedTaskIdRef.current && loadedTaskIdRef.current !== displayTaskId) {
+        loadedTaskIdRef.current = null;
+        dirtyRef.current = false;
+        lastSavedHtmlRef.current = "";
+        if (editor.getHTML() !== "<p></p>") editor.commands.setContent("", { emitUpdate: false });
+      }
+      return;
+    }
+
     const incoming = task.description || "";
 
     if (loadedTaskIdRef.current !== task._id) {
+      let draft: string | null = null;
+      if (typeof window !== "undefined") {
+        try {
+          draft = localStorage.getItem(`fotion-note-draft-${task._id}`);
+        } catch { }
+      }
+
+      if (draft && draft !== incoming) {
+        editor.commands.setContent(draft, { emitUpdate: false });
+        loadedTaskIdRef.current = task._id;
+        lastSavedHtmlRef.current = incoming;
+        dirtyRef.current = true;
+        flushEditorDescription(editor);
+        return;
+      }
+
+      if (draft) {
+        try {
+          localStorage.removeItem(`fotion-note-draft-${task._id}`);
+        } catch { }
+      }
+
       editor.commands.setContent(incoming, { emitUpdate: false });
       loadedTaskIdRef.current = task._id;
       dirtyRef.current = false;
@@ -647,7 +736,7 @@ function PaneContent() {
     if (editor.getHTML() !== incoming) {
       editor.commands.setContent(incoming, { emitUpdate: false });
     }
-    lastSavedHtmlRef.current = incoming;
+    lastSavedHtmlRef.current = editor.getHTML();
   }, [task, displayTaskId, editor]);
 
   useEffect(() => {
@@ -790,7 +879,7 @@ function PaneContent() {
         onMouseLeave={() => setIsNearBottom(false)}
         className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[540px] bg-white dark:bg-[#121212] sm:border-l border-[var(--border)] z-[250] flex flex-col transition-transform duration-[350ms] ease-out max-w-full overflow-x-hidden antialiased ${isOpen ? "translate-x-0 sm:shadow-2xl" : "translate-x-full shadow-none pointer-events-none"}`}
       >
-        {(!displayTaskId || task === undefined) ? (
+        {(!displayTaskId || !task) && task !== null ? (
           <div className="flex-1 flex items-center justify-center">{displayTaskId && <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />}</div>
         ) : task === null ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500">Task not found.</div>
