@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Check, Calendar, List, AlignLeft, Folder, Clock, Send } from "lucide-react";
+import { Check, Calendar, List, AlignLeft, Folder, Clock, Send, Target } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
 import { getListColor, getProjectColor } from "../views/NewTaskForm";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { openTaskDetails } from "@/components/views/TaskDetailsPane";
@@ -118,9 +119,20 @@ export function TaskCard({
 }) {
   const updateTask = useOfflineSyncMutation(api.tasks.updateTask, "updateTask");
 
+  const { isSignedIn } = useAuth();
   const sessionId = useGuestSession();
   const projects = useQuery(api.projects.getProjects, { sessionId: sessionId ?? undefined });
   const goals = useQuery(api.goals.getGoals, { sessionId: sessionId ?? undefined });
+
+  const actualSessionId = sessionId?.split("||vip_")[0];
+  const isOwner = !!(isSignedIn || (task?.sessionId && task.sessionId === actualSessionId));
+  const isSharedViewer = !!(!isOwner && task?.shareToken && sessionId?.includes(`vip_${task.shareToken}`));
+  const hasAccepted = !!(isSharedViewer && actualSessionId && task?.sharedWithSessions?.includes(actualSessionId));
+  const needsToAccept = !!(isSharedViewer && !hasAccepted);
+
+  const isTaskFocused = isOwner
+    ? !!task?.isFocused
+    : !!(actualSessionId && task?.focusedSessions?.includes(actualSessionId));
 
   const toggleTaskCompletion = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -134,6 +146,22 @@ export function TaskCard({
 
   const handleInlineUpdate = (field: string, value: any) => {
     updateTask({ id: task._id, [field]: value });
+  };
+
+  const handleToggleFocus = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (needsToAccept) return;
+
+    if (isOwner) {
+      handleInlineUpdate("isFocused", !task.isFocused);
+    } else if (actualSessionId) {
+      const currentFocused = task.focusedSessions || [];
+      const newFocused = currentFocused.includes(actualSessionId)
+        ? currentFocused.filter((id: string) => id !== actualSessionId)
+        : [...currentFocused, actualSessionId];
+      handleInlineUpdate("focusedSessions", newFocused);
+    }
   };
 
   const isDone = task.status === "done";
@@ -233,20 +261,41 @@ export function TaskCard({
             <span className="text-[14px] sm:text-[15px] font-medium text-[var(--foreground)] break-words leading-tight mt-0.5">
               <HighlightText text={task.title} query={searchQuery} />
             </span>
-            {task.description && task.description !== "<p></p>" && (
-              <span
-                className={`shrink-0 p-1.5 rounded-md ${
-                  isOverdue
-                    ? "text-red-400 dark:text-red-500"
-                    : demandsAttentionToday
-                    ? "text-amber-400 dark:text-amber-500"
-                    : "text-zinc-400 dark:text-zinc-500"
-                }`}
-                title="Contains notes"
-              >
-                <AlignLeft className="w-4 h-4" />
-              </span>
-            )}
+            <div className="flex items-center gap-1 shrink-0">
+              {!needsToAccept && (
+                <button
+                  type="button"
+                  onClick={handleToggleFocus}
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                    isTaskFocused
+                      ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                      : isOverdue
+                      ? "text-red-300 dark:text-red-700/70 hover:text-emerald-500 hover:bg-red-100/50 dark:hover:bg-red-900/30"
+                      : demandsAttentionToday
+                      ? "text-amber-400/80 dark:text-amber-600/80 hover:text-emerald-500 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
+                      : "text-zinc-300 dark:text-zinc-600 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  }`}
+                  title={isTaskFocused ? "Remove from Focus Session" : "Add to Focus Session"}
+                  aria-label={isTaskFocused ? "Remove from Focus Session" : "Add to Focus Session"}
+                >
+                  <Target className="w-4 h-4" />
+                </button>
+              )}
+              {task.description && task.description !== "<p></p>" && (
+                <span
+                  className={`p-1.5 rounded-md ${
+                    isOverdue
+                      ? "text-red-400 dark:text-red-500"
+                      : demandsAttentionToday
+                      ? "text-amber-400 dark:text-amber-500"
+                      : "text-zinc-400 dark:text-zinc-500"
+                  }`}
+                  title="Contains notes"
+                >
+                  <AlignLeft className="w-4 h-4" />
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
